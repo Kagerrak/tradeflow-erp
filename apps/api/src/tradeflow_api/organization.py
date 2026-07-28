@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Header, Response
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import delete, insert, select, text, update
+from sqlalchemy import delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tradeflow_api.auth import (
@@ -25,7 +25,6 @@ from tradeflow_api.models import (
     branches,
     capabilities,
     companies,
-    platform_command_receipts,
     role_template_capabilities,
     role_templates,
     user_branch_scopes,
@@ -217,6 +216,59 @@ def invalid_assignment(message: str) -> AppError:
     )
 
 
+async def enforce_role_template_management_scope(
+    session: AsyncSession,
+    *,
+    actor: AuthorizedUser,
+    role_template_id: UUID,
+) -> None:
+    assignees = set(
+        (
+            await session.execute(
+                select(user_role_templates.c.user_subject).where(
+                    user_role_templates.c.role_template_id == role_template_id
+                )
+            )
+        ).scalars()
+    )
+    if actor.subject in assignees:
+        raise AppError(
+            status_code=403,
+            code="self_assignment_forbidden",
+            message="An Operations Administrator cannot change a Role Template assigned to them.",
+        )
+    if not assignees:
+        return
+    assigned_branch_ids = set(
+        (
+            await session.execute(
+                select(user_branch_scopes.c.branch_id).where(
+                    user_branch_scopes.c.user_subject.in_(assignees)
+                )
+            )
+        ).scalars()
+    )
+    assigned_warehouse_ids = set(
+        (
+            await session.execute(
+                select(user_warehouse_scopes.c.warehouse_id).where(
+                    user_warehouse_scopes.c.user_subject.in_(assignees)
+                )
+            )
+        ).scalars()
+    )
+    if not assigned_branch_ids.issubset(actor.branch_ids) or not (
+        assigned_warehouse_ids.issubset(actor.warehouse_ids)
+    ):
+        raise AppError(
+            status_code=403,
+            code="operational_scope_required",
+            message=(
+                "The Role Template has assignees outside the administrator's Operational Scope."
+            ),
+        )
+
+
 def require_command_headers(
     *,
     expected_version: int | None,
@@ -349,6 +401,15 @@ async def configure_role_template(
             request_hash=request_hash,
         )
         if replay is not None:
+            replay_role_id = await session.scalar(
+                select(role_templates.c.role_template_id).where(role_templates.c.code == role_code)
+            )
+            if replay_role_id is not None:
+                await enforce_role_template_management_scope(
+                    session,
+                    actor=actor,
+                    role_template_id=replay_role_id,
+                )
             response.headers["X-Idempotency-Replayed"] = "true"
             return RoleTemplateResponse.model_validate(replay)
 
@@ -362,6 +423,12 @@ async def configure_role_template(
                 .with_for_update()
             )
         ).one_or_none()
+        if existing is not None:
+            await enforce_role_template_management_scope(
+                session,
+                actor=actor,
+                role_template_id=existing.role_template_id,
+            )
         if existing is None:
             if expected_version != 0:
                 raise AppError(
@@ -1038,29 +1105,16 @@ async def bootstrap_organization(
 
     request_hash = sha256(command.model_dump_json().encode()).hexdigest()
     async with session.begin():
-        await session.execute(
-            text("SELECT pg_advisory_xact_lock(hashtext(:idempotency_key))"),
-            {"idempotency_key": idempotency_key},
+        replay = await get_command_replay(
+            session,
+            actor_subject=actor.subject,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
         )
-        receipt = (
-            await session.execute(
-                select(
-                    platform_command_receipts.c.request_hash,
-                    platform_command_receipts.c.response_json,
-                ).where(platform_command_receipts.c.idempotency_key == idempotency_key)
-            )
-        ).one_or_none()
-        if receipt is not None:
-            stored_hash, stored_response = receipt
-            if stored_hash != request_hash:
-                raise AppError(
-                    status_code=409,
-                    code="idempotency_conflict",
-                    message="Idempotency-Key was already used for another command.",
-                )
+        if replay is not None:
             response.status_code = 200
             response.headers["X-Idempotency-Replayed"] = "true"
-            return OrganizationBootstrapResponse.model_validate(stored_response)
+            return OrganizationBootstrapResponse.model_validate(replay)
 
         existing_company = await session.scalar(select(companies.c.company_id).limit(1))
         if existing_company is not None:
@@ -1235,14 +1289,12 @@ async def bootstrap_organization(
             branches=branch_responses,
             configured_users=len(command.users),
         )
-        await session.execute(
-            insert(platform_command_receipts).values(
-                command_id=uuid4(),
-                idempotency_key=idempotency_key,
-                actor_subject=actor.subject,
-                request_hash=request_hash,
-                response_json=result.model_dump(mode="json"),
-            )
+        await store_command_result(
+            session,
+            actor_subject=actor.subject,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+            result=result,
         )
 
     response.status_code = 201

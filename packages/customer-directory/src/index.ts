@@ -11,6 +11,12 @@ export type CustomerDirectoryItem = {
   version: number;
 };
 
+export const customerPaymentTimingLabels = {
+  cash_on_delivery: "Cash on delivery",
+  on_account: "On account",
+  prepaid: "Prepaid",
+} as const;
+
 export type CustomerDirectoryState =
   | {
       correlationId: string;

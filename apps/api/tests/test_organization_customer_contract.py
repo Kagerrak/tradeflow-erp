@@ -1073,6 +1073,42 @@ async def test_scoped_admin_cannot_delegate_outside_live_operational_scope(
     assert self_escalation.status_code == 403
     assert self_escalation.json()["error"]["code"] == "self_assignment_forbidden"
 
+    self_role_headers = user_headers(
+        organization_settings,
+        subject="mnl-admin",
+        idempotency_key="mnl-admin-expands-own-role",
+    )
+    self_role_headers["If-Match"] = "1"
+    self_role = await organization_client.put(
+        "/v1/organization/role-templates/OPS_ADMIN",
+        headers=self_role_headers,
+        json={
+            "name": "Operations Administrator",
+            "is_active": True,
+            "capabilities": ["organization:admin", "customer:write"],
+        },
+    )
+    assert self_role.status_code == 403
+    assert self_role.json()["error"]["code"] == "self_assignment_forbidden"
+
+    outside_role_headers = user_headers(
+        organization_settings,
+        subject="mnl-admin",
+        idempotency_key="mnl-admin-expands-cross-scope-role",
+    )
+    outside_role_headers["If-Match"] = "1"
+    outside_role = await organization_client.put(
+        "/v1/organization/role-templates/SALES_REP",
+        headers=outside_role_headers,
+        json={
+            "name": "Sales Representative",
+            "is_active": True,
+            "capabilities": ["customer:read", "customer:write"],
+        },
+    )
+    assert outside_role.status_code == 403
+    assert outside_role.json()["error"]["code"] == "operational_scope_required"
+
     outside = await organization_client.put(
         "/v1/organization/users/unauthorized-ceb-user",
         headers=outside_headers,

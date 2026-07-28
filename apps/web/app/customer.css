@@ -291,6 +291,8 @@
 }
 
 .close-action {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
   border: 0;
   border-bottom: 1px solid var(--ink-950);
   padding: 0.4rem 0;

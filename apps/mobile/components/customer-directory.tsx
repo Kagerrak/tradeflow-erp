@@ -1,4 +1,5 @@
 import {
+  customerPaymentTimingLabels,
   searchCustomerDirectory,
   type CustomerDirectoryState,
   type SearchCustomerDirectoryOptions,
@@ -24,12 +25,6 @@ export type CustomerDirectoryProps = {
 };
 
 type ScreenState = CustomerDirectoryState | { kind: "loading" };
-
-const paymentLabels = {
-  cash_on_delivery: "Cash on delivery",
-  on_account: "On account",
-  prepaid: "Prepaid",
-} as const;
 
 export function CustomerDirectory({
   accessToken,
@@ -221,7 +216,7 @@ function DirectoryState({
           <Text style={styles.accountName}>{customer.legalName}</Text>
           <View style={styles.accountTerms}>
             <Text style={styles.term}>
-              {paymentLabels[customer.paymentTimingPolicy]}
+              {customerPaymentTimingLabels[customer.paymentTimingPolicy]}
             </Text>
             <Text style={[styles.term, customer.creditHold && styles.hold]}>
               {customer.creditHold ? "CREDIT HOLD" : "CREDIT CLEAR"}

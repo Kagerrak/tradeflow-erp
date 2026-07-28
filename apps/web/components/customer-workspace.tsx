@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  customerPaymentTimingLabels,
   type CreateCustomerAccountInput,
   type CustomerCreationState,
   type CustomerDirectoryState,
@@ -40,12 +41,6 @@ type WorkspaceState =
       reason: "forbidden" | "unauthenticated" | "unavailable";
     }
   | { kind: "ready"; scope: Extract<Scope, { branches: Branch[] }> };
-
-const paymentLabels = {
-  cash_on_delivery: "Cash on delivery",
-  on_account: "On account",
-  prepaid: "Prepaid",
-} as const;
 
 async function loadScope(): Promise<Scope> {
   const response = await fetch("/api/customer-scope", {
@@ -347,7 +342,9 @@ function Directory({
                   {customer.status}
                 </span>
               </td>
-              <td>{paymentLabels[customer.paymentTimingPolicy]}</td>
+              <td>
+                {customerPaymentTimingLabels[customer.paymentTimingPolicy]}
+              </td>
               <td>{customer.creditHold ? "On hold" : "Clear"}</td>
             </tr>
           ))}
