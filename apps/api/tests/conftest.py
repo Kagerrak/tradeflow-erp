@@ -5,7 +5,7 @@ import os
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import delete
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 from tradeflow_api.models import metadata
 
@@ -32,8 +32,10 @@ async def clean_database(
     postgres_url: str,
 ) -> None:
     del migrated_database
+    if os.environ.get("TRADEFLOW_REAL_STACK") == "1":
+        return
     engine = create_async_engine(postgres_url)
     async with engine.begin() as connection:
-        for table in reversed(metadata.sorted_tables):
-            await connection.execute(delete(table))
+        table_names = ", ".join(f'"{table.name}"' for table in metadata.sorted_tables)
+        await connection.execute(text(f"TRUNCATE TABLE {table_names} CASCADE"))
     await engine.dispose()

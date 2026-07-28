@@ -42,6 +42,16 @@ def test_external_organization_and_customer_contract() -> None:
             },
             {"capabilities": ["customer:read", "customer:write"], "code": "SALES", "name": "Sales"},
             {
+                "capabilities": [
+                    "catalog:write",
+                    "inventory:post",
+                    "inventory:read",
+                    "inventory:rebuild",
+                ],
+                "code": "INVENTORY",
+                "name": "Inventory Controller",
+            },
+            {
                 "capabilities": ["customer:credit-approve"],
                 "code": "CREDIT_APPROVER",
                 "name": "Credit Approver",
@@ -58,8 +68,9 @@ def test_external_organization_and_customer_contract() -> None:
             {
                 "branch_codes": ["MNL"],
                 "display_name": "Manila Sales",
-                "role_template_codes": ["SALES", "CREDIT_APPROVER"],
+                "role_template_codes": ["SALES", "CREDIT_APPROVER", "INVENTORY"],
                 "subject": "sales-mnl",
+                "warehouse_codes": ["MNL-01"],
                 "approval_authorities": [
                     {
                         "branch_code": "MNL",

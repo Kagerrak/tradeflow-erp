@@ -17,6 +17,7 @@
     "@tradeflow/api-client": "workspace:*",
     "@tradeflow/customer-directory": "workspace:*",
     "@tradeflow/design-tokens": "workspace:*",
+    "@tradeflow/inventory-directory": "workspace:*",
     "@tradeflow/platform-session": "workspace:*",
     "next": "16.2.12",
     "react": "19.2.8",

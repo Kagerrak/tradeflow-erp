@@ -36,6 +36,19 @@ test("@real-stack renders only the authenticated Branch customer directory", asy
   await expect(page.getByText("Cebu / CEB")).toHaveCount(0);
 });
 
+test("@real-stack renders movement-derived Warehouse availability", async ({
+  page,
+}) => {
+  await page.goto("/inventory");
+
+  await expect(
+    page.getByRole("heading", { name: "Real Stack Cola 330 mL" }),
+  ).toBeVisible();
+  await expect(page.getByText("30.000000 EA")).toBeVisible();
+  await expect(page.getByText("MNL-01 / REAL-AVAILABLE")).toBeVisible();
+  await expect(page.getByText("REAL-LOT-A / 2027-12-31")).toBeVisible();
+});
+
 test("@real-stack creates a cash-on-delivery customer through the web docket", async ({
   page,
 }) => {

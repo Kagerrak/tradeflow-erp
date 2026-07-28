@@ -280,6 +280,216 @@
         "title": "ApprovalAuthorityInput",
         "type": "object"
       },
+      "AvailabilityItem": {
+        "properties": {
+          "available": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Available",
+            "type": "string"
+          },
+          "base_currency": {
+            "title": "Base Currency",
+            "type": "string"
+          },
+          "base_stocking_unit": {
+            "title": "Base Stocking Unit",
+            "type": "string"
+          },
+          "custody": {
+            "enum": [
+              "available",
+              "quarantine"
+            ],
+            "title": "Custody",
+            "type": "string"
+          },
+          "expiration_control": {
+            "title": "Expiration Control",
+            "type": "boolean"
+          },
+          "expiration_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expiration Date"
+          },
+          "location_code": {
+            "title": "Location Code",
+            "type": "string"
+          },
+          "lot_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Code"
+          },
+          "moving_average_unit_cost": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Moving Average Unit Cost",
+            "type": "string"
+          },
+          "on_hand": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "On Hand",
+            "type": "string"
+          },
+          "reserved": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Reserved",
+            "type": "string"
+          },
+          "serial_numbers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Serial Numbers",
+            "type": "array"
+          },
+          "sku_code": {
+            "title": "Sku Code",
+            "type": "string"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "sku_name": {
+            "title": "Sku Name",
+            "type": "string"
+          },
+          "tracking_policy": {
+            "enum": [
+              "untracked",
+              "lot",
+              "serial"
+            ],
+            "title": "Tracking Policy",
+            "type": "string"
+          },
+          "warehouse_code": {
+            "title": "Warehouse Code",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          },
+          "warehouse_inventory_value": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Warehouse Inventory Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sku_id",
+          "sku_code",
+          "sku_name",
+          "warehouse_id",
+          "warehouse_code",
+          "location_code",
+          "custody",
+          "base_stocking_unit",
+          "tracking_policy",
+          "expiration_control",
+          "base_currency",
+          "lot_code",
+          "serial_numbers",
+          "expiration_date",
+          "on_hand",
+          "reserved",
+          "available",
+          "warehouse_inventory_value",
+          "moving_average_unit_cost"
+        ],
+        "title": "AvailabilityItem",
+        "type": "object"
+      },
+      "AvailabilityResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AvailabilityItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AvailabilityResponse",
+        "type": "object"
+      },
+      "BarcodeInput": {
+        "additionalProperties": false,
+        "properties": {
+          "barcode": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Barcode",
+            "type": "string"
+          },
+          "unit_code": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Z][A-Z0-9_-]{0,29}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Code"
+          }
+        },
+        "required": [
+          "barcode"
+        ],
+        "title": "BarcodeInput",
+        "type": "object"
+      },
+      "BarcodeResponse": {
+        "properties": {
+          "barcode": {
+            "title": "Barcode",
+            "type": "string"
+          },
+          "barcode_mapping_id": {
+            "format": "uuid",
+            "title": "Barcode Mapping Id",
+            "type": "string"
+          },
+          "unit_code": {
+            "title": "Unit Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "barcode_mapping_id",
+          "barcode",
+          "unit_code"
+        ],
+        "title": "BarcodeResponse",
+        "type": "object"
+      },
       "BranchInput": {
         "additionalProperties": false,
         "properties": {
@@ -473,6 +683,76 @@
         "title": "ConfigureRoleTemplateCommand",
         "type": "object"
       },
+      "ConfigureSkuCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "barcodes": {
+            "items": {
+              "$ref": "#/components/schemas/BarcodeInput"
+            },
+            "title": "Barcodes",
+            "type": "array"
+          },
+          "base_stocking_unit": {
+            "pattern": "^[A-Z][A-Z0-9_-]{0,29}$",
+            "title": "Base Stocking Unit",
+            "type": "string"
+          },
+          "conversions": {
+            "items": {
+              "$ref": "#/components/schemas/ConversionInput"
+            },
+            "title": "Conversions",
+            "type": "array"
+          },
+          "expiration_control": {
+            "default": false,
+            "title": "Expiration Control",
+            "type": "boolean"
+          },
+          "product_code": {
+            "pattern": "^[A-Z0-9][A-Z0-9_-]{1,49}$",
+            "title": "Product Code",
+            "type": "string"
+          },
+          "product_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Product Name",
+            "type": "string"
+          },
+          "sku_code": {
+            "pattern": "^[A-Z0-9][A-Z0-9_-]{1,49}$",
+            "title": "Sku Code",
+            "type": "string"
+          },
+          "sku_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Sku Name",
+            "type": "string"
+          },
+          "tracking_policy": {
+            "enum": [
+              "untracked",
+              "lot",
+              "serial"
+            ],
+            "title": "Tracking Policy",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_code",
+          "product_name",
+          "sku_code",
+          "sku_name",
+          "base_stocking_unit",
+          "tracking_policy"
+        ],
+        "title": "ConfigureSkuCommand",
+        "type": "object"
+      },
       "ConfigureUserCommand": {
         "additionalProperties": false,
         "properties": {
@@ -632,6 +912,102 @@
         "title": "ContactResponse",
         "type": "object"
       },
+      "ConversionInput": {
+        "additionalProperties": false,
+        "properties": {
+          "base_quantity": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Base Quantity"
+          },
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "unit_code": {
+            "pattern": "^[A-Z][A-Z0-9_-]{0,29}$",
+            "title": "Unit Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unit_code",
+          "base_quantity",
+          "effective_from"
+        ],
+        "title": "ConversionInput",
+        "type": "object"
+      },
+      "ConversionResponse": {
+        "properties": {
+          "base_quantity": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Base Quantity",
+            "type": "string"
+          },
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "unit_code": {
+            "title": "Unit Code",
+            "type": "string"
+          },
+          "unit_conversion_id": {
+            "format": "uuid",
+            "title": "Unit Conversion Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "unit_conversion_id",
+          "unit_code",
+          "base_quantity",
+          "effective_from",
+          "effective_to",
+          "version"
+        ],
+        "title": "ConversionResponse",
+        "type": "object"
+      },
       "CreateCustomerCommand": {
         "additionalProperties": false,
         "properties": {
@@ -722,6 +1098,43 @@
           "addresses"
         ],
         "title": "CreateCustomerCommand",
+        "type": "object"
+      },
+      "CreateLocationCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "pattern": "^[A-Z0-9][A-Z0-9_-]{1,49}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "custody": {
+            "enum": [
+              "available",
+              "quarantine"
+            ],
+            "title": "Custody",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "warehouse_id",
+          "code",
+          "name",
+          "custody"
+        ],
+        "title": "CreateLocationCommand",
         "type": "object"
       },
       "CreditApprovalCommand": {
@@ -1028,6 +1441,224 @@
         "title": "LiveResponse",
         "type": "object"
       },
+      "LocationResponse": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "custody": {
+            "enum": [
+              "available",
+              "quarantine"
+            ],
+            "title": "Custody",
+            "type": "string"
+          },
+          "location_id": {
+            "format": "uuid",
+            "title": "Location Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "location_id",
+          "warehouse_id",
+          "code",
+          "name",
+          "custody",
+          "version"
+        ],
+        "title": "LocationResponse",
+        "type": "object"
+      },
+      "OpeningStockCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "expiration_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expiration Date"
+          },
+          "location_id": {
+            "format": "uuid",
+            "title": "Location Id",
+            "type": "string"
+          },
+          "lot_code": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Code"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "serial_numbers": {
+            "items": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Serial Numbers",
+            "type": "array"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "source_reference": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Source Reference",
+            "type": "string"
+          },
+          "unit_code": {
+            "pattern": "^[A-Z][A-Z0-9_-]{0,29}$",
+            "title": "Unit Code",
+            "type": "string"
+          },
+          "unit_cost": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Unit Cost"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sku_id",
+          "warehouse_id",
+          "location_id",
+          "quantity",
+          "unit_code",
+          "unit_cost",
+          "source_reference"
+        ],
+        "title": "OpeningStockCommand",
+        "type": "object"
+      },
+      "OpeningStockResponse": {
+        "properties": {
+          "base_currency": {
+            "title": "Base Currency",
+            "type": "string"
+          },
+          "conversion_snapshot": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Conversion Snapshot",
+            "type": "object"
+          },
+          "entered_unit": {
+            "title": "Entered Unit",
+            "type": "string"
+          },
+          "location_id": {
+            "format": "uuid",
+            "title": "Location Id",
+            "type": "string"
+          },
+          "movement_id": {
+            "format": "uuid",
+            "title": "Movement Id",
+            "type": "string"
+          },
+          "moving_average_unit_cost": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Moving Average Unit Cost",
+            "type": "string"
+          },
+          "quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity Base",
+            "type": "string"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "source_reference": {
+            "title": "Source Reference",
+            "type": "string"
+          },
+          "value_delta": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Value Delta",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "movement_id",
+          "sku_id",
+          "warehouse_id",
+          "location_id",
+          "quantity_base",
+          "value_delta",
+          "moving_average_unit_cost",
+          "base_currency",
+          "source_reference",
+          "entered_unit",
+          "conversion_snapshot"
+        ],
+        "title": "OpeningStockResponse",
+        "type": "object"
+      },
       "OrganizationBootstrapCommand": {
         "additionalProperties": false,
         "properties": {
@@ -1160,6 +1791,24 @@
           "message"
         ],
         "title": "PingResponse",
+        "type": "object"
+      },
+      "ProjectionRebuildResponse": {
+        "properties": {
+          "availability_rows": {
+            "title": "Availability Rows",
+            "type": "integer"
+          },
+          "valuation_rows": {
+            "title": "Valuation Rows",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "availability_rows",
+          "valuation_rows"
+        ],
+        "title": "ProjectionRebuildResponse",
         "type": "object"
       },
       "ReadyResponse": {
@@ -1397,6 +2046,87 @@
         "title": "SessionUserResponse",
         "type": "object"
       },
+      "SkuResponse": {
+        "properties": {
+          "barcodes": {
+            "items": {
+              "$ref": "#/components/schemas/BarcodeResponse"
+            },
+            "title": "Barcodes",
+            "type": "array"
+          },
+          "base_stocking_unit": {
+            "title": "Base Stocking Unit",
+            "type": "string"
+          },
+          "conversions": {
+            "items": {
+              "$ref": "#/components/schemas/ConversionResponse"
+            },
+            "title": "Conversions",
+            "type": "array"
+          },
+          "expiration_control": {
+            "title": "Expiration Control",
+            "type": "boolean"
+          },
+          "product_code": {
+            "title": "Product Code",
+            "type": "string"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "sku_code": {
+            "title": "Sku Code",
+            "type": "string"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "sku_name": {
+            "title": "Sku Name",
+            "type": "string"
+          },
+          "tracking_policy": {
+            "enum": [
+              "untracked",
+              "lot",
+              "serial"
+            ],
+            "title": "Tracking Policy",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "product_id",
+          "product_code",
+          "product_name",
+          "sku_id",
+          "sku_code",
+          "sku_name",
+          "base_stocking_unit",
+          "tracking_policy",
+          "expiration_control",
+          "version",
+          "conversions",
+          "barcodes"
+        ],
+        "title": "SkuResponse",
+        "type": "object"
+      },
       "UpdateAddressCommand": {
         "additionalProperties": false,
         "properties": {
@@ -1481,6 +2211,47 @@
           "base_currency"
         ],
         "title": "UpdateCompanyCommand",
+        "type": "object"
+      },
+      "UpdateConversionCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "base_quantity": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Base Quantity"
+          },
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          }
+        },
+        "required": [
+          "base_quantity",
+          "effective_from"
+        ],
+        "title": "UpdateConversionCommand",
         "type": "object"
       },
       "UserConfigurationResponse": {
@@ -1743,6 +2514,264 @@
         "summary": "Ready",
         "tags": [
           "platform"
+        ]
+      }
+    },
+    "/v1/catalog/skus": {
+      "post": {
+        "operationId": "configure_sku_v1_catalog_skus_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigureSkuCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkuResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Configure Sku",
+        "tags": [
+          "catalog and inventory"
+        ]
+      }
+    },
+    "/v1/catalog/skus/{sku_id}/unit-conversions/{conversion_id}": {
+      "put": {
+        "operationId": "update_unit_conversion_v1_catalog_skus__sku_id__unit_conversions__conversion_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sku_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sku Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "conversion_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Conversion Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "If-Match",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateConversionCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Unit Conversion",
+        "tags": [
+          "catalog and inventory"
         ]
       }
     },
@@ -2369,6 +3398,371 @@
         "summary": "Approve Customer Credit",
         "tags": [
           "customers"
+        ]
+      }
+    },
+    "/v1/inventory/availability": {
+      "get": {
+        "operationId": "search_availability_v1_inventory_availability_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 200,
+              "title": "Query",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvailabilityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Search Availability",
+        "tags": [
+          "catalog and inventory"
+        ]
+      }
+    },
+    "/v1/inventory/locations": {
+      "post": {
+        "operationId": "create_stock_location_v1_inventory_locations_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLocationCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Stock Location",
+        "tags": [
+          "catalog and inventory"
+        ]
+      }
+    },
+    "/v1/inventory/opening-stock": {
+      "post": {
+        "operationId": "post_opening_stock_v1_inventory_opening_stock_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpeningStockCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpeningStockResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Post Opening Stock",
+        "tags": [
+          "catalog and inventory"
+        ]
+      }
+    },
+    "/v1/inventory/projections/rebuild": {
+      "post": {
+        "operationId": "rebuild_inventory_projections_v1_inventory_projections_rebuild_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectionRebuildResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rebuild Inventory Projections",
+        "tags": [
+          "catalog and inventory"
         ]
       }
     },

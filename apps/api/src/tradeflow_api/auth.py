@@ -254,6 +254,30 @@ async def require_customer_credit_approver(
     return require_capability(user, "customer:credit-approve")
 
 
+async def require_catalog_writer(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "catalog:write")
+
+
+async def require_inventory_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "inventory:read")
+
+
+async def require_inventory_poster(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "inventory:post")
+
+
+async def require_inventory_rebuilder(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "inventory:rebuild")
+
+
 async def require_organization_administrator(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:

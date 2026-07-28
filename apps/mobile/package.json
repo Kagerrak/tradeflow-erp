@@ -16,6 +16,7 @@
     "@expo-google-fonts/ibm-plex-sans": "0.4.1",
     "@expo-google-fonts/newsreader": "0.4.1",
     "@tradeflow/design-tokens": "workspace:*",
+    "@tradeflow/inventory-directory": "workspace:*",
     "@tradeflow/customer-directory": "workspace:*",
     "@tradeflow/platform-session": "workspace:*",
     "@tradeflow/telemetry": "workspace:*",

@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react-native";
 import { loadPlatformSession } from "@tradeflow/platform-session";
 
 import { CustomerDirectory } from "./customer-directory";
+import { InventoryDirectory } from "./inventory-directory";
 import { PlatformHome } from "./platform-home";
 
 const runRealStack = process.env.TRADEFLOW_REAL_STACK === "1" ? it : it.skip;
@@ -52,5 +53,24 @@ runRealStack(
 
     expect(await screen.findByText("Real Stack Retail")).toBeOnTheScreen();
     expect(screen.queryByText("Cebu")).not.toBeOnTheScreen();
+  },
+);
+
+runRealStack(
+  "renders movement-derived Warehouse availability through the native client",
+  async () => {
+    await render(
+      <InventoryDirectory
+        accessToken={process.env.TRADEFLOW_REAL_STACK_SALES_TOKEN}
+        baseUrl={
+          process.env.TRADEFLOW_REAL_STACK_API_URL ?? "http://127.0.0.1:8000"
+        }
+        createCorrelationId={() => "48da84c0-e2a1-4c1e-938e-56e95cbcc311"}
+      />,
+    );
+
+    expect(await screen.findByText("Real Stack Cola 330 mL")).toBeOnTheScreen();
+    expect(screen.getByText("MNL-01 / REAL-AVAILABLE · EA")).toBeOnTheScreen();
+    expect(screen.getByText("LOT · REAL-LOT-A · 2027-12-31")).toBeOnTheScreen();
   },
 );

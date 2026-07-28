@@ -38,6 +38,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/catalog/skus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Configure Sku */
+        post: operations["configure_sku_v1_catalog_skus_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/catalog/skus/{sku_id}/unit-conversions/{conversion_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Unit Conversion */
+        put: operations["update_unit_conversion_v1_catalog_skus__sku_id__unit_conversions__conversion_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/customers": {
         parameters: {
             query?: never;
@@ -101,6 +135,74 @@ export interface paths {
         put?: never;
         /** Approve Customer Credit */
         post: operations["approve_customer_credit_v1_customers__customer_id__credit_approvals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inventory/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search Availability */
+        get: operations["search_availability_v1_inventory_availability_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inventory/locations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Stock Location */
+        post: operations["create_stock_location_v1_inventory_locations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inventory/opening-stock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Opening Stock */
+        post: operations["post_opening_stock_v1_inventory_opening_stock_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inventory/projections/rebuild": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rebuild Inventory Projections */
+        post: operations["rebuild_inventory_projections_v1_inventory_projections_rebuild_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -360,6 +462,85 @@ export interface components {
             /** Maximum Percentage */
             maximum_percentage?: string | null;
         };
+        /** AvailabilityItem */
+        AvailabilityItem: {
+            /** Available */
+            available: string;
+            /** Base Currency */
+            base_currency: string;
+            /** Base Stocking Unit */
+            base_stocking_unit: string;
+            /**
+             * Custody
+             * @enum {string}
+             */
+            custody: "available" | "quarantine";
+            /** Expiration Control */
+            expiration_control: boolean;
+            /** Expiration Date */
+            expiration_date: string | null;
+            /** Location Code */
+            location_code: string;
+            /** Lot Code */
+            lot_code: string | null;
+            /** Moving Average Unit Cost */
+            moving_average_unit_cost: string;
+            /** On Hand */
+            on_hand: string;
+            /** Reserved */
+            reserved: string;
+            /** Serial Numbers */
+            serial_numbers: string[];
+            /** Sku Code */
+            sku_code: string;
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+            /** Sku Name */
+            sku_name: string;
+            /**
+             * Tracking Policy
+             * @enum {string}
+             */
+            tracking_policy: "untracked" | "lot" | "serial";
+            /** Warehouse Code */
+            warehouse_code: string;
+            /**
+             * Warehouse Id
+             * Format: uuid
+             */
+            warehouse_id: string;
+            /** Warehouse Inventory Value */
+            warehouse_inventory_value: string;
+        };
+        /** AvailabilityResponse */
+        AvailabilityResponse: {
+            /** Items */
+            items: components["schemas"]["AvailabilityItem"][];
+            /** Total */
+            total: number;
+        };
+        /** BarcodeInput */
+        BarcodeInput: {
+            /** Barcode */
+            barcode: string;
+            /** Unit Code */
+            unit_code?: string | null;
+        };
+        /** BarcodeResponse */
+        BarcodeResponse: {
+            /** Barcode */
+            barcode: string;
+            /**
+             * Barcode Mapping Id
+             * Format: uuid
+             */
+            barcode_mapping_id: string;
+            /** Unit Code */
+            unit_code: string;
+        };
         /** BranchInput */
         BranchInput: {
             /** Code */
@@ -435,6 +616,33 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** ConfigureSkuCommand */
+        ConfigureSkuCommand: {
+            /** Barcodes */
+            barcodes?: components["schemas"]["BarcodeInput"][];
+            /** Base Stocking Unit */
+            base_stocking_unit: string;
+            /** Conversions */
+            conversions?: components["schemas"]["ConversionInput"][];
+            /**
+             * Expiration Control
+             * @default false
+             */
+            expiration_control: boolean;
+            /** Product Code */
+            product_code: string;
+            /** Product Name */
+            product_name: string;
+            /** Sku Code */
+            sku_code: string;
+            /** Sku Name */
+            sku_name: string;
+            /**
+             * Tracking Policy
+             * @enum {string}
+             */
+            tracking_policy: "untracked" | "lot" | "serial";
+        };
         /** ConfigureUserCommand */
         ConfigureUserCommand: {
             /** Approval Authorities */
@@ -489,6 +697,41 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** ConversionInput */
+        ConversionInput: {
+            /** Base Quantity */
+            base_quantity: number | string;
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+            /** Effective To */
+            effective_to?: string | null;
+            /** Unit Code */
+            unit_code: string;
+        };
+        /** ConversionResponse */
+        ConversionResponse: {
+            /** Base Quantity */
+            base_quantity: string;
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+            /** Effective To */
+            effective_to: string | null;
+            /** Unit Code */
+            unit_code: string;
+            /**
+             * Unit Conversion Id
+             * Format: uuid
+             */
+            unit_conversion_id: string;
+            /** Version */
+            version: number;
+        };
         /** CreateCustomerCommand */
         CreateCustomerCommand: {
             /** Account Number */
@@ -523,6 +766,23 @@ export interface components {
              * @enum {string}
              */
             status: "active" | "inactive" | "prospect";
+        };
+        /** CreateLocationCommand */
+        CreateLocationCommand: {
+            /** Code */
+            code: string;
+            /**
+             * Custody
+             * @enum {string}
+             */
+            custody: "available" | "quarantine";
+            /** Name */
+            name: string;
+            /**
+             * Warehouse Id
+             * Format: uuid
+             */
+            warehouse_id: string;
         };
         /** CreditApprovalCommand */
         CreditApprovalCommand: {
@@ -654,6 +914,101 @@ export interface components {
             /** Status */
             status: string;
         };
+        /** LocationResponse */
+        LocationResponse: {
+            /** Code */
+            code: string;
+            /**
+             * Custody
+             * @enum {string}
+             */
+            custody: "available" | "quarantine";
+            /**
+             * Location Id
+             * Format: uuid
+             */
+            location_id: string;
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+            /**
+             * Warehouse Id
+             * Format: uuid
+             */
+            warehouse_id: string;
+        };
+        /** OpeningStockCommand */
+        OpeningStockCommand: {
+            /** Expiration Date */
+            expiration_date?: string | null;
+            /**
+             * Location Id
+             * Format: uuid
+             */
+            location_id: string;
+            /** Lot Code */
+            lot_code?: string | null;
+            /** Quantity */
+            quantity: number | string;
+            /** Serial Numbers */
+            serial_numbers?: string[];
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+            /** Source Reference */
+            source_reference: string;
+            /** Unit Code */
+            unit_code: string;
+            /** Unit Cost */
+            unit_cost: number | string;
+            /**
+             * Warehouse Id
+             * Format: uuid
+             */
+            warehouse_id: string;
+        };
+        /** OpeningStockResponse */
+        OpeningStockResponse: {
+            /** Base Currency */
+            base_currency: string;
+            /** Conversion Snapshot */
+            conversion_snapshot: {
+                [key: string]: string;
+            };
+            /** Entered Unit */
+            entered_unit: string;
+            /**
+             * Location Id
+             * Format: uuid
+             */
+            location_id: string;
+            /**
+             * Movement Id
+             * Format: uuid
+             */
+            movement_id: string;
+            /** Moving Average Unit Cost */
+            moving_average_unit_cost: string;
+            /** Quantity Base */
+            quantity_base: string;
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+            /** Source Reference */
+            source_reference: string;
+            /** Value Delta */
+            value_delta: string;
+            /**
+             * Warehouse Id
+             * Format: uuid
+             */
+            warehouse_id: string;
+        };
         /** OrganizationBootstrapCommand */
         OrganizationBootstrapCommand: {
             /** Branches */
@@ -693,6 +1048,13 @@ export interface components {
             command_id: string;
             /** Message */
             message: string;
+        };
+        /** ProjectionRebuildResponse */
+        ProjectionRebuildResponse: {
+            /** Availability Rows */
+            availability_rows: number;
+            /** Valuation Rows */
+            valuation_rows: number;
         };
         /** ReadyResponse */
         ReadyResponse: {
@@ -788,6 +1150,42 @@ export interface components {
             /** Subject */
             subject: string;
         };
+        /** SkuResponse */
+        SkuResponse: {
+            /** Barcodes */
+            barcodes: components["schemas"]["BarcodeResponse"][];
+            /** Base Stocking Unit */
+            base_stocking_unit: string;
+            /** Conversions */
+            conversions: components["schemas"]["ConversionResponse"][];
+            /** Expiration Control */
+            expiration_control: boolean;
+            /** Product Code */
+            product_code: string;
+            /**
+             * Product Id
+             * Format: uuid
+             */
+            product_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Sku Code */
+            sku_code: string;
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+            /** Sku Name */
+            sku_name: string;
+            /**
+             * Tracking Policy
+             * @enum {string}
+             */
+            tracking_policy: "untracked" | "lot" | "serial";
+            /** Version */
+            version: number;
+        };
         /** UpdateAddressCommand */
         UpdateAddressCommand: {
             /** City */
@@ -814,6 +1212,18 @@ export interface components {
             base_currency: string;
             /** Name */
             name: string;
+        };
+        /** UpdateConversionCommand */
+        UpdateConversionCommand: {
+            /** Base Quantity */
+            base_quantity: number | string;
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+            /** Effective To */
+            effective_to?: string | null;
         };
         /** UserConfigurationResponse */
         UserConfigurationResponse: {
@@ -946,6 +1356,179 @@ export interface operations {
             };
             /** @description Stable TradeFlow error envelope. */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    configure_sku_v1_catalog_skus_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfigureSkuCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkuResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    update_unit_conversion_v1_catalog_skus__sku_id__unit_conversions__conversion_id__put: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": number;
+                "Idempotency-Key": string;
+            };
+            path: {
+                sku_id: string;
+                conversion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateConversionCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversionResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1330,6 +1913,272 @@ export interface operations {
             };
             /** @description Stable TradeFlow error envelope. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    search_availability_v1_inventory_availability_get: {
+        parameters: {
+            query?: {
+                query?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvailabilityResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_stock_location_v1_inventory_locations_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateLocationCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocationResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    post_opening_stock_v1_inventory_opening_stock_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpeningStockCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpeningStockResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    rebuild_inventory_projections_v1_inventory_projections_rebuild_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectionRebuildResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
