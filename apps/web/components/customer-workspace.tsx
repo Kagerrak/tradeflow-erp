@@ -280,20 +280,36 @@ function Directory({
     );
   }
   if (state.kind !== "ready") {
+    const heading =
+      state.kind === "forbidden"
+        ? "Customer access is not assigned"
+        : state.kind === "validation"
+          ? "Search needs more detail"
+          : state.kind === "unauthenticated"
+            ? "Sign in to continue"
+            : "Directory temporarily unavailable";
     const message =
       state.kind === "forbidden"
-        ? "Your assignment does not include customer read access."
+        ? "Ask an operations administrator for customer read access and a Branch assignment."
         : state.kind === "validation"
-          ? "Use at least two search characters."
+          ? "Enter at least two characters in account number or legal name, then search again."
           : state.kind === "unauthenticated"
-            ? "Your session has expired."
-            : "The customer directory is temporarily unavailable.";
+            ? "Your session expired. Sign in again, then reload this workspace."
+            : "Check service status and retry this customer search.";
     return (
       <div className="directory-message">
-        <h3>Directory not available</h3>
+        <h3>{heading}</h3>
         <p>{message}</p>
+        <p>
+          Support reference <code>{state.correlationId}</code>
+        </p>
         {state.kind === "unavailable" && (
           <button onClick={retry}>Retry search</button>
+        )}
+        {state.kind === "unauthenticated" && (
+          <button onClick={() => window.location.reload()}>
+            Reload after sign-in
+          </button>
         )}
       </div>
     );
@@ -354,6 +370,7 @@ function CustomerDocket({
 }) {
   const [submitting, setSubmitting] = useState(false);
   const dialogRef = useRef<HTMLElement>(null);
+  const idempotencyKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null;
@@ -427,11 +444,12 @@ function CustomerDocket({
       status: value("status") as CreateCustomerAccountInput["status"],
     };
     try {
+      idempotencyKeyRef.current ??= crypto.randomUUID();
       const response = await fetch("/api/customers", {
         body: JSON.stringify(command),
         headers: {
           "Content-Type": "application/json",
-          "Idempotency-Key": crypto.randomUUID(),
+          "Idempotency-Key": idempotencyKeyRef.current,
         },
         method: "POST",
       });

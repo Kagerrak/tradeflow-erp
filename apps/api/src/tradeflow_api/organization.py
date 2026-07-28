@@ -17,6 +17,7 @@ from tradeflow_api.auth import (
     require_organization_administrator,
     require_organization_bootstrapper,
 )
+from tradeflow_api.command_receipts import get_command_replay, store_command_result
 from tradeflow_api.database import get_database_session
 from tradeflow_api.errors import AppError, error_responses
 from tradeflow_api.models import (
@@ -216,55 +217,6 @@ def invalid_assignment(message: str) -> AppError:
     )
 
 
-async def get_command_replay(
-    session: AsyncSession,
-    *,
-    idempotency_key: str,
-    request_hash: str,
-) -> dict[str, object] | None:
-    await session.execute(
-        text("SELECT pg_advisory_xact_lock(hashtext(:idempotency_key))"),
-        {"idempotency_key": idempotency_key},
-    )
-    receipt = (
-        await session.execute(
-            select(
-                platform_command_receipts.c.request_hash,
-                platform_command_receipts.c.response_json,
-            ).where(platform_command_receipts.c.idempotency_key == idempotency_key)
-        )
-    ).one_or_none()
-    if receipt is None:
-        return None
-    stored_hash, stored_response = receipt
-    if stored_hash != request_hash:
-        raise AppError(
-            status_code=409,
-            code="idempotency_conflict",
-            message="Idempotency-Key was already used for another command.",
-        )
-    return dict(stored_response)
-
-
-async def store_command_result(
-    session: AsyncSession,
-    *,
-    actor_subject: str,
-    idempotency_key: str,
-    request_hash: str,
-    result: BaseModel,
-) -> None:
-    await session.execute(
-        insert(platform_command_receipts).values(
-            command_id=uuid4(),
-            idempotency_key=idempotency_key,
-            actor_subject=actor_subject,
-            request_hash=request_hash,
-            response_json=result.model_dump(mode="json"),
-        )
-    )
-
-
 def require_command_headers(
     *,
     expected_version: int | None,
@@ -392,6 +344,7 @@ async def configure_role_template(
     async with session.begin():
         replay = await get_command_replay(
             session,
+            actor_subject=actor.subject,
             idempotency_key=idempotency_key,
             request_hash=request_hash,
         )
@@ -504,12 +457,19 @@ async def configure_user(
         expected_version=expected_version,
         idempotency_key=idempotency_key,
     )
+    if subject == actor.subject:
+        raise AppError(
+            status_code=403,
+            code="self_assignment_forbidden",
+            message="An Operations Administrator cannot change their own access assignments.",
+        )
     request_hash = sha256(
         f"user:{subject}:{expected_version}:".encode() + command.model_dump_json().encode()
     ).hexdigest()
     async with session.begin():
         replay = await get_command_replay(
             session,
+            actor_subject=actor.subject,
             idempotency_key=idempotency_key,
             request_hash=request_hash,
         )
@@ -522,6 +482,33 @@ async def configure_user(
                 select(users.c.version).where(users.c.subject == subject).with_for_update()
             )
         ).one_or_none()
+        if existing is not None:
+            current_branch_ids = set(
+                (
+                    await session.execute(
+                        select(user_branch_scopes.c.branch_id).where(
+                            user_branch_scopes.c.user_subject == subject
+                        )
+                    )
+                ).scalars()
+            )
+            current_warehouse_ids = set(
+                (
+                    await session.execute(
+                        select(user_warehouse_scopes.c.warehouse_id).where(
+                            user_warehouse_scopes.c.user_subject == subject
+                        )
+                    )
+                ).scalars()
+            )
+            if not current_branch_ids.issubset(actor.branch_ids) or not (
+                current_warehouse_ids.issubset(actor.warehouse_ids)
+            ):
+                raise AppError(
+                    status_code=403,
+                    code="operational_scope_required",
+                    message="The configured User is outside the administrator's Operational Scope.",
+                )
         if existing is None:
             if expected_version != 0:
                 raise AppError(
@@ -605,6 +592,14 @@ async def configure_user(
         if set(warehouse_ids) != set(command.warehouse_codes):
             raise invalid_assignment("Assignment references an unknown Warehouse.")
         assigned_branch_ids = set(branch_ids.values())
+        if not assigned_branch_ids.issubset(actor.branch_ids) or not (
+            set(warehouse_ids.values()).issubset(actor.warehouse_ids)
+        ):
+            raise AppError(
+                status_code=403,
+                code="operational_scope_required",
+                message="Assignments cannot exceed the administrator's Operational Scope.",
+            )
         if any(row.branch_id not in assigned_branch_ids for row in warehouse_rows):
             raise invalid_assignment("A Warehouse assignment requires its Branch assignment.")
 
@@ -721,6 +716,7 @@ async def update_company(
     async with session.begin():
         replay = await get_command_replay(
             session,
+            actor_subject=actor.subject,
             idempotency_key=idempotency_key,
             request_hash=request_hash,
         )
@@ -818,6 +814,7 @@ async def update_branch_lifecycle(
     async with session.begin():
         replay = await get_command_replay(
             session,
+            actor_subject=actor.subject,
             idempotency_key=idempotency_key,
             request_hash=request_hash,
         )
@@ -932,6 +929,7 @@ async def update_warehouse_lifecycle(
     async with session.begin():
         replay = await get_command_replay(
             session,
+            actor_subject=actor.subject,
             idempotency_key=idempotency_key,
             request_hash=request_hash,
         )

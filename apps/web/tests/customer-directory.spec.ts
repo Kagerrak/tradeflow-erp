@@ -146,6 +146,31 @@ test("explains a forbidden workspace without exposing the form", async ({
   ).toHaveCount(0);
 });
 
+test("preserves recovery context when the directory session expires", async ({
+  page,
+}) => {
+  await routeScope(page);
+  await page.route("**/api/customers?*", async (route) => {
+    await route.fulfill({
+      body: JSON.stringify({
+        correlationId: "expired-directory-session",
+        kind: "unauthenticated",
+      }),
+      contentType: "application/json",
+      status: 401,
+    });
+  });
+
+  await page.goto("/customers");
+  await expect(
+    page.getByRole("heading", { name: "Sign in to continue" }),
+  ).toBeVisible();
+  await expect(page.getByText("expired-directory-session")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Reload after sign-in" }),
+  ).toBeVisible();
+});
+
 test("keeps entered data and shows validation feedback", async ({ page }) => {
   await routeScope(page);
   await page.route("**/api/customers?*", async (route) => {
@@ -274,4 +299,63 @@ test("contains keyboard focus and restores it when the docket closes", async ({
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(trigger).toBeFocused();
+});
+
+test("reuses the command identity after a response is lost", async ({
+  page,
+}) => {
+  await routeScope(page);
+  await page.route("**/api/customers?*", async (route) => {
+    await route.fulfill({
+      body: JSON.stringify({
+        correlationId: "search-retry",
+        items: [],
+        kind: "ready",
+        total: 0,
+      }),
+      contentType: "application/json",
+    });
+  });
+  const commandKeys: string[] = [];
+  await page.route("**/api/customers", async (route) => {
+    commandKeys.push(route.request().headers()["idempotency-key"] ?? "");
+    if (commandKeys.length === 1) {
+      await route.abort("connectionreset");
+      return;
+    }
+    await route.fulfill({
+      body: JSON.stringify({
+        correlationId: "create-replayed",
+        customer: {
+          accountNumber: "MNL-0042",
+          branchId,
+          creditHold: false,
+          creditLimit: null,
+          customerId: "f2bee902-0096-43cb-a204-38c07672661f",
+          legalName: "Northstar Retail",
+          paymentTerms: "Due before release",
+          paymentTimingPolicy: "prepaid",
+          status: "active",
+          version: 1,
+        },
+        kind: "created",
+      }),
+      contentType: "application/json",
+      status: 201,
+    });
+  });
+
+  await page.goto("/customers");
+  await page.getByRole("button", { name: "Open new-account docket" }).click();
+  await fillRequiredDocket(page);
+  const submit = page.getByRole("button", { name: "Create customer account" });
+  await submit.click();
+  await expect(page.locator(".form-error")).toContainText(
+    "Customer service is unavailable",
+  );
+  await submit.click();
+  await expect(page.getByRole("status")).toContainText("MNL-0042 created");
+  expect(commandKeys).toHaveLength(2);
+  expect(commandKeys[0]).toBeTruthy();
+  expect(commandKeys[1]).toBe(commandKeys[0]);
 });

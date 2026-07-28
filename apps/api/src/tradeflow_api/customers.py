@@ -17,6 +17,7 @@ from tradeflow_api.auth import (
     require_customer_reader,
     require_customer_writer,
 )
+from tradeflow_api.command_receipts import get_command_replay, store_command_result
 from tradeflow_api.database import get_database_session
 from tradeflow_api.errors import AppError, error_responses
 from tradeflow_api.models import (
@@ -26,7 +27,6 @@ from tradeflow_api.models import (
     customer_address_versions,
     customer_contacts,
     customer_credit_approvals,
-    platform_command_receipts,
 )
 
 router = APIRouter(prefix="/v1/customers", tags=["customers"])
@@ -336,26 +336,13 @@ async def update_customer_address(
         + command.model_dump_json().encode()
     ).hexdigest()
     async with session.begin():
-        await session.execute(
-            text("SELECT pg_advisory_xact_lock(hashtext(:idempotency_key))"),
-            {"idempotency_key": idempotency_key},
+        replay = await get_command_replay(
+            session,
+            actor_subject=actor.subject,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
         )
-        receipt = (
-            await session.execute(
-                select(
-                    platform_command_receipts.c.request_hash,
-                    platform_command_receipts.c.response_json,
-                ).where(platform_command_receipts.c.idempotency_key == idempotency_key)
-            )
-        ).one_or_none()
-        if receipt is not None:
-            stored_hash, stored_response = receipt
-            if stored_hash != request_hash:
-                raise AppError(
-                    status_code=409,
-                    code="idempotency_conflict",
-                    message="Idempotency-Key was already used for another command.",
-                )
+        if replay is not None:
             current_branch_id = await session.scalar(
                 select(customer_accounts.c.branch_id).where(
                     customer_accounts.c.customer_id == customer_id
@@ -374,7 +361,7 @@ async def update_customer_address(
                     message="The Customer Account is outside the user's Branch scope.",
                 )
             response.headers["X-Idempotency-Replayed"] = "true"
-            return AddressUpdateResponse.model_validate(stored_response)
+            return AddressUpdateResponse.model_validate(replay)
 
         customer = (
             await session.execute(
@@ -477,14 +464,12 @@ async def update_customer_address(
                 is_current=True,
             ),
         )
-        await session.execute(
-            insert(platform_command_receipts).values(
-                command_id=uuid4(),
-                idempotency_key=idempotency_key,
-                actor_subject=actor.subject,
-                request_hash=request_hash,
-                response_json=result.model_dump(mode="json"),
-            )
+        await store_command_result(
+            session,
+            actor_subject=actor.subject,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+            result=result,
         )
 
     response.headers["X-Idempotency-Replayed"] = "false"
@@ -535,26 +520,13 @@ async def approve_customer_credit(
         f"{customer_id}:{expected_version}:".encode() + command.model_dump_json().encode()
     ).hexdigest()
     async with session.begin():
-        await session.execute(
-            text("SELECT pg_advisory_xact_lock(hashtext(:idempotency_key))"),
-            {"idempotency_key": idempotency_key},
+        replay = await get_command_replay(
+            session,
+            actor_subject=actor.subject,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
         )
-        receipt = (
-            await session.execute(
-                select(
-                    platform_command_receipts.c.request_hash,
-                    platform_command_receipts.c.response_json,
-                ).where(platform_command_receipts.c.idempotency_key == idempotency_key)
-            )
-        ).one_or_none()
-        if receipt is not None:
-            stored_hash, stored_response = receipt
-            if stored_hash != request_hash:
-                raise AppError(
-                    status_code=409,
-                    code="idempotency_conflict",
-                    message="Idempotency-Key was already used for another command.",
-                )
+        if replay is not None:
             current_customer = (
                 await session.execute(
                     select(
@@ -615,7 +587,7 @@ async def approve_customer_credit(
                 )
             response.status_code = 200
             response.headers["X-Idempotency-Replayed"] = "true"
-            return CreditApprovalResponse.model_validate(stored_response)
+            return CreditApprovalResponse.model_validate(replay)
 
         customer = (
             await session.execute(
@@ -711,14 +683,12 @@ async def approve_customer_credit(
             credit_hold=False,
             reason=command.reason,
         )
-        await session.execute(
-            insert(platform_command_receipts).values(
-                command_id=uuid4(),
-                idempotency_key=idempotency_key,
-                actor_subject=actor.subject,
-                request_hash=request_hash,
-                response_json=result.model_dump(mode="json"),
-            )
+        await store_command_result(
+            session,
+            actor_subject=actor.subject,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+            result=result,
         )
 
     response.status_code = 201
@@ -760,29 +730,16 @@ async def create_customer(
 
     request_hash = sha256(command.model_dump_json().encode()).hexdigest()
     async with session.begin():
-        await session.execute(
-            text("SELECT pg_advisory_xact_lock(hashtext(:idempotency_key))"),
-            {"idempotency_key": idempotency_key},
+        replay = await get_command_replay(
+            session,
+            actor_subject=actor.subject,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
         )
-        receipt = (
-            await session.execute(
-                select(
-                    platform_command_receipts.c.request_hash,
-                    platform_command_receipts.c.response_json,
-                ).where(platform_command_receipts.c.idempotency_key == idempotency_key)
-            )
-        ).one_or_none()
-        if receipt is not None:
-            stored_hash, stored_response = receipt
-            if stored_hash != request_hash:
-                raise AppError(
-                    status_code=409,
-                    code="idempotency_conflict",
-                    message="Idempotency-Key was already used for another command.",
-                )
+        if replay is not None:
             response.status_code = 200
             response.headers["X-Idempotency-Replayed"] = "true"
-            return CustomerResponse.model_validate(stored_response)
+            return CustomerResponse.model_validate(replay)
 
         await session.execute(
             text("SELECT pg_advisory_xact_lock(hashtext(:account_identity))"),
@@ -903,14 +860,12 @@ async def create_customer(
             contacts=contact_responses,
             addresses=address_responses,
         )
-        await session.execute(
-            insert(platform_command_receipts).values(
-                command_id=uuid4(),
-                idempotency_key=idempotency_key,
-                actor_subject=actor.subject,
-                request_hash=request_hash,
-                response_json=result.model_dump(mode="json"),
-            )
+        await store_command_result(
+            session,
+            actor_subject=actor.subject,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+            result=result,
         )
 
     response.status_code = 201

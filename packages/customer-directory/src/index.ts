@@ -1,4 +1,4 @@
-import { createTradeFlowClient } from "@tradeflow/api-client";
+import { createTradeFlowClient, type components } from "@tradeflow/api-client";
 
 export type CustomerDirectoryItem = {
   accountNumber: string;
@@ -23,32 +23,8 @@ export type CustomerDirectoryState =
       total: number;
     };
 
-export type CreateCustomerAccountInput = {
-  account_number: string;
-  addresses: Array<{
-    address_key: string;
-    city: string;
-    country_code: string;
-    kind: "billing" | "delivery";
-    line_1: string;
-    line_2: string | null;
-    postal_code: string;
-    region: string;
-  }>;
-  branch_id: string;
-  contacts: Array<{
-    email: string | null;
-    name: string;
-    phone: string | null;
-    role: string;
-  }>;
-  credit_hold: boolean;
-  credit_limit: string | null;
-  legal_name: string;
-  payment_terms: string;
-  payment_timing_policy: "prepaid" | "cash_on_delivery" | "on_account";
-  status: "active" | "inactive" | "prospect";
-};
+export type CreateCustomerAccountInput =
+  components["schemas"]["CreateCustomerCommand"];
 
 export type CreatedCustomer = {
   accountNumber: string;

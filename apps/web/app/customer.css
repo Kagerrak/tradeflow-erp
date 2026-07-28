@@ -334,7 +334,7 @@
 .docket input,
 .docket select {
   width: 100%;
-  min-height: 2.7rem;
+  min-height: 2.75rem;
   border: 1px solid var(--paper-300);
   border-radius: 0;
   padding: 0.55rem 0.65rem;
@@ -345,12 +345,14 @@
 
 .docket .checkbox-field {
   display: flex;
+  min-height: 2.75rem;
   align-items: center;
+  cursor: pointer;
 }
 
 .docket .checkbox-field input {
-  width: 1.1rem;
-  min-height: 1.1rem;
+  width: 1.25rem;
+  min-height: 1.25rem;
   margin-right: 0.5rem;
 }
 

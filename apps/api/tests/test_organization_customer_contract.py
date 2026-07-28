@@ -824,6 +824,27 @@ async def test_idempotent_replay_revalidates_current_scope_and_authority(
 ) -> None:
     bootstrap = await bootstrap_organization(organization_client, organization_settings)
     branch_ids = {branch["code"]: branch["branch_id"] for branch in bootstrap["branches"]}
+    security_admin_headers = user_headers(
+        organization_settings,
+        subject="operations-admin",
+        idempotency_key="create-security-admin",
+    )
+    security_admin_headers["If-Match"] = "0"
+    assert (
+        await organization_client.put(
+            "/v1/organization/users/security-admin",
+            headers=security_admin_headers,
+            json={
+                "display_name": "Security Admin",
+                "is_active": True,
+                "is_operations_administrator": True,
+                "role_template_codes": ["OPS_ADMIN"],
+                "branch_codes": ["MNL", "CEB"],
+                "warehouse_codes": ["MNL-MAIN", "CEB-MAIN"],
+                "approval_authorities": [],
+            },
+        )
+    ).status_code == 201
     customer = await create_customer_account(
         organization_client,
         organization_settings,
@@ -958,7 +979,7 @@ async def test_idempotent_replay_revalidates_current_scope_and_authority(
 
     revoke_admin_headers = user_headers(
         organization_settings,
-        subject="operations-admin",
+        subject="security-admin",
         idempotency_key="revoke-admin-operational-scope",
     )
     revoke_admin_headers["If-Match"] = "1"
@@ -989,3 +1010,81 @@ async def test_idempotent_replay_revalidates_current_scope_and_authority(
     )
     assert branch_replay.status_code == 403
     assert warehouse_replay.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_scoped_admin_cannot_delegate_outside_live_operational_scope(
+    organization_client: AsyncClient,
+    organization_settings: Settings,
+) -> None:
+    await bootstrap_organization(organization_client, organization_settings)
+    create_headers = user_headers(
+        organization_settings,
+        subject="operations-admin",
+        idempotency_key="create-mnl-scoped-admin",
+    )
+    create_headers["If-Match"] = "0"
+    created = await organization_client.put(
+        "/v1/organization/users/mnl-admin",
+        headers=create_headers,
+        json={
+            "display_name": "Manila Operations Admin",
+            "is_active": True,
+            "is_operations_administrator": True,
+            "role_template_codes": ["OPS_ADMIN"],
+            "branch_codes": ["MNL"],
+            "warehouse_codes": ["MNL-MAIN"],
+            "approval_authorities": [],
+        },
+    )
+    assert created.status_code == 201
+
+    outside_headers = user_headers(
+        organization_settings,
+        subject="mnl-admin",
+        idempotency_key="mnl-admin-grants-ceb",
+    )
+    outside_headers["If-Match"] = "0"
+    self_escalation = await organization_client.put(
+        "/v1/organization/users/mnl-admin",
+        headers={
+            **outside_headers,
+            "Idempotency-Key": "mnl-admin-self-escalation",
+            "If-Match": "1",
+        },
+        json={
+            "display_name": "Manila Operations Admin",
+            "is_active": True,
+            "is_operations_administrator": True,
+            "role_template_codes": ["OPS_ADMIN", "SALES_CREDIT_APPROVER"],
+            "branch_codes": ["MNL"],
+            "warehouse_codes": ["MNL-MAIN"],
+            "approval_authorities": [
+                {
+                    "capability": "customer:credit-approve",
+                    "branch_code": "MNL",
+                    "maximum_amount": "50000.00",
+                    "maximum_percentage": None,
+                    "maker_checker_required": True,
+                }
+            ],
+        },
+    )
+    assert self_escalation.status_code == 403
+    assert self_escalation.json()["error"]["code"] == "self_assignment_forbidden"
+
+    outside = await organization_client.put(
+        "/v1/organization/users/unauthorized-ceb-user",
+        headers=outside_headers,
+        json={
+            "display_name": "Unauthorized Cebu User",
+            "is_active": True,
+            "is_operations_administrator": False,
+            "role_template_codes": ["SALES_REP"],
+            "branch_codes": ["CEB"],
+            "warehouse_codes": ["CEB-MAIN"],
+            "approval_authorities": [],
+        },
+    )
+    assert outside.status_code == 403
+    assert outside.json()["error"]["code"] == "operational_scope_required"
