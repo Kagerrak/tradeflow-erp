@@ -22,6 +22,8 @@ def main() -> None:
         dest="capabilities",
         help="Capability to include; repeat for multiple capabilities.",
     )
+    parser.add_argument("--name", default="Local Platform Operator")
+    parser.add_argument("--subject", default="local-platform-operator")
     args = parser.parse_args()
     environment = os.environ.get("TRADEFLOW_ENVIRONMENT", "development")
     if environment not in {"development", "testing"}:
@@ -37,8 +39,8 @@ def main() -> None:
             "exp": now + timedelta(minutes=15),
             "iat": now,
             "iss": required_environment("TRADEFLOW_AUTH_ISSUER"),
-            "name": "Local Platform Operator",
-            "sub": "local-platform-operator",
+            "name": args.name,
+            "sub": args.subject,
         },
         required_environment("TRADEFLOW_AUTH_TEST_SECRET"),
         algorithm="HS256",

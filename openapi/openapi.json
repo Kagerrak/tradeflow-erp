@@ -1,6 +1,831 @@
 {
   "components": {
     "schemas": {
+      "AddressInput": {
+        "additionalProperties": false,
+        "properties": {
+          "address_key": {
+            "pattern": "^[A-Z][A-Z0-9_-]{1,49}$",
+            "title": "Address Key",
+            "type": "string"
+          },
+          "city": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "City",
+            "type": "string"
+          },
+          "country_code": {
+            "pattern": "^[A-Z]{2}$",
+            "title": "Country Code",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "billing",
+              "delivery"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "line_1": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Line 1",
+            "type": "string"
+          },
+          "line_2": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line 2"
+          },
+          "postal_code": {
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "region": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Region",
+            "type": "string"
+          }
+        },
+        "required": [
+          "address_key",
+          "kind",
+          "line_1",
+          "city",
+          "region",
+          "postal_code",
+          "country_code"
+        ],
+        "title": "AddressInput",
+        "type": "object"
+      },
+      "AddressResponse": {
+        "properties": {
+          "address_key": {
+            "title": "Address Key",
+            "type": "string"
+          },
+          "address_version_id": {
+            "format": "uuid",
+            "title": "Address Version Id",
+            "type": "string"
+          },
+          "city": {
+            "title": "City",
+            "type": "string"
+          },
+          "country_code": {
+            "title": "Country Code",
+            "type": "string"
+          },
+          "is_current": {
+            "title": "Is Current",
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "billing",
+              "delivery"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "line_1": {
+            "title": "Line 1",
+            "type": "string"
+          },
+          "line_2": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line 2"
+          },
+          "postal_code": {
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "region": {
+            "title": "Region",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "address_version_id",
+          "address_key",
+          "version",
+          "kind",
+          "line_1",
+          "line_2",
+          "city",
+          "region",
+          "postal_code",
+          "country_code",
+          "is_current"
+        ],
+        "title": "AddressResponse",
+        "type": "object"
+      },
+      "AddressUpdateResponse": {
+        "properties": {
+          "address": {
+            "$ref": "#/components/schemas/AddressResponse"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "customer_version": {
+            "title": "Customer Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "customer_id",
+          "customer_version",
+          "address"
+        ],
+        "title": "AddressUpdateResponse",
+        "type": "object"
+      },
+      "ApprovalAuthorityInput": {
+        "additionalProperties": false,
+        "properties": {
+          "branch_code": {
+            "pattern": "^[A-Z][A-Z0-9_-]{1,29}$",
+            "title": "Branch Code",
+            "type": "string"
+          },
+          "capability": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Capability",
+            "type": "string"
+          },
+          "maker_checker_required": {
+            "default": true,
+            "title": "Maker Checker Required",
+            "type": "boolean"
+          },
+          "maximum_amount": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,16}|(?=[\\d.]{1,19}0*$)\\d{0,16}\\.\\d{0,2}0*$)",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum Amount"
+          },
+          "maximum_percentage": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,3}|(?=[\\d.]{1,10}0*$)\\d{0,3}\\.\\d{0,6}0*$)",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum Percentage"
+          }
+        },
+        "required": [
+          "capability",
+          "branch_code"
+        ],
+        "title": "ApprovalAuthorityInput",
+        "type": "object"
+      },
+      "BranchInput": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "pattern": "^[A-Z][A-Z0-9_-]{1,29}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "warehouses": {
+            "items": {
+              "$ref": "#/components/schemas/WarehouseInput"
+            },
+            "minItems": 1,
+            "title": "Warehouses",
+            "type": "array"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "warehouses"
+        ],
+        "title": "BranchInput",
+        "type": "object"
+      },
+      "BranchLifecycleResponse": {
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "branch_id",
+          "code",
+          "name",
+          "is_active",
+          "version"
+        ],
+        "title": "BranchLifecycleResponse",
+        "type": "object"
+      },
+      "BranchResponse": {
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "warehouses": {
+            "items": {
+              "$ref": "#/components/schemas/WarehouseResponse"
+            },
+            "title": "Warehouses",
+            "type": "array"
+          }
+        },
+        "required": [
+          "branch_id",
+          "code",
+          "name",
+          "is_active",
+          "version",
+          "warehouses"
+        ],
+        "title": "BranchResponse",
+        "type": "object"
+      },
+      "CompanyInput": {
+        "additionalProperties": false,
+        "properties": {
+          "base_currency": {
+            "pattern": "^[A-Z]{3}$",
+            "title": "Base Currency",
+            "type": "string"
+          },
+          "code": {
+            "pattern": "^[A-Z][A-Z0-9_-]{1,29}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "base_currency"
+        ],
+        "title": "CompanyInput",
+        "type": "object"
+      },
+      "CompanyResponse": {
+        "properties": {
+          "base_currency": {
+            "title": "Base Currency",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "base_currency",
+          "version"
+        ],
+        "title": "CompanyResponse",
+        "type": "object"
+      },
+      "ContactInput": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "maxLength": 320,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "role": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "role"
+        ],
+        "title": "ContactInput",
+        "type": "object"
+      },
+      "ContactResponse": {
+        "properties": {
+          "contact_id": {
+            "format": "uuid",
+            "title": "Contact Id",
+            "type": "string"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "contact_id",
+          "name",
+          "role",
+          "email",
+          "phone",
+          "is_active",
+          "version"
+        ],
+        "title": "ContactResponse",
+        "type": "object"
+      },
+      "CreateCustomerCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "account_number": {
+            "pattern": "^[A-Z0-9][A-Z0-9_-]{1,49}$",
+            "title": "Account Number",
+            "type": "string"
+          },
+          "addresses": {
+            "items": {
+              "$ref": "#/components/schemas/AddressInput"
+            },
+            "minItems": 1,
+            "title": "Addresses",
+            "type": "array"
+          },
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "contacts": {
+            "items": {
+              "$ref": "#/components/schemas/ContactInput"
+            },
+            "title": "Contacts",
+            "type": "array"
+          },
+          "credit_hold": {
+            "default": false,
+            "title": "Credit Hold",
+            "type": "boolean"
+          },
+          "credit_limit": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,16}|(?=[\\d.]{1,19}0*$)\\d{0,16}\\.\\d{0,2}0*$)",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit Limit"
+          },
+          "legal_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Legal Name",
+            "type": "string"
+          },
+          "payment_terms": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Payment Terms",
+            "type": "string"
+          },
+          "payment_timing_policy": {
+            "enum": [
+              "prepaid",
+              "cash_on_delivery",
+              "on_account"
+            ],
+            "title": "Payment Timing Policy",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "inactive",
+              "prospect"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_number",
+          "branch_id",
+          "legal_name",
+          "status",
+          "payment_terms",
+          "payment_timing_policy",
+          "addresses"
+        ],
+        "title": "CreateCustomerCommand",
+        "type": "object"
+      },
+      "CreditApprovalCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "CreditApprovalCommand",
+        "type": "object"
+      },
+      "CreditApprovalResponse": {
+        "properties": {
+          "approved_by": {
+            "title": "Approved By",
+            "type": "string"
+          },
+          "credit_approval_id": {
+            "format": "uuid",
+            "title": "Credit Approval Id",
+            "type": "string"
+          },
+          "credit_hold": {
+            "title": "Credit Hold",
+            "type": "boolean"
+          },
+          "credit_limit": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Credit Limit",
+            "type": "string"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "customer_version": {
+            "title": "Customer Version",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "credit_approval_id",
+          "customer_id",
+          "approved_by",
+          "customer_version",
+          "credit_limit",
+          "credit_hold",
+          "reason"
+        ],
+        "title": "CreditApprovalResponse",
+        "type": "object"
+      },
+      "CustomerResponse": {
+        "properties": {
+          "account_number": {
+            "title": "Account Number",
+            "type": "string"
+          },
+          "addresses": {
+            "items": {
+              "$ref": "#/components/schemas/AddressResponse"
+            },
+            "title": "Addresses",
+            "type": "array"
+          },
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "contacts": {
+            "items": {
+              "$ref": "#/components/schemas/ContactResponse"
+            },
+            "title": "Contacts",
+            "type": "array"
+          },
+          "credit_hold": {
+            "title": "Credit Hold",
+            "type": "boolean"
+          },
+          "credit_limit": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit Limit"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "legal_name": {
+            "title": "Legal Name",
+            "type": "string"
+          },
+          "payment_terms": {
+            "title": "Payment Terms",
+            "type": "string"
+          },
+          "payment_timing_policy": {
+            "enum": [
+              "prepaid",
+              "cash_on_delivery",
+              "on_account"
+            ],
+            "title": "Payment Timing Policy",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "inactive",
+              "prospect"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "customer_id",
+          "account_number",
+          "branch_id",
+          "legal_name",
+          "status",
+          "payment_terms",
+          "payment_timing_policy",
+          "credit_limit",
+          "credit_hold",
+          "version",
+          "contacts",
+          "addresses"
+        ],
+        "title": "CustomerResponse",
+        "type": "object"
+      },
+      "CustomerSearchItem": {
+        "properties": {
+          "account_number": {
+            "title": "Account Number",
+            "type": "string"
+          },
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "credit_hold": {
+            "title": "Credit Hold",
+            "type": "boolean"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "legal_name": {
+            "title": "Legal Name",
+            "type": "string"
+          },
+          "payment_timing_policy": {
+            "enum": [
+              "prepaid",
+              "cash_on_delivery",
+              "on_account"
+            ],
+            "title": "Payment Timing Policy",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "inactive",
+              "prospect"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "customer_id",
+          "account_number",
+          "branch_id",
+          "legal_name",
+          "status",
+          "payment_timing_policy",
+          "credit_hold",
+          "version"
+        ],
+        "title": "CustomerSearchItem",
+        "type": "object"
+      },
+      "CustomerSearchResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerSearchItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "CustomerSearchResponse",
+        "type": "object"
+      },
       "ErrorDetail": {
         "properties": {
           "code": {
@@ -36,6 +861,20 @@
         "title": "ErrorEnvelope",
         "type": "object"
       },
+      "LifecycleCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "is_active"
+        ],
+        "title": "LifecycleCommand",
+        "type": "object"
+      },
       "LiveResponse": {
         "properties": {
           "service": {
@@ -52,6 +891,107 @@
           "status"
         ],
         "title": "LiveResponse",
+        "type": "object"
+      },
+      "OrganizationBootstrapCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "branches": {
+            "items": {
+              "$ref": "#/components/schemas/BranchInput"
+            },
+            "minItems": 1,
+            "title": "Branches",
+            "type": "array"
+          },
+          "company": {
+            "$ref": "#/components/schemas/CompanyInput"
+          },
+          "role_templates": {
+            "items": {
+              "$ref": "#/components/schemas/RoleTemplateInput"
+            },
+            "minItems": 1,
+            "title": "Role Templates",
+            "type": "array"
+          },
+          "users": {
+            "items": {
+              "$ref": "#/components/schemas/UserInput"
+            },
+            "minItems": 1,
+            "title": "Users",
+            "type": "array"
+          }
+        },
+        "required": [
+          "company",
+          "branches",
+          "role_templates",
+          "users"
+        ],
+        "title": "OrganizationBootstrapCommand",
+        "type": "object"
+      },
+      "OrganizationBootstrapResponse": {
+        "properties": {
+          "branches": {
+            "items": {
+              "$ref": "#/components/schemas/BranchResponse"
+            },
+            "title": "Branches",
+            "type": "array"
+          },
+          "company": {
+            "$ref": "#/components/schemas/CompanyResponse"
+          },
+          "configured_users": {
+            "title": "Configured Users",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "company",
+          "branches",
+          "configured_users"
+        ],
+        "title": "OrganizationBootstrapResponse",
+        "type": "object"
+      },
+      "OrganizationScopeResponse": {
+        "properties": {
+          "branches": {
+            "items": {
+              "$ref": "#/components/schemas/ScopeBranchResponse"
+            },
+            "title": "Branches",
+            "type": "array"
+          },
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "user": {
+            "$ref": "#/components/schemas/ScopeUserResponse"
+          },
+          "warehouses": {
+            "items": {
+              "$ref": "#/components/schemas/ScopeWarehouseResponse"
+            },
+            "title": "Warehouses",
+            "type": "array"
+          }
+        },
+        "required": [
+          "user",
+          "capabilities",
+          "branches",
+          "warehouses"
+        ],
+        "title": "OrganizationScopeResponse",
         "type": "object"
       },
       "PingCommand": {
@@ -110,6 +1050,134 @@
         "title": "ReadyResponse",
         "type": "object"
       },
+      "RoleTemplateInput": {
+        "additionalProperties": false,
+        "properties": {
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "code": {
+            "pattern": "^[A-Z][A-Z0-9_]{1,49}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "capabilities"
+        ],
+        "title": "RoleTemplateInput",
+        "type": "object"
+      },
+      "ScopeBranchResponse": {
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "branch_id",
+          "code",
+          "name",
+          "is_active",
+          "version"
+        ],
+        "title": "ScopeBranchResponse",
+        "type": "object"
+      },
+      "ScopeUserResponse": {
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "is_operations_administrator": {
+            "title": "Is Operations Administrator",
+            "type": "boolean"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject",
+          "display_name",
+          "is_operations_administrator"
+        ],
+        "title": "ScopeUserResponse",
+        "type": "object"
+      },
+      "ScopeWarehouseResponse": {
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "warehouse_id",
+          "branch_id",
+          "code",
+          "name",
+          "is_active",
+          "version"
+        ],
+        "title": "ScopeWarehouseResponse",
+        "type": "object"
+      },
       "SessionResponse": {
         "properties": {
           "database": {
@@ -156,6 +1224,204 @@
           "capabilities"
         ],
         "title": "SessionUserResponse",
+        "type": "object"
+      },
+      "UpdateAddressCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "city": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "City",
+            "type": "string"
+          },
+          "country_code": {
+            "pattern": "^[A-Z]{2}$",
+            "title": "Country Code",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "billing",
+              "delivery"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "line_1": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Line 1",
+            "type": "string"
+          },
+          "line_2": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line 2"
+          },
+          "postal_code": {
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "region": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Region",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "line_1",
+          "city",
+          "region",
+          "postal_code",
+          "country_code"
+        ],
+        "title": "UpdateAddressCommand",
+        "type": "object"
+      },
+      "UpdateCompanyCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "base_currency": {
+            "pattern": "^[A-Z]{3}$",
+            "title": "Base Currency",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "base_currency"
+        ],
+        "title": "UpdateCompanyCommand",
+        "type": "object"
+      },
+      "UserInput": {
+        "additionalProperties": false,
+        "properties": {
+          "approval_authorities": {
+            "items": {
+              "$ref": "#/components/schemas/ApprovalAuthorityInput"
+            },
+            "title": "Approval Authorities",
+            "type": "array"
+          },
+          "branch_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Branch Codes",
+            "type": "array"
+          },
+          "display_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "is_operations_administrator": {
+            "default": false,
+            "title": "Is Operations Administrator",
+            "type": "boolean"
+          },
+          "role_template_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Role Template Codes",
+            "type": "array"
+          },
+          "subject": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Subject",
+            "type": "string"
+          },
+          "warehouse_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warehouse Codes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "subject",
+          "display_name"
+        ],
+        "title": "UserInput",
+        "type": "object"
+      },
+      "WarehouseInput": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "pattern": "^[A-Z][A-Z0-9_-]{1,29}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "WarehouseInput",
+        "type": "object"
+      },
+      "WarehouseResponse": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "warehouse_id",
+          "code",
+          "name",
+          "is_active",
+          "version"
+        ],
+        "title": "WarehouseResponse",
         "type": "object"
       }
     },
@@ -241,6 +1507,1253 @@
         "summary": "Ready",
         "tags": [
           "platform"
+        ]
+      }
+    },
+    "/v1/customers": {
+      "get": {
+        "operationId": "search_customers_v1_customers_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 200,
+              "title": "Query",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerSearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Search Customers",
+        "tags": [
+          "customers"
+        ]
+      },
+      "post": {
+        "operationId": "create_customer_v1_customers_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCustomerCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Customer",
+        "tags": [
+          "customers"
+        ]
+      }
+    },
+    "/v1/customers/{customer_id}/addresses/{address_key}": {
+      "put": {
+        "operationId": "update_customer_address_v1_customers__customer_id__addresses__address_key__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Customer Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "address_key",
+            "required": true,
+            "schema": {
+              "title": "Address Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAddressCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddressUpdateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Customer Address",
+        "tags": [
+          "customers"
+        ]
+      }
+    },
+    "/v1/customers/{customer_id}/addresses/{address_key}/versions/{version}": {
+      "get": {
+        "operationId": "get_customer_address_version_v1_customers__customer_id__addresses__address_key__versions__version__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Customer Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "address_key",
+            "required": true,
+            "schema": {
+              "title": "Address Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddressResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Customer Address Version",
+        "tags": [
+          "customers"
+        ]
+      }
+    },
+    "/v1/customers/{customer_id}/credit-approvals": {
+      "post": {
+        "operationId": "approve_customer_credit_v1_customers__customer_id__credit_approvals_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Customer Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreditApprovalCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreditApprovalResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Approve Customer Credit",
+        "tags": [
+          "customers"
+        ]
+      }
+    },
+    "/v1/organization/bootstrap": {
+      "post": {
+        "operationId": "bootstrap_organization_v1_organization_bootstrap_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationBootstrapCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationBootstrapResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Bootstrap Organization",
+        "tags": [
+          "organization"
+        ]
+      }
+    },
+    "/v1/organization/branches/{branch_id}": {
+      "patch": {
+        "operationId": "update_branch_lifecycle_v1_organization_branches__branch_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "branch_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Branch Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LifecycleCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BranchLifecycleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Branch Lifecycle",
+        "tags": [
+          "organization"
+        ]
+      }
+    },
+    "/v1/organization/company": {
+      "patch": {
+        "operationId": "update_company_v1_organization_company_patch",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCompanyCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Company",
+        "tags": [
+          "organization"
+        ]
+      }
+    },
+    "/v1/organization/scope": {
+      "get": {
+        "operationId": "get_organization_scope_v1_organization_scope_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationScopeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Organization Scope",
+        "tags": [
+          "organization"
+        ]
+      }
+    },
+    "/v1/organization/warehouses/{warehouse_id}": {
+      "patch": {
+        "operationId": "update_warehouse_lifecycle_v1_organization_warehouses__warehouse_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "warehouse_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Warehouse Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LifecycleCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WarehouseResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Warehouse Lifecycle",
+        "tags": [
+          "organization"
         ]
       }
     },

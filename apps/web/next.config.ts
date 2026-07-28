@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   transpilePackages: [
     "@tradeflow/api-client",
+    "@tradeflow/customer-directory",
     "@tradeflow/platform-session",
     "@tradeflow/telemetry",
   ],

@@ -2,14 +2,26 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Annotated, Any
+from uuid import UUID
 
 import jwt
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import PyJWKClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from tradeflow_api.config import Settings
+from tradeflow_api.database import get_database_session
 from tradeflow_api.errors import AppError
+from tradeflow_api.models import (
+    role_template_capabilities,
+    role_templates,
+    user_branch_scopes,
+    user_role_templates,
+    user_warehouse_scopes,
+    users,
+)
 
 bearer = HTTPBearer(auto_error=False)
 
@@ -19,6 +31,16 @@ class CurrentUser:
     subject: str
     display_name: str
     capabilities: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class AuthorizedUser:
+    subject: str
+    display_name: str
+    capabilities: tuple[str, ...]
+    branch_ids: tuple[UUID, ...]
+    warehouse_ids: tuple[UUID, ...]
+    is_operations_administrator: bool
 
 
 class TokenVerifier:
@@ -121,3 +143,118 @@ async def require_platform_writer(
             message=f"The '{capability}' capability is required.",
         )
     return user
+
+
+async def require_organization_bootstrapper(
+    user: Annotated[CurrentUser, Depends(authenticate)],
+) -> CurrentUser:
+    capability = "organization:bootstrap"
+    if capability not in user.capabilities:
+        raise AppError(
+            status_code=403,
+            code="capability_required",
+            message=f"The '{capability}' capability is required.",
+        )
+    return user
+
+
+async def load_authorized_user(
+    identity: Annotated[CurrentUser, Depends(authenticate)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> AuthorizedUser:
+    configured_user = (
+        await session.execute(
+            select(
+                users.c.display_name,
+                users.c.is_operations_administrator,
+                users.c.is_active,
+            ).where(users.c.subject == identity.subject)
+        )
+    ).one_or_none()
+    if configured_user is None or not configured_user.is_active:
+        raise AppError(
+            status_code=403,
+            code="operational_access_required",
+            message="The user has no active TradeFlow operational assignment.",
+        )
+
+    capability_codes = (
+        await session.execute(
+            select(role_template_capabilities.c.capability_code)
+            .select_from(
+                user_role_templates.join(
+                    role_templates,
+                    user_role_templates.c.role_template_id == role_templates.c.role_template_id,
+                ).join(
+                    role_template_capabilities,
+                    role_templates.c.role_template_id
+                    == role_template_capabilities.c.role_template_id,
+                )
+            )
+            .where(
+                user_role_templates.c.user_subject == identity.subject,
+                role_templates.c.is_active.is_(True),
+            )
+            .distinct()
+        )
+    ).scalars()
+    branch_ids = (
+        await session.execute(
+            select(user_branch_scopes.c.branch_id).where(
+                user_branch_scopes.c.user_subject == identity.subject
+            )
+        )
+    ).scalars()
+    warehouse_ids = (
+        await session.execute(
+            select(user_warehouse_scopes.c.warehouse_id).where(
+                user_warehouse_scopes.c.user_subject == identity.subject
+            )
+        )
+    ).scalars()
+
+    return AuthorizedUser(
+        subject=identity.subject,
+        display_name=configured_user.display_name,
+        capabilities=tuple(sorted(set(capability_codes))),
+        branch_ids=tuple(sorted(set(branch_ids), key=str)),
+        warehouse_ids=tuple(sorted(set(warehouse_ids), key=str)),
+        is_operations_administrator=configured_user.is_operations_administrator,
+    )
+
+
+def require_capability(
+    user: AuthorizedUser,
+    capability: str,
+) -> AuthorizedUser:
+    if capability not in user.capabilities:
+        raise AppError(
+            status_code=403,
+            code="capability_required",
+            message=f"The '{capability}' capability is required.",
+        )
+    return user
+
+
+async def require_customer_writer(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "customer:write")
+
+
+async def require_customer_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "customer:read")
+
+
+async def require_customer_credit_approver(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "customer:credit-approve")
+
+
+async def require_organization_administrator(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "organization:admin")

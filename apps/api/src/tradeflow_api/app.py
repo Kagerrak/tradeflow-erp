@@ -16,6 +16,7 @@ from tradeflow_api.auth import (
     require_platform_reader,
 )
 from tradeflow_api.config import Settings, get_settings
+from tradeflow_api.customers import router as customers_router
 from tradeflow_api.database import (
     check_database,
     check_database_migrations,
@@ -29,6 +30,7 @@ from tradeflow_api.observability import (
     configure_observability,
     instrument_app,
 )
+from tradeflow_api.organization import router as organization_router
 from tradeflow_api.platform import router as platform_router
 
 
@@ -80,6 +82,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.token_verifier = verifier
     app.state.session_factory = create_session_factory(engine)
     app.add_middleware(CorrelationMiddleware)
+    app.include_router(customers_router)
+    app.include_router(organization_router)
     app.include_router(platform_router)
     instrument_app(app, engine, resolved_settings)
 

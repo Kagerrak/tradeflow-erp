@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react-native";
 import { loadPlatformSession } from "@tradeflow/platform-session";
 
+import { CustomerDirectory } from "./customer-directory";
 import { PlatformHome } from "./platform-home";
 
 const runRealStack = process.env.TRADEFLOW_REAL_STACK === "1" ? it : it.skip;
@@ -33,5 +34,23 @@ runRealStack(
     expect(await screen.findByText("Field handoff is ready")).toBeOnTheScreen();
     expect(screen.getByText("Local Platform Operator")).toBeOnTheScreen();
     expect(screen.getByText("ready")).toBeOnTheScreen();
+  },
+);
+
+runRealStack(
+  "renders the Branch-scoped customer directory through the native client",
+  async () => {
+    await render(
+      <CustomerDirectory
+        accessToken={process.env.TRADEFLOW_REAL_STACK_SALES_TOKEN}
+        baseUrl={
+          process.env.TRADEFLOW_REAL_STACK_API_URL ?? "http://127.0.0.1:8000"
+        }
+        createCorrelationId={() => "89a81e99-09cf-4cf3-ae91-e36d63682297"}
+      />,
+    );
+
+    expect(await screen.findByText("Real Stack Retail")).toBeOnTheScreen();
+    expect(screen.queryByText("Cebu")).not.toBeOnTheScreen();
   },
 );

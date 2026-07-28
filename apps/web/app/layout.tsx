@@ -1,5 +1,6 @@
 import "@fontsource-variable/ibm-plex-sans";
 import "@fontsource-variable/newsreader";
+import "./customer.css";
 import "./theme.css";
 
 import type { Metadata, Viewport } from "next";

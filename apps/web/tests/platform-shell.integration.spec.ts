@@ -23,3 +23,15 @@ test("@real-stack renders the authenticated API and PostgreSQL session", async (
   expect(response.status()).toBe(200);
   expect(response.headers()["x-correlation-id"]).toMatch(/^[0-9a-f-]{36}$/u);
 });
+
+test("@real-stack renders only the authenticated Branch customer directory", async ({
+  page,
+}) => {
+  await page.goto("/customers");
+
+  await expect(page.getByText("Manila / MNL")).toBeVisible();
+  await expect(
+    page.getByRole("cell", { name: "Real Stack Retail" }),
+  ).toBeVisible();
+  await expect(page.getByText("Cebu / CEB")).toHaveCount(0);
+});

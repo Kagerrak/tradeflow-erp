@@ -28,7 +28,7 @@ def error_responses(*status_codes: int) -> dict[int | str, dict[str, Any]]:
     }
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class AppError(Exception):
     status_code: int
     code: str

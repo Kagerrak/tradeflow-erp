@@ -7,6 +7,7 @@ import {
 import { createTelemetryContext } from "@tradeflow/telemetry";
 import { colors } from "@tradeflow/design-tokens";
 import { randomUUID } from "expo-crypto";
+import { Link } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -284,18 +285,36 @@ function RoutePreview() {
         </View>
         <Text style={styles.routeCount}>3 TASKS</Text>
       </View>
-      {routeTasks.map(([number, label, detail]) => (
-        <View key={number} style={styles.routeRow}>
-          <Text style={styles.routeNumber}>{number}</Text>
-          <View style={styles.routeCopy}>
-            <Text style={styles.routeLabel}>{label}</Text>
-            <Text style={styles.routeDetail}>{detail}</Text>
+      {routeTasks.map(([number, label, detail], index) =>
+        index === 0 ? (
+          <Link asChild href="./customers" key={number}>
+            <Pressable
+              accessibilityLabel="Open customer lookup"
+              accessibilityRole="button"
+              style={styles.routeRow}
+            >
+              <Text style={styles.routeNumber}>{number}</Text>
+              <View style={styles.routeCopy}>
+                <Text style={styles.routeLabel}>{label}</Text>
+                <Text style={styles.routeDetail}>{detail}</Text>
+              </View>
+              <Text style={styles.locked}>OPEN →</Text>
+            </Pressable>
+          </Link>
+        ) : (
+          <View key={number} style={styles.routeRow}>
+            <Text style={styles.routeNumber}>{number}</Text>
+            <View style={styles.routeCopy}>
+              <Text style={styles.routeLabel}>{label}</Text>
+              <Text style={styles.routeDetail}>{detail}</Text>
+            </View>
+            <Text style={styles.locked}>LOCKED</Text>
           </View>
-          <Text style={styles.locked}>LOCKED</Text>
-        </View>
-      ))}
+        ),
+      )}
       <Text style={styles.routeNote}>
-        Tasks remain locked until organization scope is assigned by the server.
+        Customer lookup respects server scope. Later route tasks remain locked
+        until their capabilities are assigned.
       </Text>
     </View>
   );

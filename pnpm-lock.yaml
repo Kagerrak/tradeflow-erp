@@ -26,6 +26,9 @@ importers:
       '@expo-google-fonts/newsreader':
         specifier: 0.4.1
         version: 0.4.1
+      '@tradeflow/customer-directory':
+        specifier: workspace:*
+        version: link:../../packages/customer-directory
       '@tradeflow/design-tokens':
         specifier: workspace:*
         version: link:../../packages/design-tokens
@@ -123,6 +126,12 @@ importers:
       '@fontsource-variable/newsreader':
         specifier: ^5.3.0
         version: 5.3.0
+      '@tradeflow/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
+      '@tradeflow/customer-directory':
+        specifier: workspace:*
+        version: link:../../packages/customer-directory
       '@tradeflow/design-tokens':
         specifier: workspace:*
         version: link:../../packages/design-tokens
@@ -176,6 +185,28 @@ importers:
       openapi-typescript:
         specifier: ^7.9.1
         version: 7.13.0(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      typescript-eslint:
+        specifier: ^8.38.0
+        version: 8.65.0(eslint@9.39.5)(typescript@5.9.3)
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@24.13.3)(jsdom@20.0.3)(lightningcss@1.33.0)(terser@5.49.0)(yaml@2.9.0)
+
+  packages/customer-directory:
+    dependencies:
+      '@tradeflow/api-client':
+        specifier: workspace:*
+        version: link:../api-client
+    devDependencies:
+      '@eslint/js':
+        specifier: ^9.32.0
+        version: 9.39.5
+      eslint:
+        specifier: ^9.32.0
+        version: 9.39.5
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -7619,9 +7650,7 @@ snapshots:
       metro-runtime: 0.84.4
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
 
   '@react-native/normalize-colors@0.74.89': {}
 
@@ -9093,7 +9122,7 @@ snapshots:
       eslint: 9.39.5
       eslint-import-resolver-node: 0.3.10
       eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(eslint@9.39.5))(eslint@9.39.5)
-      eslint-plugin-import: 2.32.0(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5)
+      eslint-plugin-import: 2.32.0(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(eslint@9.39.5))(eslint@9.39.5))(eslint@9.39.5)
       eslint-plugin-jsx-a11y: 6.10.2(eslint@9.39.5)
       eslint-plugin-react: 7.37.5(eslint@9.39.5)
       eslint-plugin-react-hooks: 7.1.1(eslint@9.39.5)
@@ -9126,7 +9155,7 @@ snapshots:
       tinyglobby: 0.2.17
       unrs-resolver: 1.12.2
     optionalDependencies:
-      eslint-plugin-import: 2.32.0(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5)
+      eslint-plugin-import: 2.32.0(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(eslint@9.39.5))(eslint@9.39.5))(eslint@9.39.5)
     transitivePeerDependencies:
       - supports-color
 
@@ -9204,7 +9233,7 @@ snapshots:
       - eslint-import-resolver-webpack
       - supports-color
 
-  eslint-plugin-import@2.32.0(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5):
+  eslint-plugin-import@2.32.0(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(eslint@9.39.5))(eslint@9.39.5))(eslint@9.39.5):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.1.9

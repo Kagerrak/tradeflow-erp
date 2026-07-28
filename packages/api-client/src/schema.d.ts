@@ -38,6 +38,160 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search Customers */
+        get: operations["search_customers_v1_customers_get"];
+        put?: never;
+        /** Create Customer */
+        post: operations["create_customer_v1_customers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/customers/{customer_id}/addresses/{address_key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Customer Address */
+        put: operations["update_customer_address_v1_customers__customer_id__addresses__address_key__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/customers/{customer_id}/addresses/{address_key}/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Customer Address Version */
+        get: operations["get_customer_address_version_v1_customers__customer_id__addresses__address_key__versions__version__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/customers/{customer_id}/credit-approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Customer Credit */
+        post: operations["approve_customer_credit_v1_customers__customer_id__credit_approvals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organization/bootstrap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bootstrap Organization */
+        post: operations["bootstrap_organization_v1_organization_bootstrap_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organization/branches/{branch_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Branch Lifecycle */
+        patch: operations["update_branch_lifecycle_v1_organization_branches__branch_id__patch"];
+        trace?: never;
+    };
+    "/v1/organization/company": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Company */
+        patch: operations["update_company_v1_organization_company_patch"];
+        trace?: never;
+    };
+    "/v1/organization/scope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Organization Scope */
+        get: operations["get_organization_scope_v1_organization_scope_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organization/warehouses/{warehouse_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Warehouse Lifecycle */
+        patch: operations["update_warehouse_lifecycle_v1_organization_warehouses__warehouse_id__patch"];
+        trace?: never;
+    };
     "/v1/platform/ping": {
         parameters: {
             query?: never;
@@ -76,6 +230,320 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AddressInput */
+        AddressInput: {
+            /** Address Key */
+            address_key: string;
+            /** City */
+            city: string;
+            /** Country Code */
+            country_code: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "billing" | "delivery";
+            /** Line 1 */
+            line_1: string;
+            /** Line 2 */
+            line_2?: string | null;
+            /** Postal Code */
+            postal_code: string;
+            /** Region */
+            region: string;
+        };
+        /** AddressResponse */
+        AddressResponse: {
+            /** Address Key */
+            address_key: string;
+            /**
+             * Address Version Id
+             * Format: uuid
+             */
+            address_version_id: string;
+            /** City */
+            city: string;
+            /** Country Code */
+            country_code: string;
+            /** Is Current */
+            is_current: boolean;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "billing" | "delivery";
+            /** Line 1 */
+            line_1: string;
+            /** Line 2 */
+            line_2: string | null;
+            /** Postal Code */
+            postal_code: string;
+            /** Region */
+            region: string;
+            /** Version */
+            version: number;
+        };
+        /** AddressUpdateResponse */
+        AddressUpdateResponse: {
+            address: components["schemas"]["AddressResponse"];
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /** Customer Version */
+            customer_version: number;
+        };
+        /** ApprovalAuthorityInput */
+        ApprovalAuthorityInput: {
+            /** Branch Code */
+            branch_code: string;
+            /** Capability */
+            capability: string;
+            /**
+             * Maker Checker Required
+             * @default true
+             */
+            maker_checker_required: boolean;
+            /** Maximum Amount */
+            maximum_amount?: number | string | null;
+            /** Maximum Percentage */
+            maximum_percentage?: number | string | null;
+        };
+        /** BranchInput */
+        BranchInput: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Warehouses */
+            warehouses: components["schemas"]["WarehouseInput"][];
+        };
+        /** BranchLifecycleResponse */
+        BranchLifecycleResponse: {
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Code */
+            code: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+        };
+        /** BranchResponse */
+        BranchResponse: {
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Code */
+            code: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+            /** Warehouses */
+            warehouses: components["schemas"]["WarehouseResponse"][];
+        };
+        /** CompanyInput */
+        CompanyInput: {
+            /** Base Currency */
+            base_currency: string;
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+        };
+        /** CompanyResponse */
+        CompanyResponse: {
+            /** Base Currency */
+            base_currency: string;
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+        };
+        /** ContactInput */
+        ContactInput: {
+            /** Email */
+            email?: string | null;
+            /** Name */
+            name: string;
+            /** Phone */
+            phone?: string | null;
+            /** Role */
+            role: string;
+        };
+        /** ContactResponse */
+        ContactResponse: {
+            /**
+             * Contact Id
+             * Format: uuid
+             */
+            contact_id: string;
+            /** Email */
+            email: string | null;
+            /** Is Active */
+            is_active: boolean;
+            /** Name */
+            name: string;
+            /** Phone */
+            phone: string | null;
+            /** Role */
+            role: string;
+            /** Version */
+            version: number;
+        };
+        /** CreateCustomerCommand */
+        CreateCustomerCommand: {
+            /** Account Number */
+            account_number: string;
+            /** Addresses */
+            addresses: components["schemas"]["AddressInput"][];
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Contacts */
+            contacts?: components["schemas"]["ContactInput"][];
+            /**
+             * Credit Hold
+             * @default false
+             */
+            credit_hold: boolean;
+            /** Credit Limit */
+            credit_limit?: number | string | null;
+            /** Legal Name */
+            legal_name: string;
+            /** Payment Terms */
+            payment_terms: string;
+            /**
+             * Payment Timing Policy
+             * @enum {string}
+             */
+            payment_timing_policy: "prepaid" | "cash_on_delivery" | "on_account";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "inactive" | "prospect";
+        };
+        /** CreditApprovalCommand */
+        CreditApprovalCommand: {
+            /** Reason */
+            reason: string;
+        };
+        /** CreditApprovalResponse */
+        CreditApprovalResponse: {
+            /** Approved By */
+            approved_by: string;
+            /**
+             * Credit Approval Id
+             * Format: uuid
+             */
+            credit_approval_id: string;
+            /** Credit Hold */
+            credit_hold: boolean;
+            /** Credit Limit */
+            credit_limit: string;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /** Customer Version */
+            customer_version: number;
+            /** Reason */
+            reason: string;
+        };
+        /** CustomerResponse */
+        CustomerResponse: {
+            /** Account Number */
+            account_number: string;
+            /** Addresses */
+            addresses: components["schemas"]["AddressResponse"][];
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Contacts */
+            contacts: components["schemas"]["ContactResponse"][];
+            /** Credit Hold */
+            credit_hold: boolean;
+            /** Credit Limit */
+            credit_limit: string | null;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /** Legal Name */
+            legal_name: string;
+            /** Payment Terms */
+            payment_terms: string;
+            /**
+             * Payment Timing Policy
+             * @enum {string}
+             */
+            payment_timing_policy: "prepaid" | "cash_on_delivery" | "on_account";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "inactive" | "prospect";
+            /** Version */
+            version: number;
+        };
+        /** CustomerSearchItem */
+        CustomerSearchItem: {
+            /** Account Number */
+            account_number: string;
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Credit Hold */
+            credit_hold: boolean;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /** Legal Name */
+            legal_name: string;
+            /**
+             * Payment Timing Policy
+             * @enum {string}
+             */
+            payment_timing_policy: "prepaid" | "cash_on_delivery" | "on_account";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "inactive" | "prospect";
+            /** Version */
+            version: number;
+        };
+        /** CustomerSearchResponse */
+        CustomerSearchResponse: {
+            /** Items */
+            items: components["schemas"]["CustomerSearchItem"][];
+            /** Total */
+            total: number;
+        };
         /** ErrorDetail */
         ErrorDetail: {
             /** Code */
@@ -89,12 +557,45 @@ export interface components {
         ErrorEnvelope: {
             error: components["schemas"]["ErrorDetail"];
         };
+        /** LifecycleCommand */
+        LifecycleCommand: {
+            /** Is Active */
+            is_active: boolean;
+        };
         /** LiveResponse */
         LiveResponse: {
             /** Service */
             service: string;
             /** Status */
             status: string;
+        };
+        /** OrganizationBootstrapCommand */
+        OrganizationBootstrapCommand: {
+            /** Branches */
+            branches: components["schemas"]["BranchInput"][];
+            company: components["schemas"]["CompanyInput"];
+            /** Role Templates */
+            role_templates: components["schemas"]["RoleTemplateInput"][];
+            /** Users */
+            users: components["schemas"]["UserInput"][];
+        };
+        /** OrganizationBootstrapResponse */
+        OrganizationBootstrapResponse: {
+            /** Branches */
+            branches: components["schemas"]["BranchResponse"][];
+            company: components["schemas"]["CompanyResponse"];
+            /** Configured Users */
+            configured_users: number;
+        };
+        /** OrganizationScopeResponse */
+        OrganizationScopeResponse: {
+            /** Branches */
+            branches: components["schemas"]["ScopeBranchResponse"][];
+            /** Capabilities */
+            capabilities: string[];
+            user: components["schemas"]["ScopeUserResponse"];
+            /** Warehouses */
+            warehouses: components["schemas"]["ScopeWarehouseResponse"][];
         };
         /** PingCommand */
         PingCommand: {
@@ -117,6 +618,61 @@ export interface components {
             /** Status */
             status: string;
         };
+        /** RoleTemplateInput */
+        RoleTemplateInput: {
+            /** Capabilities */
+            capabilities: string[];
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+        };
+        /** ScopeBranchResponse */
+        ScopeBranchResponse: {
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Code */
+            code: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+        };
+        /** ScopeUserResponse */
+        ScopeUserResponse: {
+            /** Display Name */
+            display_name: string;
+            /** Is Operations Administrator */
+            is_operations_administrator: boolean;
+            /** Subject */
+            subject: string;
+        };
+        /** ScopeWarehouseResponse */
+        ScopeWarehouseResponse: {
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Code */
+            code: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+            /**
+             * Warehouse Id
+             * Format: uuid
+             */
+            warehouse_id: string;
+        };
         /** SessionResponse */
         SessionResponse: {
             /** Database */
@@ -133,6 +689,76 @@ export interface components {
             display_name: string;
             /** Subject */
             subject: string;
+        };
+        /** UpdateAddressCommand */
+        UpdateAddressCommand: {
+            /** City */
+            city: string;
+            /** Country Code */
+            country_code: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "billing" | "delivery";
+            /** Line 1 */
+            line_1: string;
+            /** Line 2 */
+            line_2?: string | null;
+            /** Postal Code */
+            postal_code: string;
+            /** Region */
+            region: string;
+        };
+        /** UpdateCompanyCommand */
+        UpdateCompanyCommand: {
+            /** Base Currency */
+            base_currency: string;
+            /** Name */
+            name: string;
+        };
+        /** UserInput */
+        UserInput: {
+            /** Approval Authorities */
+            approval_authorities?: components["schemas"]["ApprovalAuthorityInput"][];
+            /** Branch Codes */
+            branch_codes?: string[];
+            /** Display Name */
+            display_name: string;
+            /**
+             * Is Operations Administrator
+             * @default false
+             */
+            is_operations_administrator: boolean;
+            /** Role Template Codes */
+            role_template_codes?: string[];
+            /** Subject */
+            subject: string;
+            /** Warehouse Codes */
+            warehouse_codes?: string[];
+        };
+        /** WarehouseInput */
+        WarehouseInput: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+        };
+        /** WarehouseResponse */
+        WarehouseResponse: {
+            /** Code */
+            code: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+            /**
+             * Warehouse Id
+             * Format: uuid
+             */
+            warehouse_id: string;
         };
     };
     responses: never;
@@ -201,6 +827,800 @@ export interface operations {
             };
             /** @description Stable TradeFlow error envelope. */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    search_customers_v1_customers_get: {
+        parameters: {
+            query?: {
+                query?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerSearchResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_customer_v1_customers_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCustomerCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    update_customer_address_v1_customers__customer_id__addresses__address_key__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: number | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                customer_id: string;
+                address_key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAddressCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddressUpdateResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_customer_address_version_v1_customers__customer_id__addresses__address_key__versions__version__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: string;
+                address_key: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddressResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    approve_customer_credit_v1_customers__customer_id__credit_approvals_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: number | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreditApprovalCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditApprovalResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    bootstrap_organization_v1_organization_bootstrap_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationBootstrapCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationBootstrapResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    update_branch_lifecycle_v1_organization_branches__branch_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: number | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                branch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LifecycleCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchLifecycleResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    update_company_v1_organization_company_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: number | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCompanyCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_organization_scope_v1_organization_scope_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationScopeResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    update_warehouse_lifecycle_v1_organization_warehouses__warehouse_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: number | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                warehouse_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LifecycleCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WarehouseResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

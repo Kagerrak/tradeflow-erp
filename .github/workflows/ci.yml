@@ -102,7 +102,13 @@ jobs:
 
       - name: Test authenticated web and mobile shells against the real stack
         run: |
-          export TRADEFLOW_WEB_TEST_ACCESS_TOKEN="$(uv run python scripts/create_test_token.py)"
+          uv run alembic -c apps/api/alembic.ini downgrade base
+          uv run alembic -c apps/api/alembic.ini upgrade head
+          export TRADEFLOW_REAL_STACK_BOOTSTRAP_TOKEN="$(uv run python scripts/create_test_token.py --subject bootstrapper --name Bootstrapper --capability organization:bootstrap)"
+          export TRADEFLOW_REAL_STACK_SALES_TOKEN="$(uv run python scripts/create_test_token.py --subject sales-mnl --name 'Local Platform Operator' --capability platform:read --capability platform:write)"
+          export TRADEFLOW_REAL_STACK_CEB_TOKEN="$(uv run python scripts/create_test_token.py --subject sales-ceb --name 'Cebu Sales')"
+          export TRADEFLOW_REAL_STACK_ADMIN_TOKEN="$(uv run python scripts/create_test_token.py --subject operations-admin --name 'Operations Admin')"
+          export TRADEFLOW_WEB_TEST_ACCESS_TOKEN="$TRADEFLOW_REAL_STACK_SALES_TOKEN"
           export TRADEFLOW_REAL_STACK_ACCESS_TOKEN="$TRADEFLOW_WEB_TEST_ACCESS_TOKEN"
           export TRADEFLOW_REAL_STACK_FORBIDDEN_TOKEN="$(uv run python scripts/create_test_token.py --capability catalog:read)"
           export TRADEFLOW_REAL_STACK_API_URL="http://127.0.0.1:8000"
@@ -120,7 +126,7 @@ jobs:
             fi
             sleep 1
           done
-          uv run pytest apps/api/tests/test_black_box_platform.py
+          uv run pytest apps/api/tests/test_black_box_platform.py apps/api/tests/test_black_box_organization_customer.py
           pnpm --filter @tradeflow/web test:integration
           pnpm --filter @tradeflow/mobile test:integration
 
