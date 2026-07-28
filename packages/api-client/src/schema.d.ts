@@ -158,6 +158,23 @@ export interface paths {
         patch: operations["update_company_v1_organization_company_patch"];
         trace?: never;
     };
+    "/v1/organization/role-templates/{role_code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Configure Role Template */
+        put: operations["configure_role_template_v1_organization_role_templates__role_code__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organization/scope": {
         parameters: {
             query?: never;
@@ -168,6 +185,23 @@ export interface paths {
         /** Get Organization Scope */
         get: operations["get_organization_scope_v1_organization_scope_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organization/users/{subject}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Configure User */
+        put: operations["configure_user_v1_organization_users__subject__put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -295,7 +329,7 @@ export interface components {
             customer_version: number;
         };
         /** ApprovalAuthorityInput */
-        ApprovalAuthorityInput: {
+        "ApprovalAuthorityInput-Input": {
             /** Branch Code */
             branch_code: string;
             /** Capability */
@@ -309,6 +343,22 @@ export interface components {
             maximum_amount?: number | string | null;
             /** Maximum Percentage */
             maximum_percentage?: number | string | null;
+        };
+        /** ApprovalAuthorityInput */
+        "ApprovalAuthorityInput-Output": {
+            /** Branch Code */
+            branch_code: string;
+            /** Capability */
+            capability: string;
+            /**
+             * Maker Checker Required
+             * @default true
+             */
+            maker_checker_required: boolean;
+            /** Maximum Amount */
+            maximum_amount?: string | null;
+            /** Maximum Percentage */
+            maximum_percentage?: string | null;
         };
         /** BranchInput */
         BranchInput: {
@@ -372,6 +422,41 @@ export interface components {
             name: string;
             /** Version */
             version: number;
+        };
+        /** ConfigureRoleTemplateCommand */
+        ConfigureRoleTemplateCommand: {
+            /** Capabilities */
+            capabilities: string[];
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+            /** Name */
+            name: string;
+        };
+        /** ConfigureUserCommand */
+        ConfigureUserCommand: {
+            /** Approval Authorities */
+            approval_authorities?: components["schemas"]["ApprovalAuthorityInput-Input"][];
+            /** Branch Codes */
+            branch_codes?: string[];
+            /** Display Name */
+            display_name: string;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+            /**
+             * Is Operations Administrator
+             * @default false
+             */
+            is_operations_administrator: boolean;
+            /** Role Template Codes */
+            role_template_codes?: string[];
+            /** Warehouse Codes */
+            warehouse_codes?: string[];
         };
         /** ContactInput */
         ContactInput: {
@@ -627,6 +712,19 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** RoleTemplateResponse */
+        RoleTemplateResponse: {
+            /** Capabilities */
+            capabilities: string[];
+            /** Code */
+            code: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+        };
         /** ScopeBranchResponse */
         ScopeBranchResponse: {
             /**
@@ -717,10 +815,31 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** UserConfigurationResponse */
+        UserConfigurationResponse: {
+            /** Approval Authorities */
+            approval_authorities: components["schemas"]["ApprovalAuthorityInput-Output"][];
+            /** Branch Codes */
+            branch_codes: string[];
+            /** Display Name */
+            display_name: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Is Operations Administrator */
+            is_operations_administrator: boolean;
+            /** Role Template Codes */
+            role_template_codes: string[];
+            /** Subject */
+            subject: string;
+            /** Version */
+            version: number;
+            /** Warehouse Codes */
+            warehouse_codes: string[];
+        };
         /** UserInput */
         UserInput: {
             /** Approval Authorities */
-            approval_authorities?: components["schemas"]["ApprovalAuthorityInput"][];
+            approval_authorities?: components["schemas"]["ApprovalAuthorityInput-Input"][];
             /** Branch Codes */
             branch_codes?: string[];
             /** Display Name */
@@ -1491,6 +1610,89 @@ export interface operations {
             };
         };
     };
+    configure_role_template_v1_organization_role_templates__role_code__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: number | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                role_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfigureRoleTemplateCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleTemplateResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     get_organization_scope_v1_organization_scope_get: {
         parameters: {
             query?: never;
@@ -1520,6 +1722,89 @@ export interface operations {
             };
             /** @description Stable TradeFlow error envelope. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    configure_user_v1_organization_users__subject__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: number | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                subject: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfigureUserCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserConfigurationResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

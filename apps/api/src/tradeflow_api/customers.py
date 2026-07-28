@@ -356,6 +356,23 @@ async def update_customer_address(
                     code="idempotency_conflict",
                     message="Idempotency-Key was already used for another command.",
                 )
+            current_branch_id = await session.scalar(
+                select(customer_accounts.c.branch_id).where(
+                    customer_accounts.c.customer_id == customer_id
+                )
+            )
+            if current_branch_id is None:
+                raise AppError(
+                    status_code=404,
+                    code="customer_not_found",
+                    message="The Customer Account does not exist.",
+                )
+            if current_branch_id not in actor.branch_ids:
+                raise AppError(
+                    status_code=403,
+                    code="operational_scope_required",
+                    message="The Customer Account is outside the user's Branch scope.",
+                )
             response.headers["X-Idempotency-Replayed"] = "true"
             return AddressUpdateResponse.model_validate(stored_response)
 
@@ -537,6 +554,64 @@ async def approve_customer_credit(
                     status_code=409,
                     code="idempotency_conflict",
                     message="Idempotency-Key was already used for another command.",
+                )
+            current_customer = (
+                await session.execute(
+                    select(
+                        customer_accounts.c.branch_id,
+                        customer_accounts.c.created_by,
+                        customer_accounts.c.credit_limit,
+                    ).where(customer_accounts.c.customer_id == customer_id)
+                )
+            ).one_or_none()
+            if current_customer is None:
+                raise AppError(
+                    status_code=404,
+                    code="customer_not_found",
+                    message="The Customer Account does not exist.",
+                )
+            if current_customer.branch_id not in actor.branch_ids:
+                raise AppError(
+                    status_code=403,
+                    code="operational_scope_required",
+                    message="The Customer Account is outside the user's Branch scope.",
+                )
+            current_authority = (
+                await session.execute(
+                    select(
+                        approval_authorities.c.maximum_amount,
+                        approval_authorities.c.maker_checker_required,
+                    ).where(
+                        approval_authorities.c.user_subject == actor.subject,
+                        approval_authorities.c.capability_code == "customer:credit-approve",
+                        approval_authorities.c.branch_id == current_customer.branch_id,
+                    )
+                )
+            ).one_or_none()
+            if current_authority is None:
+                raise AppError(
+                    status_code=403,
+                    code="approval_authority_required",
+                    message="Explicit Customer credit Approval Authority is required.",
+                )
+            current_limit = current_customer.credit_limit or Decimal("0.00")
+            if (
+                current_authority.maximum_amount is not None
+                and current_limit > current_authority.maximum_amount
+            ):
+                raise AppError(
+                    status_code=403,
+                    code="approval_limit_exceeded",
+                    message="The Customer credit limit exceeds Approval Authority.",
+                )
+            if (
+                current_authority.maker_checker_required
+                and current_customer.created_by == actor.subject
+            ):
+                raise AppError(
+                    status_code=409,
+                    code="maker_checker_violation",
+                    message="The Customer maker cannot approve the same credit decision.",
                 )
             response.status_code = 200
             response.headers["X-Idempotency-Replayed"] = "true"

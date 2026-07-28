@@ -172,9 +172,14 @@ function DirectoryState({
         <Text style={styles.copy}>
           {state.kind === "forbidden"
             ? "Ask an operations administrator for customer read access and a Branch assignment."
-            : state.kind === "validation"
-              ? "Enter a longer account number or legal name, then search again."
-              : "Confirm your connection and try again."}
+            : state.kind === "unauthenticated"
+              ? "Open your identity provider, then return to customer lookup."
+              : state.kind === "validation"
+                ? "Enter a longer account number or legal name, then search again."
+                : "Confirm your connection and try again."}
+        </Text>
+        <Text selectable style={styles.supportReference}>
+          Support reference {state.correlationId}
         </Text>
         {state.kind === "unavailable" && (
           <Pressable
@@ -402,6 +407,11 @@ const styles = StyleSheet.create({
     fontSize: 9,
     paddingHorizontal: 5,
     paddingVertical: 2,
+  },
+  supportReference: {
+    color: colors.inkMuted,
+    fontFamily: "IBMPlexSans_400Regular",
+    fontSize: 11,
   },
   term: {
     color: colors.inkMuted,

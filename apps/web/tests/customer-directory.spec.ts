@@ -29,6 +29,21 @@ async function routeScope(page: Page) {
   });
 }
 
+async function fillRequiredDocket(page: Page) {
+  await page.getByLabel("Legal name", { exact: true }).fill("Northstar Retail");
+  await page.getByLabel("Account number", { exact: true }).fill("MNL-0042");
+  await page.getByLabel("Contact name").fill("Maria Santos");
+  await page.getByLabel("Contact role").fill("Purchasing");
+  await page.getByLabel("Email").fill("maria@northstar.example");
+  for (const kind of ["billing", "delivery"]) {
+    await page.locator(`input[name="${kind}_line_1"]`).fill("18 Port Road");
+    await page.locator(`input[name="${kind}_city"]`).fill("Manila");
+    await page.locator(`input[name="${kind}_region"]`).fill("NCR");
+    await page.locator(`input[name="${kind}_postal_code"]`).fill("1018");
+    await page.locator(`input[name="${kind}_country"]`).fill("PH");
+  }
+}
+
 test("shows progress while loading the authorized customer directory", async ({
   page,
 }) => {
@@ -154,13 +169,13 @@ test("keeps entered data and shows validation feedback", async ({ page }) => {
 
   await page.goto("/customers");
   await page.getByRole("button", { name: "Open new-account docket" }).click();
-  await page.getByLabel("Legal name", { exact: true }).fill("Northstar Retail");
-  await page.getByLabel("Account number", { exact: true }).fill("MNL-0042");
+  await fillRequiredDocket(page);
   await page.getByRole("button", { name: "Create customer account" }).click();
 
-  await expect(
-    page.getByText("Check the docket fields and submit again."),
-  ).toBeVisible();
+  await expect(page.locator(".form-error")).toContainText(
+    "Check the docket fields and submit again.",
+  );
+  await expect(page.locator(".form-error")).toContainText("create-1");
   await expect(page.getByLabel("Legal name", { exact: true })).toHaveValue(
     "Northstar Retail",
   );
@@ -222,8 +237,7 @@ test("creates a prepaid account and refreshes the directory", async ({
 
   await page.goto("/customers");
   await page.getByRole("button", { name: "Open new-account docket" }).click();
-  await page.getByLabel("Legal name", { exact: true }).fill("Northstar Retail");
-  await page.getByLabel("Account number", { exact: true }).fill("MNL-0042");
+  await fillRequiredDocket(page);
   await page.getByLabel("Payment timing").selectOption("prepaid");
   await page.getByRole("button", { name: "Create customer account" }).click();
 
@@ -231,4 +245,33 @@ test("creates a prepaid account and refreshes the directory", async ({
   await expect(
     page.getByRole("cell", { name: "Northstar Retail" }),
   ).toBeVisible();
+});
+
+test("contains keyboard focus and restores it when the docket closes", async ({
+  page,
+}) => {
+  await routeScope(page);
+  await page.route("**/api/customers?*", async (route) => {
+    await route.fulfill({
+      body: JSON.stringify({
+        correlationId: "search-focus",
+        items: [],
+        kind: "ready",
+        total: 0,
+      }),
+      contentType: "application/json",
+    });
+  });
+
+  await page.goto("/customers");
+  const trigger = page.getByRole("button", { name: "Open new-account docket" });
+  await trigger.click();
+  await expect(page.getByRole("button", { name: "Close" })).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(
+    page.getByRole("button", { name: "Create customer account" }),
+  ).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(trigger).toBeFocused();
 });

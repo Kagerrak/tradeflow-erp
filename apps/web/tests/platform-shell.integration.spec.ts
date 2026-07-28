@@ -35,3 +35,37 @@ test("@real-stack renders only the authenticated Branch customer directory", asy
   ).toBeVisible();
   await expect(page.getByText("Cebu / CEB")).toHaveCount(0);
 });
+
+test("@real-stack creates a cash-on-delivery customer through the web docket", async ({
+  page,
+}) => {
+  await page.goto("/customers");
+  await page.getByRole("button", { name: "Open new-account docket" }).click();
+  await page
+    .getByLabel("Legal name", { exact: true })
+    .fill("Web Journey Retail");
+  await page.getByLabel("Account number", { exact: true }).fill("MNL-WEB-001");
+  await page.getByLabel("Payment timing").selectOption("cash_on_delivery");
+  await page.getByLabel("Payment terms").fill("Due upon delivery");
+  await page.getByLabel("Contact name").fill("Lina Cruz");
+  await page.getByLabel("Contact role").fill("Purchasing");
+  await page.getByLabel("Email").fill("lina@web-journey.example");
+  for (const kind of ["billing", "delivery"]) {
+    await page
+      .locator(`input[name="${kind}_line_1"]`)
+      .fill("88 Browser Test Road");
+    await page.locator(`input[name="${kind}_city"]`).fill("Manila");
+    await page.locator(`input[name="${kind}_region"]`).fill("NCR");
+    await page.locator(`input[name="${kind}_postal_code"]`).fill("1000");
+    await page.locator(`input[name="${kind}_country"]`).fill("PH");
+  }
+  await page.getByRole("button", { name: "Create customer account" }).click();
+
+  await expect(page.getByRole("status")).toContainText("MNL-WEB-001 created");
+  await expect(
+    page.getByRole("cell", { name: "Web Journey Retail" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("cell", { name: "Cash on delivery" }),
+  ).toBeVisible();
+});

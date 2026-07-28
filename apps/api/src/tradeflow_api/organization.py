@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Header, Response
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import insert, select, text, update
+from sqlalchemy import delete, insert, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tradeflow_api.auth import (
@@ -172,6 +172,42 @@ class OrganizationScopeResponse(BaseModel):
     warehouses: list[ScopeWarehouseResponse]
 
 
+class ConfigureRoleTemplateCommand(CommandModel):
+    name: str = Field(min_length=1, max_length=200)
+    is_active: bool = True
+    capabilities: list[str] = Field(min_length=1)
+
+
+class RoleTemplateResponse(BaseModel):
+    code: str
+    name: str
+    is_active: bool
+    capabilities: list[str]
+    version: int
+
+
+class ConfigureUserCommand(CommandModel):
+    display_name: str = Field(min_length=1, max_length=200)
+    is_operations_administrator: bool = False
+    is_active: bool = True
+    role_template_codes: list[str] = Field(default_factory=list)
+    branch_codes: list[str] = Field(default_factory=list)
+    warehouse_codes: list[str] = Field(default_factory=list)
+    approval_authorities: list[ApprovalAuthorityInput] = Field(default_factory=list)
+
+
+class UserConfigurationResponse(BaseModel):
+    subject: str
+    display_name: str
+    is_operations_administrator: bool
+    is_active: bool
+    role_template_codes: list[str]
+    branch_codes: list[str]
+    warehouse_codes: list[str]
+    approval_authorities: list[ApprovalAuthorityInput]
+    version: int
+
+
 def invalid_assignment(message: str) -> AppError:
     return AppError(
         status_code=422,
@@ -249,6 +285,26 @@ def require_command_headers(
     return expected_version, idempotency_key
 
 
+def require_configuration_headers(
+    *,
+    expected_version: int | None,
+    idempotency_key: str | None,
+) -> tuple[int, str]:
+    if expected_version is None:
+        raise AppError(
+            status_code=400,
+            code="expected_version_required",
+            message="If-Match is required; use 0 when creating a configuration.",
+        )
+    if idempotency_key is None:
+        raise AppError(
+            status_code=400,
+            code="idempotency_key_required",
+            message="Idempotency-Key is required for this command.",
+        )
+    return expected_version, idempotency_key
+
+
 @router.get(
     "/scope",
     response_model=OrganizationScopeResponse,
@@ -307,6 +363,327 @@ async def get_organization_scope(
             ScopeWarehouseResponse.model_validate(warehouse) for warehouse in scoped_warehouses
         ],
     )
+
+
+@router.put(
+    "/role-templates/{role_code}",
+    response_model=RoleTemplateResponse,
+    responses=error_responses(400, 401, 403, 409, 422, 500),
+)
+async def configure_role_template(
+    role_code: Annotated[str, Field(pattern=r"^[A-Z][A-Z0-9_]{1,49}$")],
+    command: ConfigureRoleTemplateCommand,
+    response: Response,
+    actor: Annotated[AuthorizedUser, Depends(require_organization_administrator)],
+    session: Annotated[AsyncSession, Depends(get_database_session, use_cache=False)],
+    expected_version: Annotated[int | None, Header(alias="If-Match", ge=0)] = None,
+    idempotency_key: Annotated[
+        str | None,
+        Header(alias="Idempotency-Key", min_length=1, max_length=200),
+    ] = None,
+) -> RoleTemplateResponse:
+    expected_version, idempotency_key = require_configuration_headers(
+        expected_version=expected_version,
+        idempotency_key=idempotency_key,
+    )
+    request_hash = sha256(
+        f"role:{role_code}:{expected_version}:".encode() + command.model_dump_json().encode()
+    ).hexdigest()
+    async with session.begin():
+        replay = await get_command_replay(
+            session,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+        )
+        if replay is not None:
+            response.headers["X-Idempotency-Replayed"] = "true"
+            return RoleTemplateResponse.model_validate(replay)
+
+        existing = (
+            await session.execute(
+                select(
+                    role_templates.c.role_template_id,
+                    role_templates.c.version,
+                )
+                .where(role_templates.c.code == role_code)
+                .with_for_update()
+            )
+        ).one_or_none()
+        if existing is None:
+            if expected_version != 0:
+                raise AppError(
+                    status_code=409,
+                    code="optimistic_version_conflict",
+                    message="The Role Template does not exist; create it with If-Match 0.",
+                )
+            role_template_id = uuid4()
+            version = 1
+            await session.execute(
+                insert(role_templates).values(
+                    role_template_id=role_template_id,
+                    code=role_code,
+                    name=command.name,
+                    is_active=command.is_active,
+                    version=version,
+                )
+            )
+            response.status_code = 201
+        else:
+            if expected_version != existing.version:
+                raise AppError(
+                    status_code=409,
+                    code="optimistic_version_conflict",
+                    message="The Role Template changed; reload it before retrying.",
+                )
+            role_template_id = existing.role_template_id
+            version = existing.version + 1
+            await session.execute(
+                update(role_templates)
+                .where(role_templates.c.role_template_id == role_template_id)
+                .values(name=command.name, is_active=command.is_active, version=version)
+            )
+            await session.execute(
+                delete(role_template_capabilities).where(
+                    role_template_capabilities.c.role_template_id == role_template_id
+                )
+            )
+
+        existing_capabilities = set(
+            (
+                await session.execute(
+                    select(capabilities.c.code).where(capabilities.c.code.in_(command.capabilities))
+                )
+            ).scalars()
+        )
+        for capability in sorted(set(command.capabilities) - existing_capabilities):
+            await session.execute(insert(capabilities).values(code=capability))
+        for capability in sorted(set(command.capabilities)):
+            await session.execute(
+                insert(role_template_capabilities).values(
+                    role_template_id=role_template_id,
+                    capability_code=capability,
+                )
+            )
+
+        result = RoleTemplateResponse(
+            code=role_code,
+            name=command.name,
+            is_active=command.is_active,
+            capabilities=sorted(set(command.capabilities)),
+            version=version,
+        )
+        await store_command_result(
+            session,
+            actor_subject=actor.subject,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+            result=result,
+        )
+    response.headers["X-Idempotency-Replayed"] = "false"
+    return result
+
+
+@router.put(
+    "/users/{subject}",
+    response_model=UserConfigurationResponse,
+    responses=error_responses(400, 401, 403, 409, 422, 500),
+)
+async def configure_user(
+    subject: Annotated[str, Field(min_length=1, max_length=200)],
+    command: ConfigureUserCommand,
+    response: Response,
+    actor: Annotated[AuthorizedUser, Depends(require_organization_administrator)],
+    session: Annotated[AsyncSession, Depends(get_database_session, use_cache=False)],
+    expected_version: Annotated[int | None, Header(alias="If-Match", ge=0)] = None,
+    idempotency_key: Annotated[
+        str | None,
+        Header(alias="Idempotency-Key", min_length=1, max_length=200),
+    ] = None,
+) -> UserConfigurationResponse:
+    expected_version, idempotency_key = require_configuration_headers(
+        expected_version=expected_version,
+        idempotency_key=idempotency_key,
+    )
+    request_hash = sha256(
+        f"user:{subject}:{expected_version}:".encode() + command.model_dump_json().encode()
+    ).hexdigest()
+    async with session.begin():
+        replay = await get_command_replay(
+            session,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+        )
+        if replay is not None:
+            response.headers["X-Idempotency-Replayed"] = "true"
+            return UserConfigurationResponse.model_validate(replay)
+
+        existing = (
+            await session.execute(
+                select(users.c.version).where(users.c.subject == subject).with_for_update()
+            )
+        ).one_or_none()
+        if existing is None:
+            if expected_version != 0:
+                raise AppError(
+                    status_code=409,
+                    code="optimistic_version_conflict",
+                    message="The User does not exist; create it with If-Match 0.",
+                )
+            version = 1
+            await session.execute(
+                insert(users).values(
+                    subject=subject,
+                    display_name=command.display_name,
+                    is_operations_administrator=command.is_operations_administrator,
+                    is_active=command.is_active,
+                    version=version,
+                )
+            )
+            response.status_code = 201
+        else:
+            if expected_version != existing.version:
+                raise AppError(
+                    status_code=409,
+                    code="optimistic_version_conflict",
+                    message="The User changed; reload it before retrying.",
+                )
+            version = existing.version + 1
+            await session.execute(
+                update(users)
+                .where(users.c.subject == subject)
+                .values(
+                    display_name=command.display_name,
+                    is_operations_administrator=command.is_operations_administrator,
+                    is_active=command.is_active,
+                    version=version,
+                )
+            )
+            await session.execute(
+                delete(approval_authorities).where(approval_authorities.c.user_subject == subject)
+            )
+            await session.execute(
+                delete(user_warehouse_scopes).where(user_warehouse_scopes.c.user_subject == subject)
+            )
+            await session.execute(
+                delete(user_branch_scopes).where(user_branch_scopes.c.user_subject == subject)
+            )
+            await session.execute(
+                delete(user_role_templates).where(user_role_templates.c.user_subject == subject)
+            )
+
+        role_rows = (
+            await session.execute(
+                select(role_templates.c.code, role_templates.c.role_template_id).where(
+                    role_templates.c.code.in_(command.role_template_codes),
+                    role_templates.c.is_active.is_(True),
+                )
+            )
+        ).all()
+        role_ids = {row.code: row.role_template_id for row in role_rows}
+        branch_rows = (
+            await session.execute(
+                select(branches.c.code, branches.c.branch_id).where(
+                    branches.c.code.in_(command.branch_codes)
+                )
+            )
+        ).all()
+        branch_ids = {row.code: row.branch_id for row in branch_rows}
+        warehouse_rows = (
+            await session.execute(
+                select(
+                    warehouses.c.code,
+                    warehouses.c.warehouse_id,
+                    warehouses.c.branch_id,
+                ).where(warehouses.c.code.in_(command.warehouse_codes))
+            )
+        ).all()
+        warehouse_ids = {row.code: row.warehouse_id for row in warehouse_rows}
+        if set(role_ids) != set(command.role_template_codes):
+            raise invalid_assignment("Assignment references an unknown or inactive Role Template.")
+        if set(branch_ids) != set(command.branch_codes):
+            raise invalid_assignment("Assignment references an unknown Branch.")
+        if set(warehouse_ids) != set(command.warehouse_codes):
+            raise invalid_assignment("Assignment references an unknown Warehouse.")
+        assigned_branch_ids = set(branch_ids.values())
+        if any(row.branch_id not in assigned_branch_ids for row in warehouse_rows):
+            raise invalid_assignment("A Warehouse assignment requires its Branch assignment.")
+
+        assigned_capabilities = set(
+            (
+                await session.execute(
+                    select(role_template_capabilities.c.capability_code).where(
+                        role_template_capabilities.c.role_template_id.in_(role_ids.values())
+                    )
+                )
+            ).scalars()
+        )
+        for authority in command.approval_authorities:
+            if authority.capability not in assigned_capabilities:
+                raise invalid_assignment(
+                    "Approval Authority requires the capability through an assigned Role Template."
+                )
+            if authority.branch_code not in branch_ids:
+                raise invalid_assignment(
+                    "Approval Authority requires the matching Branch assignment."
+                )
+
+        for role_template_id in role_ids.values():
+            await session.execute(
+                insert(user_role_templates).values(
+                    user_subject=subject,
+                    role_template_id=role_template_id,
+                )
+            )
+        for branch_id in branch_ids.values():
+            await session.execute(
+                insert(user_branch_scopes).values(
+                    user_subject=subject,
+                    branch_id=branch_id,
+                )
+            )
+        for warehouse_id in warehouse_ids.values():
+            await session.execute(
+                insert(user_warehouse_scopes).values(
+                    user_subject=subject,
+                    warehouse_id=warehouse_id,
+                )
+            )
+        for authority in command.approval_authorities:
+            await session.execute(
+                insert(approval_authorities).values(
+                    approval_authority_id=uuid4(),
+                    user_subject=subject,
+                    capability_code=authority.capability,
+                    branch_id=branch_ids[authority.branch_code],
+                    maximum_amount=authority.maximum_amount,
+                    maximum_percentage=authority.maximum_percentage,
+                    maker_checker_required=authority.maker_checker_required,
+                )
+            )
+
+        result = UserConfigurationResponse(
+            subject=subject,
+            display_name=command.display_name,
+            is_operations_administrator=command.is_operations_administrator,
+            is_active=command.is_active,
+            role_template_codes=sorted(set(command.role_template_codes)),
+            branch_codes=sorted(set(command.branch_codes)),
+            warehouse_codes=sorted(set(command.warehouse_codes)),
+            approval_authorities=sorted(
+                command.approval_authorities,
+                key=lambda authority: (authority.capability, authority.branch_code),
+            ),
+            version=version,
+        )
+        await store_command_result(
+            session,
+            actor_subject=actor.subject,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+            result=result,
+        )
+    response.headers["X-Idempotency-Replayed"] = "false"
+    return result
 
 
 @router.patch(
@@ -445,6 +822,21 @@ async def update_branch_lifecycle(
             request_hash=request_hash,
         )
         if replay is not None:
+            branch_exists = await session.scalar(
+                select(branches.c.branch_id).where(branches.c.branch_id == branch_id)
+            )
+            if branch_exists is None:
+                raise AppError(
+                    status_code=404,
+                    code="branch_not_found",
+                    message="The Branch does not exist.",
+                )
+            if branch_id not in actor.branch_ids:
+                raise AppError(
+                    status_code=403,
+                    code="operational_scope_required",
+                    message="The Branch is outside the user's Operational Scope.",
+                )
             response.headers["X-Idempotency-Replayed"] = "true"
             return BranchLifecycleResponse.model_validate(replay)
 
@@ -544,6 +936,26 @@ async def update_warehouse_lifecycle(
             request_hash=request_hash,
         )
         if replay is not None:
+            current_warehouse = (
+                await session.execute(
+                    select(warehouses.c.branch_id).where(warehouses.c.warehouse_id == warehouse_id)
+                )
+            ).one_or_none()
+            if current_warehouse is None:
+                raise AppError(
+                    status_code=404,
+                    code="warehouse_not_found",
+                    message="The Warehouse does not exist.",
+                )
+            if (
+                warehouse_id not in actor.warehouse_ids
+                or current_warehouse.branch_id not in actor.branch_ids
+            ):
+                raise AppError(
+                    status_code=403,
+                    code="operational_scope_required",
+                    message="The Warehouse is outside the user's Operational Scope.",
+                )
             response.headers["X-Idempotency-Replayed"] = "true"
             return WarehouseResponse.model_validate(replay)
 

@@ -1,9 +1,6 @@
 .customer-app {
   min-height: 100svh;
-  background:
-    linear-gradient(var(--paper-300) 1px, transparent 1px) 0 7.2rem / 100%
-      3.5rem,
-    var(--paper-50);
+  background: var(--paper-50);
 }
 
 .customer-header {
@@ -153,7 +150,7 @@
 .search-strip input {
   width: 100%;
   min-height: 3rem;
-  border: 1px solid var(--paper-500);
+  border: 1px solid var(--paper-300);
   border-right: 0;
   border-radius: 0;
   padding: 0.65rem 0.8rem;
@@ -233,7 +230,7 @@
 }
 
 .status-prospect {
-  color: var(--orange-700);
+  color: var(--orange-600);
 }
 
 .customer-loading,
@@ -338,7 +335,7 @@
 .docket select {
   width: 100%;
   min-height: 2.7rem;
-  border: 1px solid var(--paper-500);
+  border: 1px solid var(--paper-300);
   border-radius: 0;
   padding: 0.55rem 0.65rem;
   background: var(--paper-50);

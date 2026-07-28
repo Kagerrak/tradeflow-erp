@@ -6,7 +6,7 @@ import {
   type CustomerDirectoryState,
 } from "@tradeflow/customer-directory";
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 type Branch = {
   branch_id: string;
@@ -34,7 +34,11 @@ type Scope =
 
 type WorkspaceState =
   | { kind: "loading" }
-  | { kind: "denied"; reason: "forbidden" | "unauthenticated" | "unavailable" }
+  | {
+      correlationId: string;
+      kind: "denied";
+      reason: "forbidden" | "unauthenticated" | "unavailable";
+    }
   | { kind: "ready"; scope: Extract<Scope, { branches: Branch[] }> };
 
 const paymentLabels = {
@@ -74,6 +78,10 @@ export function CustomerWorkspace() {
   const [query, setQuery] = useState("");
   const [docketOpen, setDocketOpen] = useState(false);
   const [creation, setCreation] = useState<CustomerCreationState | null>(null);
+  const closeDocket = useCallback(() => {
+    setDocketOpen(false);
+    setCreation(null);
+  }, []);
 
   const refresh = useCallback(
     async (nextQuery = query) => {
@@ -96,7 +104,11 @@ export function CustomerWorkspace() {
       .then((scope) => {
         if (!active) return;
         if ("kind" in scope) {
-          setWorkspace({ kind: "denied", reason: scope.kind });
+          setWorkspace({
+            correlationId: scope.correlationId,
+            kind: "denied",
+            reason: scope.kind,
+          });
           return;
         }
         setWorkspace({ kind: "ready", scope });
@@ -105,7 +117,13 @@ export function CustomerWorkspace() {
         });
       })
       .catch(() => {
-        if (active) setWorkspace({ kind: "denied", reason: "unavailable" });
+        if (active) {
+          setWorkspace({
+            correlationId: crypto.randomUUID(),
+            kind: "denied",
+            reason: "unavailable",
+          });
+        }
       });
     return () => {
       active = false;
@@ -148,6 +166,9 @@ export function CustomerWorkspace() {
             : unauthenticated
               ? "Open your identity provider, then return to this workspace."
               : "Ask an operations administrator to assign customer read access and an operational Branch."}
+        </p>
+        <p className="support-reference">
+          Support reference <code>{workspace.correlationId}</code>
         </p>
         <a className="text-link" href="/customers">
           Retry workspace →
@@ -231,10 +252,7 @@ export function CustomerWorkspace() {
             (branch) => branch.is_active,
           )}
           creation={creation}
-          onClose={() => {
-            setDocketOpen(false);
-            setCreation(null);
-          }}
+          onClose={closeDocket}
           onCreated={async (state) => {
             setCreation(state);
             if (state.kind === "created") {
@@ -335,6 +353,41 @@ function CustomerDocket({
   onCreated: (state: CustomerCreationState) => Promise<void>;
 }) {
   const [submitting, setSubmitting] = useState(false);
+  const dialogRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const focusable = () =>
+      Array.from(
+        dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button, input, select, [href], [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      ).filter((element) => !element.hasAttribute("disabled"));
+    focusable()[0]?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const elements = focusable();
+      const first = elements[0];
+      const last = elements.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, [onClose]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -397,6 +450,7 @@ function CustomerDocket({
     <div className="docket-backdrop">
       <section
         className="docket"
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="docket-title"
@@ -421,7 +475,12 @@ function CustomerDocket({
               ? "That account number already exists. Keep this docket open and choose another."
               : creation.kind === "forbidden"
                 ? "Your assignment does not allow customer creation."
-                : "Check the docket fields and submit again."}
+                : creation.kind === "unauthenticated"
+                  ? "Your session expired. Sign in again, then return to this docket."
+                  : creation.kind === "unavailable"
+                    ? "Customer service is unavailable. Keep this docket open and retry when service returns."
+                    : "Check the docket fields and submit again."}{" "}
+            Support reference <code>{creation.correlationId}</code>
           </p>
         )}
         <form className="docket-form" onSubmit={(event) => void submit(event)}>
@@ -488,19 +547,11 @@ function CustomerDocket({
             <legend>Primary contact</legend>
             <label>
               Contact name
-              <input
-                name="contact_name"
-                defaultValue="Accounts desk"
-                required
-              />
+              <input name="contact_name" required />
             </label>
             <label>
               Contact role
-              <input
-                name="contact_role"
-                defaultValue="Accounts payable"
-                required
-              />
+              <input name="contact_role" required />
             </label>
             <label>
               Email
@@ -518,39 +569,26 @@ function CustomerDocket({
               </legend>
               <label>
                 Address line 1
-                <input
-                  name={`${kind}_line_1`}
-                  defaultValue="To be confirmed"
-                  required
-                />
+                <input name={`${kind}_line_1`} required />
               </label>
               <label>
                 Address line 2<input name={`${kind}_line_2`} />
               </label>
               <label>
                 City
-                <input name={`${kind}_city`} defaultValue="Manila" required />
+                <input name={`${kind}_city`} required />
               </label>
               <label>
                 Region
-                <input name={`${kind}_region`} defaultValue="NCR" required />
+                <input name={`${kind}_region`} required />
               </label>
               <label>
                 Postal code
-                <input
-                  name={`${kind}_postal_code`}
-                  defaultValue="1000"
-                  required
-                />
+                <input name={`${kind}_postal_code`} required />
               </label>
               <label>
                 Country code
-                <input
-                  name={`${kind}_country`}
-                  defaultValue="PH"
-                  maxLength={2}
-                  required
-                />
+                <input name={`${kind}_country`} maxLength={2} required />
               </label>
             </fieldset>
           ))}

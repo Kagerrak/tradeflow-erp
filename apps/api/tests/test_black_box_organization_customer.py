@@ -22,6 +22,7 @@ def test_external_organization_and_customer_contract() -> None:
     sales_token = os.environ["TRADEFLOW_REAL_STACK_SALES_TOKEN"]
     ceb_token = os.environ["TRADEFLOW_REAL_STACK_CEB_TOKEN"]
     admin_token = os.environ["TRADEFLOW_REAL_STACK_ADMIN_TOKEN"]
+    credit_token = os.environ["TRADEFLOW_REAL_STACK_CREDIT_TOKEN"]
 
     bootstrap = {
         "company": {"base_currency": "PHP", "code": "TF", "name": "TradeFlow Distribution"},
@@ -40,6 +41,11 @@ def test_external_organization_and_customer_contract() -> None:
                 "name": "Operations admin",
             },
             {"capabilities": ["customer:read", "customer:write"], "code": "SALES", "name": "Sales"},
+            {
+                "capabilities": ["customer:credit-approve"],
+                "code": "CREDIT_APPROVER",
+                "name": "Credit Approver",
+            },
         ],
         "users": [
             {
@@ -52,14 +58,38 @@ def test_external_organization_and_customer_contract() -> None:
             {
                 "branch_codes": ["MNL"],
                 "display_name": "Manila Sales",
-                "role_template_codes": ["SALES"],
+                "role_template_codes": ["SALES", "CREDIT_APPROVER"],
                 "subject": "sales-mnl",
+                "approval_authorities": [
+                    {
+                        "branch_code": "MNL",
+                        "capability": "customer:credit-approve",
+                        "maker_checker_required": True,
+                        "maximum_amount": "50000.00",
+                        "maximum_percentage": None,
+                    }
+                ],
             },
             {
                 "branch_codes": ["CEB"],
                 "display_name": "Cebu Sales",
                 "role_template_codes": ["SALES"],
                 "subject": "sales-ceb",
+            },
+            {
+                "approval_authorities": [
+                    {
+                        "branch_code": "MNL",
+                        "capability": "customer:credit-approve",
+                        "maker_checker_required": True,
+                        "maximum_amount": "50000.00",
+                        "maximum_percentage": None,
+                    }
+                ],
+                "branch_codes": ["MNL"],
+                "display_name": "Credit Manager",
+                "role_template_codes": ["CREDIT_APPROVER"],
+                "subject": "credit-manager",
             },
         ],
     }
@@ -110,11 +140,11 @@ def test_external_organization_and_customer_contract() -> None:
                     "role": "Purchasing",
                 }
             ],
-            "credit_hold": False,
-            "credit_limit": None,
+            "credit_hold": True,
+            "credit_limit": "25000.00",
             "legal_name": "Real Stack Retail",
-            "payment_terms": "Due before release",
-            "payment_timing_policy": "prepaid",
+            "payment_terms": "NET_30",
+            "payment_timing_policy": "on_account",
             "status": "active",
         }
         key = f"real-stack-customer-{uuid4()}"
@@ -137,11 +167,88 @@ def test_external_organization_and_customer_contract() -> None:
         assert [item["account_number"] for item in mnl_search.json()["items"]] == ["MNL-REAL-001"]
         assert ceb_search.json()["items"] == []
 
+        duplicate = client.post(
+            "/v1/customers",
+            headers=auth(
+                sales_token,
+                **{"Idempotency-Key": f"duplicate-customer-{uuid4()}"},
+            ),
+            json=command,
+        )
+        assert duplicate.status_code == 409
+        assert duplicate.json()["error"]["code"] == "customer_account_number_exists"
+
+        maker_approval = client.post(
+            f"/v1/customers/{created.json()['customer_id']}/credit-approvals",
+            headers=auth(
+                sales_token,
+                **{"Idempotency-Key": f"maker-credit-{uuid4()}", "If-Match": "1"},
+            ),
+            json={"reason": "Maker must not approve"},
+        )
+        assert maker_approval.status_code == 409
+        assert maker_approval.json()["error"]["code"] == "maker_checker_violation"
+
+        address_update = client.put(
+            f"/v1/customers/{created.json()['customer_id']}/addresses/DELIVERY",
+            headers=auth(
+                sales_token,
+                **{"Idempotency-Key": f"address-update-{uuid4()}", "If-Match": "1"},
+            ),
+            json={
+                "city": "Pasig",
+                "country_code": "PH",
+                "kind": "delivery",
+                "line_1": "300 Updated Delivery Avenue",
+                "line_2": None,
+                "postal_code": "1600",
+                "region": "NCR",
+            },
+        )
+        assert address_update.status_code == 200
+        assert address_update.json()["address"]["version"] == 2
+        historical = client.get(
+            (f"/v1/customers/{created.json()['customer_id']}/addresses/DELIVERY/versions/1"),
+            headers=auth(sales_token),
+        )
+        assert historical.status_code == 200
+        assert historical.json()["line_1"] == "200 Delivery Avenue"
+        stale_address = client.put(
+            f"/v1/customers/{created.json()['customer_id']}/addresses/DELIVERY",
+            headers=auth(
+                sales_token,
+                **{"Idempotency-Key": f"stale-address-{uuid4()}", "If-Match": "1"},
+            ),
+            json={
+                "city": "Pasig",
+                "country_code": "PH",
+                "kind": "delivery",
+                "line_1": "Stale update",
+                "line_2": None,
+                "postal_code": "1600",
+                "region": "NCR",
+            },
+        )
+        assert stale_address.status_code == 409
+        assert stale_address.json()["error"]["code"] == "optimistic_version_conflict"
+
+        approved = client.post(
+            f"/v1/customers/{created.json()['customer_id']}/credit-approvals",
+            headers=auth(
+                credit_token,
+                **{"Idempotency-Key": f"checker-credit-{uuid4()}", "If-Match": "2"},
+            ),
+            json={"reason": "Independent credit review"},
+        )
+        assert approved.status_code == 201
+        assert approved.json()["approved_by"] == "credit-manager"
+        assert approved.json()["credit_hold"] is False
+
         admin_approval = client.post(
             f"/v1/customers/{created.json()['customer_id']}/credit-approvals",
             headers=auth(
                 admin_token,
-                **{"Idempotency-Key": f"admin-credit-{uuid4()}", "If-Match": "1"},
+                **{"Idempotency-Key": f"admin-credit-{uuid4()}", "If-Match": "3"},
             ),
             json={"reason": "Admin escalation check"},
         )

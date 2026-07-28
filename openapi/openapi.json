@@ -169,7 +169,7 @@
         "title": "AddressUpdateResponse",
         "type": "object"
       },
-      "ApprovalAuthorityInput": {
+      "ApprovalAuthorityInput-Input": {
         "additionalProperties": false,
         "properties": {
           "branch_code": {
@@ -211,6 +211,57 @@
                 "minimum": 0.0,
                 "type": "number"
               },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,3}|(?=[\\d.]{1,10}0*$)\\d{0,3}\\.\\d{0,6}0*$)",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum Percentage"
+          }
+        },
+        "required": [
+          "capability",
+          "branch_code"
+        ],
+        "title": "ApprovalAuthorityInput",
+        "type": "object"
+      },
+      "ApprovalAuthorityInput-Output": {
+        "additionalProperties": false,
+        "properties": {
+          "branch_code": {
+            "pattern": "^[A-Z][A-Z0-9_-]{1,29}$",
+            "title": "Branch Code",
+            "type": "string"
+          },
+          "capability": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Capability",
+            "type": "string"
+          },
+          "maker_checker_required": {
+            "default": true,
+            "title": "Maker Checker Required",
+            "type": "boolean"
+          },
+          "maximum_amount": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,16}|(?=[\\d.]{1,19}0*$)\\d{0,16}\\.\\d{0,2}0*$)",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum Amount"
+          },
+          "maximum_percentage": {
+            "anyOf": [
               {
                 "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,3}|(?=[\\d.]{1,10}0*$)\\d{0,3}\\.\\d{0,6}0*$)",
                 "type": "string"
@@ -390,6 +441,90 @@
           "version"
         ],
         "title": "CompanyResponse",
+        "type": "object"
+      },
+      "ConfigureRoleTemplateCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "is_active": {
+            "default": true,
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "capabilities"
+        ],
+        "title": "ConfigureRoleTemplateCommand",
+        "type": "object"
+      },
+      "ConfigureUserCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "approval_authorities": {
+            "items": {
+              "$ref": "#/components/schemas/ApprovalAuthorityInput-Input"
+            },
+            "title": "Approval Authorities",
+            "type": "array"
+          },
+          "branch_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Branch Codes",
+            "type": "array"
+          },
+          "display_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "is_active": {
+            "default": true,
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "is_operations_administrator": {
+            "default": false,
+            "title": "Is Operations Administrator",
+            "type": "boolean"
+          },
+          "role_template_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Role Template Codes",
+            "type": "array"
+          },
+          "warehouse_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warehouse Codes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "display_name"
+        ],
+        "title": "ConfigureUserCommand",
         "type": "object"
       },
       "ContactInput": {
@@ -1081,6 +1216,42 @@
         "title": "RoleTemplateInput",
         "type": "object"
       },
+      "RoleTemplateResponse": {
+        "properties": {
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "is_active",
+          "capabilities",
+          "version"
+        ],
+        "title": "RoleTemplateResponse",
+        "type": "object"
+      },
       "ScopeBranchResponse": {
         "properties": {
           "branch_id": {
@@ -1312,12 +1483,77 @@
         "title": "UpdateCompanyCommand",
         "type": "object"
       },
+      "UserConfigurationResponse": {
+        "properties": {
+          "approval_authorities": {
+            "items": {
+              "$ref": "#/components/schemas/ApprovalAuthorityInput-Output"
+            },
+            "title": "Approval Authorities",
+            "type": "array"
+          },
+          "branch_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Branch Codes",
+            "type": "array"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "is_operations_administrator": {
+            "title": "Is Operations Administrator",
+            "type": "boolean"
+          },
+          "role_template_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Role Template Codes",
+            "type": "array"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "warehouse_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warehouse Codes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "subject",
+          "display_name",
+          "is_operations_administrator",
+          "is_active",
+          "role_template_codes",
+          "branch_codes",
+          "warehouse_codes",
+          "approval_authorities",
+          "version"
+        ],
+        "title": "UserConfigurationResponse",
+        "type": "object"
+      },
       "UserInput": {
         "additionalProperties": false,
         "properties": {
           "approval_authorities": {
             "items": {
-              "$ref": "#/components/schemas/ApprovalAuthorityInput"
+              "$ref": "#/components/schemas/ApprovalAuthorityInput-Input"
             },
             "title": "Approval Authorities",
             "type": "array"
@@ -2548,6 +2784,149 @@
         ]
       }
     },
+    "/v1/organization/role-templates/{role_code}": {
+      "put": {
+        "operationId": "configure_role_template_v1_organization_role_templates__role_code__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "role_code",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Z][A-Z0-9_]{1,49}$",
+              "title": "Role Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigureRoleTemplateCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleTemplateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Configure Role Template",
+        "tags": [
+          "organization"
+        ]
+      }
+    },
     "/v1/organization/scope": {
       "get": {
         "operationId": "get_organization_scope_v1_organization_scope_get",
@@ -2599,6 +2978,150 @@
           }
         ],
         "summary": "Get Organization Scope",
+        "tags": [
+          "organization"
+        ]
+      }
+    },
+    "/v1/organization/users/{subject}": {
+      "put": {
+        "operationId": "configure_user_v1_organization_users__subject__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "subject",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Subject",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigureUserCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserConfigurationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Configure User",
         "tags": [
           "organization"
         ]

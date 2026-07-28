@@ -108,6 +108,7 @@ jobs:
           export TRADEFLOW_REAL_STACK_SALES_TOKEN="$(uv run python scripts/create_test_token.py --subject sales-mnl --name 'Local Platform Operator' --capability platform:read --capability platform:write)"
           export TRADEFLOW_REAL_STACK_CEB_TOKEN="$(uv run python scripts/create_test_token.py --subject sales-ceb --name 'Cebu Sales')"
           export TRADEFLOW_REAL_STACK_ADMIN_TOKEN="$(uv run python scripts/create_test_token.py --subject operations-admin --name 'Operations Admin')"
+          export TRADEFLOW_REAL_STACK_CREDIT_TOKEN="$(uv run python scripts/create_test_token.py --subject credit-manager --name 'Credit Manager')"
           export TRADEFLOW_WEB_TEST_ACCESS_TOKEN="$TRADEFLOW_REAL_STACK_SALES_TOKEN"
           export TRADEFLOW_REAL_STACK_ACCESS_TOKEN="$TRADEFLOW_WEB_TEST_ACCESS_TOKEN"
           export TRADEFLOW_REAL_STACK_FORBIDDEN_TOKEN="$(uv run python scripts/create_test_token.py --capability catalog:read)"

@@ -696,3 +696,296 @@ async def test_user_scope_exposes_only_persisted_operational_assignments(
     ]
     assert [branch["code"] for branch in response.json()["branches"]] == ["MNL"]
     assert response.json()["warehouses"] == []
+
+
+@pytest.mark.asyncio
+async def test_operations_admin_configures_role_templates_and_user_assignments(
+    organization_client: AsyncClient,
+    organization_settings: Settings,
+) -> None:
+    await bootstrap_organization(organization_client, organization_settings)
+    admin_headers = user_headers(
+        organization_settings,
+        subject="operations-admin",
+        idempotency_key="configure-auditor-role",
+    )
+    admin_headers["If-Match"] = "0"
+
+    role = await organization_client.put(
+        "/v1/organization/role-templates/ACCOUNT_VIEWER",
+        headers=admin_headers,
+        json={
+            "name": "Account Viewer",
+            "is_active": True,
+            "capabilities": ["customer:read"],
+        },
+    )
+    role_replay = await organization_client.put(
+        "/v1/organization/role-templates/ACCOUNT_VIEWER",
+        headers=admin_headers,
+        json={
+            "name": "Account Viewer",
+            "is_active": True,
+            "capabilities": ["customer:read"],
+        },
+    )
+
+    assert role.status_code == 201
+    assert role_replay.status_code == 200
+    assert role.json()["version"] == 1
+    assert role.json()["capabilities"] == ["customer:read"]
+
+    user_headers_admin = user_headers(
+        organization_settings,
+        subject="operations-admin",
+        idempotency_key="configure-auditor-user",
+    )
+    user_headers_admin["If-Match"] = "0"
+    configured = await organization_client.put(
+        "/v1/organization/users/auditor",
+        headers=user_headers_admin,
+        json={
+            "display_name": "Customer Auditor",
+            "is_active": True,
+            "is_operations_administrator": False,
+            "role_template_codes": ["ACCOUNT_VIEWER"],
+            "branch_codes": ["MNL"],
+            "warehouse_codes": [],
+            "approval_authorities": [],
+        },
+    )
+    assert configured.status_code == 201
+    assert configured.json()["version"] == 1
+
+    scope = await organization_client.get(
+        "/v1/organization/scope",
+        headers=user_headers(organization_settings, subject="auditor"),
+    )
+    assert scope.status_code == 200
+    assert scope.json()["capabilities"] == ["customer:read"]
+    assert [branch["code"] for branch in scope.json()["branches"]] == ["MNL"]
+
+    update_role_headers = user_headers(
+        organization_settings,
+        subject="operations-admin",
+        idempotency_key="expand-auditor-role",
+    )
+    update_role_headers["If-Match"] = "1"
+    expanded_role = await organization_client.put(
+        "/v1/organization/role-templates/ACCOUNT_VIEWER",
+        headers=update_role_headers,
+        json={
+            "name": "Account Viewer",
+            "is_active": True,
+            "capabilities": ["customer:read", "customer:write"],
+        },
+    )
+    assert expanded_role.status_code == 200
+    assert expanded_role.json()["version"] == 2
+    expanded_scope = await organization_client.get(
+        "/v1/organization/scope",
+        headers=user_headers(organization_settings, subject="auditor"),
+    )
+    assert expanded_scope.json()["capabilities"] == ["customer:read", "customer:write"]
+
+    update_headers = user_headers(
+        organization_settings,
+        subject="operations-admin",
+        idempotency_key="move-auditor-scope",
+    )
+    update_headers["If-Match"] = "1"
+    moved = await organization_client.put(
+        "/v1/organization/users/auditor",
+        headers=update_headers,
+        json={
+            "display_name": "Customer Auditor",
+            "is_active": True,
+            "is_operations_administrator": False,
+            "role_template_codes": ["ACCOUNT_VIEWER"],
+            "branch_codes": ["CEB"],
+            "warehouse_codes": [],
+            "approval_authorities": [],
+        },
+    )
+    assert moved.status_code == 200
+    assert moved.json()["version"] == 2
+
+    moved_scope = await organization_client.get(
+        "/v1/organization/scope",
+        headers=user_headers(organization_settings, subject="auditor"),
+    )
+    assert [branch["code"] for branch in moved_scope.json()["branches"]] == ["CEB"]
+
+
+@pytest.mark.asyncio
+async def test_idempotent_replay_revalidates_current_scope_and_authority(
+    organization_client: AsyncClient,
+    organization_settings: Settings,
+) -> None:
+    bootstrap = await bootstrap_organization(organization_client, organization_settings)
+    branch_ids = {branch["code"]: branch["branch_id"] for branch in bootstrap["branches"]}
+    customer = await create_customer_account(
+        organization_client,
+        organization_settings,
+        account_number="MNL-REPLAY-AUTH",
+        branch_id=branch_ids["MNL"],
+        legal_name="Replay Authorization Account",
+        subject="sales-mnl",
+    )
+    address_command = {
+        "kind": "delivery",
+        "line_1": "51 Revalidation Road",
+        "line_2": None,
+        "city": "Manila",
+        "region": "NCR",
+        "postal_code": "1012",
+        "country_code": "PH",
+    }
+    replay_headers = user_headers(
+        organization_settings,
+        subject="sales-mnl",
+        idempotency_key="replay-address-after-scope-revocation",
+    )
+    replay_headers["If-Match"] = "1"
+    first = await organization_client.put(
+        f"/v1/customers/{customer['customer_id']}/addresses/DELIVERY",
+        headers=replay_headers,
+        json=address_command,
+    )
+    assert first.status_code == 200
+
+    credit_headers = user_headers(
+        organization_settings,
+        subject="credit-manager",
+        idempotency_key="replay-credit-after-authority-revocation",
+    )
+    credit_headers["If-Match"] = "2"
+    credit = await organization_client.post(
+        f"/v1/customers/{customer['customer_id']}/credit-approvals",
+        headers=credit_headers,
+        json={"reason": "Validated before authority revocation"},
+    )
+    assert credit.status_code == 201
+
+    revoke_credit_headers = user_headers(
+        organization_settings,
+        subject="operations-admin",
+        idempotency_key="revoke-credit-manager-authority",
+    )
+    revoke_credit_headers["If-Match"] = "1"
+    revoked_credit = await organization_client.put(
+        "/v1/organization/users/credit-manager",
+        headers=revoke_credit_headers,
+        json={
+            "display_name": "Credit Manager",
+            "is_active": True,
+            "is_operations_administrator": False,
+            "role_template_codes": ["CREDIT_MANAGER"],
+            "branch_codes": ["MNL"],
+            "warehouse_codes": [],
+            "approval_authorities": [],
+        },
+    )
+    assert revoked_credit.status_code == 200
+    credit_replay = await organization_client.post(
+        f"/v1/customers/{customer['customer_id']}/credit-approvals",
+        headers=credit_headers,
+        json={"reason": "Validated before authority revocation"},
+    )
+    assert credit_replay.status_code == 403
+    assert credit_replay.json()["error"]["code"] == "approval_authority_required"
+
+    revoke_headers = user_headers(
+        organization_settings,
+        subject="operations-admin",
+        idempotency_key="revoke-sales-mnl-scope",
+    )
+    revoke_headers["If-Match"] = "1"
+    revoked = await organization_client.put(
+        "/v1/organization/users/sales-mnl",
+        headers=revoke_headers,
+        json={
+            "display_name": "Manila Sales",
+            "is_active": True,
+            "is_operations_administrator": False,
+            "role_template_codes": ["SALES_REP", "SALES_CREDIT_APPROVER"],
+            "branch_codes": [],
+            "warehouse_codes": [],
+            "approval_authorities": [],
+        },
+    )
+    assert revoked.status_code == 200
+
+    replay = await organization_client.put(
+        f"/v1/customers/{customer['customer_id']}/addresses/DELIVERY",
+        headers=replay_headers,
+        json=address_command,
+    )
+    assert replay.status_code == 403
+    assert replay.json()["error"]["code"] == "operational_scope_required"
+
+    warehouse_ids = {
+        warehouse["code"]: warehouse["warehouse_id"]
+        for branch in bootstrap["branches"]
+        for warehouse in branch["warehouses"]
+    }
+    branch_headers = user_headers(
+        organization_settings,
+        subject="operations-admin",
+        idempotency_key="replay-branch-after-scope-revocation",
+    )
+    branch_headers["If-Match"] = "1"
+    warehouse_headers = user_headers(
+        organization_settings,
+        subject="operations-admin",
+        idempotency_key="replay-warehouse-after-scope-revocation",
+    )
+    warehouse_headers["If-Match"] = "1"
+    assert (
+        await organization_client.patch(
+            f"/v1/organization/branches/{branch_ids['CEB']}",
+            headers=branch_headers,
+            json={"is_active": False},
+        )
+    ).status_code == 200
+    assert (
+        await organization_client.patch(
+            f"/v1/organization/warehouses/{warehouse_ids['MNL-MAIN']}",
+            headers=warehouse_headers,
+            json={"is_active": False},
+        )
+    ).status_code == 200
+
+    revoke_admin_headers = user_headers(
+        organization_settings,
+        subject="operations-admin",
+        idempotency_key="revoke-admin-operational-scope",
+    )
+    revoke_admin_headers["If-Match"] = "1"
+    assert (
+        await organization_client.put(
+            "/v1/organization/users/operations-admin",
+            headers=revoke_admin_headers,
+            json={
+                "display_name": "Operations Admin",
+                "is_active": True,
+                "is_operations_administrator": True,
+                "role_template_codes": ["OPS_ADMIN"],
+                "branch_codes": [],
+                "warehouse_codes": [],
+                "approval_authorities": [],
+            },
+        )
+    ).status_code == 200
+    branch_replay = await organization_client.patch(
+        f"/v1/organization/branches/{branch_ids['CEB']}",
+        headers=branch_headers,
+        json={"is_active": False},
+    )
+    warehouse_replay = await organization_client.patch(
+        f"/v1/organization/warehouses/{warehouse_ids['MNL-MAIN']}",
+        headers=warehouse_headers,
+        json={"is_active": False},
+    )
+    assert branch_replay.status_code == 403
+    assert warehouse_replay.status_code == 403
