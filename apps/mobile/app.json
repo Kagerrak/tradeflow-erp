@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "TradeFlow",
+    "slug": "tradeflow-erp",
+    "scheme": "tradeflow",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.tradeflow.erp",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.tradeflow.erp",
+      "predictiveBackGestureEnabled": true
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
+  }
+}

@@ -27,4 +27,3 @@ adjustments, reversals, and payouts for a period.
 
 The trigger for earning commission—delivery, invoicing, or customer
 collection—is a configurable policy that must be selected before implementation.
-

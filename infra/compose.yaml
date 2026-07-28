@@ -1,0 +1,92 @@
+name: tradeflow
+
+services:
+  postgres:
+    image: postgres@sha256:f8e2cc2a36ddb8700e639570f0bc70d0c1495951ba61df903a015dc87db07d02
+    environment:
+      POSTGRES_DB: tradeflow
+      POSTGRES_USER: tradeflow
+      POSTGRES_PASSWORD: tradeflow
+    ports:
+      - "5433:5432"
+    volumes:
+      - tradeflow-postgres:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tradeflow -d tradeflow"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis@sha256:8096655e437712b07503796fb64d81359256cfcff0ab29d95a7da72863786efb
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  object-storage:
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: tradeflow
+      MINIO_ROOT_PASSWORD: tradeflow-local-only
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - tradeflow-objects:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  api:
+    profiles: ["application"]
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    environment:
+      TRADEFLOW_ENVIRONMENT: development
+      TRADEFLOW_DATABASE_URL: postgresql+asyncpg://tradeflow:tradeflow@postgres:5432/tradeflow
+      TRADEFLOW_AUTH_ISSUER: https://identity.test
+      TRADEFLOW_AUTH_AUDIENCE: tradeflow-api
+      TRADEFLOW_AUTH_TEST_SECRET: local-container-secret-with-at-least-32-characters
+      TRADEFLOW_TELEMETRY_ENABLED: "false"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')",
+        ]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  worker:
+    profiles: ["application"]
+    build:
+      context: ..
+      dockerfile: apps/worker/Dockerfile
+    environment:
+      TRADEFLOW_WORKER_ENVIRONMENT: development
+      TRADEFLOW_WORKER_REDIS_URL: redis://redis:6379/0
+      TRADEFLOW_WORKER_TELEMETRY_ENABLED: "false"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  tradeflow-postgres:
+  tradeflow-objects:

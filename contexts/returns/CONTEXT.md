@@ -23,4 +23,3 @@ change the customer balance until Finance posts a Credit Note.
 
 **Return Reason**: A controlled classification such as transit damage, product
 defect, wrong item, excess delivery, or customer error.
-

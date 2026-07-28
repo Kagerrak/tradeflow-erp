@@ -76,4 +76,3 @@ Exit: an invoice payment and later return produce explainable commission entries
 - Cutover rehearsal, rollback criteria, and audit sign-off.
 
 Exit: business owners can reconcile opening and closing balances before cutover.
-

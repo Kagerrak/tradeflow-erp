@@ -1,0 +1,31 @@
+{
+  "name": "tradeflow-erp",
+  "private": true,
+  "packageManager": "pnpm@9.7.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "app:up": "docker compose -f infra/compose.yaml --profile application up -d --build",
+    "api:dev": "uv run uvicorn tradeflow_api.main:app --app-dir apps/api/src --reload",
+    "bootstrap": "pnpm install --frozen-lockfile && uv sync --all-packages --dev --frozen",
+    "build": "pnpm -r --if-present build && uv build --all-packages",
+    "dev": "pnpm --parallel --filter @tradeflow/api-client --filter @tradeflow/web --filter @tradeflow/mobile dev",
+    "format": "prettier --check . && uv run ruff format --check .",
+    "format:fix": "prettier --write . && uv run ruff format .",
+    "infra:down": "docker compose -f infra/compose.yaml down",
+    "infra:up": "docker compose -f infra/compose.yaml up -d",
+    "lint": "pnpm -r --if-present lint && uv run ruff check .",
+    "migrate": "uv run alembic -c apps/api/alembic.ini upgrade head",
+    "openapi:export": "uv run python scripts/export_openapi.py",
+    "openapi:generate": "pnpm openapi:export && pnpm --filter @tradeflow/api-client generate",
+    "test": "pnpm -r --if-present test && uv run pytest",
+    "typecheck": "pnpm -r --if-present typecheck && uv run mypy apps/api/src apps/worker/src",
+    "worker:dev": "uv run arq tradeflow_worker.worker.Worker"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

@@ -5,17 +5,17 @@ orders, delivery, procurement, and commissions have different invariants and
 lifecycles. A term defined in one context should not be reused with a different
 meaning elsewhere.
 
-| Context | Responsibility | Domain language |
-| --- | --- | --- |
-| Organization & Access | Company, branches, users, roles, and operational scope | [Organization & Access](./contexts/organization-access/CONTEXT.md) |
-| Customers | Customer identity, contacts, addresses, terms, and credit policy | [Customers](./contexts/customers/CONTEXT.md) |
-| Catalog & Inventory | Products, warehouses, stock movements, reservations, and availability | [Catalog & Inventory](./contexts/catalog-inventory/CONTEXT.md) |
-| Sales | Quotes, sales orders, pricing, and commercial approval | [Sales](./contexts/sales/CONTEXT.md) |
-| Fulfillment | Pick, release, delivery, proof, and delivery receipts | [Fulfillment](./contexts/fulfillment/CONTEXT.md) |
-| Returns | Return authorization, inspection, disposition, replacement, and credit request | [Returns](./contexts/returns/CONTEXT.md) |
-| Procurement | Suppliers, purchase orders, inbound receipts, imports, and landed cost | [Procurement](./contexts/procurement/CONTEXT.md) |
-| Finance | Invoices, payments, allocations, credits, expenses, and customer statements | [Finance](./contexts/finance/CONTEXT.md) |
-| Commissions | Commission plans, accruals, eligibility, reversals, and payout | [Commissions](./contexts/commissions/CONTEXT.md) |
+| Context               | Responsibility                                                                 | Domain language                                                    |
+| --------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| Organization & Access | Company, branches, users, roles, and operational scope                         | [Organization & Access](./contexts/organization-access/CONTEXT.md) |
+| Customers             | Customer identity, contacts, addresses, terms, and credit policy               | [Customers](./contexts/customers/CONTEXT.md)                       |
+| Catalog & Inventory   | Products, warehouses, stock movements, reservations, and availability          | [Catalog & Inventory](./contexts/catalog-inventory/CONTEXT.md)     |
+| Sales                 | Quotes, sales orders, pricing, and commercial approval                         | [Sales](./contexts/sales/CONTEXT.md)                               |
+| Fulfillment           | Pick, release, delivery, proof, and delivery receipts                          | [Fulfillment](./contexts/fulfillment/CONTEXT.md)                   |
+| Returns               | Return authorization, inspection, disposition, replacement, and credit request | [Returns](./contexts/returns/CONTEXT.md)                           |
+| Procurement           | Suppliers, purchase orders, inbound receipts, imports, and landed cost         | [Procurement](./contexts/procurement/CONTEXT.md)                   |
+| Finance               | Invoices, payments, allocations, credits, expenses, and customer statements    | [Finance](./contexts/finance/CONTEXT.md)                           |
+| Commissions           | Commission plans, accruals, eligibility, reversals, and payout                 | [Commissions](./contexts/commissions/CONTEXT.md)                   |
 
 ## Principal flow
 
