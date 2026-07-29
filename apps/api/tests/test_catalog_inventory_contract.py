@@ -12,8 +12,8 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import create_async_engine
 from tradeflow_api.app import create_app
-from tradeflow_api.catalog_inventory import currency_quantum
 from tradeflow_api.config import Settings
+from tradeflow_api.money import currency_quantum
 
 
 @pytest.fixture

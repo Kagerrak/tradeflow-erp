@@ -278,6 +278,24 @@ async def require_inventory_rebuilder(
     return require_capability(user, "inventory:rebuild")
 
 
+async def require_sales_order_writer(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "sales:order-write")
+
+
+async def require_sales_order_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "sales:order-read")
+
+
+async def require_sales_pricing_writer(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "sales:pricing-write")
+
+
 async def require_organization_administrator(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:

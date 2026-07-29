@@ -1137,6 +1137,234 @@
         "title": "CreateLocationCommand",
         "type": "object"
       },
+      "CreatePriceListVersionCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "code": {
+            "pattern": "^[A-Z0-9][A-Z0-9_-]{1,49}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "inclusion_mode": {
+            "enum": [
+              "inclusive",
+              "exclusive"
+            ],
+            "title": "Inclusion Mode",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PriceListLineInput"
+            },
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "effective_from",
+          "code",
+          "branch_id",
+          "inclusion_mode",
+          "items"
+        ],
+        "title": "CreatePriceListVersionCommand",
+        "type": "object"
+      },
+      "CreateSalesOrderDraftCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "delivery_address_version_id": {
+            "format": "uuid",
+            "title": "Delivery Address Version Id",
+            "type": "string"
+          },
+          "expected_customer_version": {
+            "minimum": 1.0,
+            "title": "Expected Customer Version",
+            "type": "integer"
+          },
+          "expected_price_list_version_id": {
+            "format": "uuid",
+            "title": "Expected Price List Version Id",
+            "type": "string"
+          },
+          "expected_pricing_date": {
+            "format": "date",
+            "title": "Expected Pricing Date",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/SalesOrderLineInput"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "order_discount_amount": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Order Discount Amount"
+          },
+          "payment_timing_override_reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Timing Override Reason"
+          },
+          "payment_timing_policy": {
+            "anyOf": [
+              {
+                "enum": [
+                  "prepaid",
+                  "cash_on_delivery",
+                  "on_account"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Timing Policy"
+          },
+          "sales_order_id": {
+            "format": "uuid",
+            "title": "Sales Order Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "branch_id",
+          "customer_id",
+          "expected_customer_version",
+          "expected_price_list_version_id",
+          "expected_pricing_date",
+          "delivery_address_version_id",
+          "lines",
+          "sales_order_id"
+        ],
+        "title": "CreateSalesOrderDraftCommand",
+        "type": "object"
+      },
+      "CreateTaxCodeVersionCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "pattern": "^[A-Z][A-Z0-9_-]{1,29}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "rate": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,3}|(?=[\\d.]{1,10}0*$)\\d{0,3}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Rate"
+          }
+        },
+        "required": [
+          "effective_from",
+          "code",
+          "name",
+          "rate"
+        ],
+        "title": "CreateTaxCodeVersionCommand",
+        "type": "object"
+      },
       "CreditApprovalCommand": {
         "additionalProperties": false,
         "properties": {
@@ -1409,6 +1637,19 @@
         "title": "ErrorEnvelope",
         "type": "object"
       },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
       "LifecycleCommand": {
         "additionalProperties": false,
         "properties": {
@@ -1659,6 +1900,266 @@
         "title": "OpeningStockResponse",
         "type": "object"
       },
+      "OrderEntryAddressResponse": {
+        "properties": {
+          "address_key": {
+            "title": "Address Key",
+            "type": "string"
+          },
+          "address_version_id": {
+            "format": "uuid",
+            "title": "Address Version Id",
+            "type": "string"
+          },
+          "city": {
+            "title": "City",
+            "type": "string"
+          },
+          "country_code": {
+            "title": "Country Code",
+            "type": "string"
+          },
+          "line_1": {
+            "title": "Line 1",
+            "type": "string"
+          },
+          "line_2": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line 2"
+          },
+          "postal_code": {
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "region": {
+            "title": "Region",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "address_version_id",
+          "address_key",
+          "version",
+          "line_1",
+          "line_2",
+          "city",
+          "region",
+          "postal_code",
+          "country_code"
+        ],
+        "title": "OrderEntryAddressResponse",
+        "type": "object"
+      },
+      "OrderEntryItemResponse": {
+        "properties": {
+          "base_quantity_per_unit": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Base Quantity Per Unit",
+            "type": "string"
+          },
+          "base_stocking_unit": {
+            "title": "Base Stocking Unit",
+            "type": "string"
+          },
+          "floor_unit_price": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Floor Unit Price"
+          },
+          "list_unit_price": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "List Unit Price",
+            "type": "string"
+          },
+          "price_list_line_id": {
+            "format": "uuid",
+            "title": "Price List Line Id",
+            "type": "string"
+          },
+          "sku_code": {
+            "title": "Sku Code",
+            "type": "string"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "sku_name": {
+            "title": "Sku Name",
+            "type": "string"
+          },
+          "tax_code": {
+            "title": "Tax Code",
+            "type": "string"
+          },
+          "tax_code_version_id": {
+            "format": "uuid",
+            "title": "Tax Code Version Id",
+            "type": "string"
+          },
+          "tax_rate": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tax Rate",
+            "type": "string"
+          },
+          "unit_code": {
+            "title": "Unit Code",
+            "type": "string"
+          },
+          "unit_conversion_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Conversion Id"
+          },
+          "unit_conversion_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Conversion Version"
+          }
+        },
+        "required": [
+          "price_list_line_id",
+          "sku_id",
+          "sku_code",
+          "sku_name",
+          "unit_code",
+          "base_stocking_unit",
+          "base_quantity_per_unit",
+          "unit_conversion_id",
+          "unit_conversion_version",
+          "list_unit_price",
+          "floor_unit_price",
+          "tax_code",
+          "tax_code_version_id",
+          "tax_rate"
+        ],
+        "title": "OrderEntryItemResponse",
+        "type": "object"
+      },
+      "OrderEntryReferenceResponse": {
+        "properties": {
+          "addresses": {
+            "items": {
+              "$ref": "#/components/schemas/OrderEntryAddressResponse"
+            },
+            "title": "Addresses",
+            "type": "array"
+          },
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "customer_name": {
+            "title": "Customer Name",
+            "type": "string"
+          },
+          "customer_version": {
+            "title": "Customer Version",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OrderEntryItemResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "payment_timing_default": {
+            "enum": [
+              "prepaid",
+              "cash_on_delivery",
+              "on_account"
+            ],
+            "title": "Payment Timing Default",
+            "type": "string"
+          },
+          "price_inclusion_mode": {
+            "enum": [
+              "inclusive",
+              "exclusive"
+            ],
+            "title": "Price Inclusion Mode",
+            "type": "string"
+          },
+          "price_list_code": {
+            "title": "Price List Code",
+            "type": "string"
+          },
+          "price_list_version": {
+            "title": "Price List Version",
+            "type": "integer"
+          },
+          "price_list_version_id": {
+            "format": "uuid",
+            "title": "Price List Version Id",
+            "type": "string"
+          },
+          "pricing_date": {
+            "format": "date",
+            "title": "Pricing Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "branch_id",
+          "customer_id",
+          "customer_name",
+          "customer_version",
+          "payment_timing_default",
+          "currency",
+          "pricing_date",
+          "price_list_version_id",
+          "price_list_code",
+          "price_list_version",
+          "price_inclusion_mode",
+          "addresses",
+          "items"
+        ],
+        "title": "OrderEntryReferenceResponse",
+        "type": "object"
+      },
       "OrganizationBootstrapCommand": {
         "additionalProperties": false,
         "properties": {
@@ -1793,6 +2294,203 @@
         "title": "PingResponse",
         "type": "object"
       },
+      "PriceListLineInput": {
+        "additionalProperties": false,
+        "properties": {
+          "floor_unit_price": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Floor Unit Price"
+          },
+          "list_unit_price": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "List Unit Price"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "tax_code_version_id": {
+            "format": "uuid",
+            "title": "Tax Code Version Id",
+            "type": "string"
+          },
+          "unit_code": {
+            "pattern": "^[A-Z][A-Z0-9_-]{0,29}$",
+            "title": "Unit Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sku_id",
+          "unit_code",
+          "list_unit_price",
+          "tax_code_version_id"
+        ],
+        "title": "PriceListLineInput",
+        "type": "object"
+      },
+      "PriceListLineResponse": {
+        "properties": {
+          "floor_unit_price": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Floor Unit Price"
+          },
+          "list_unit_price": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "List Unit Price",
+            "type": "string"
+          },
+          "price_list_line_id": {
+            "format": "uuid",
+            "title": "Price List Line Id",
+            "type": "string"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "tax_code_version_id": {
+            "format": "uuid",
+            "title": "Tax Code Version Id",
+            "type": "string"
+          },
+          "unit_code": {
+            "title": "Unit Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "price_list_line_id",
+          "sku_id",
+          "unit_code",
+          "list_unit_price",
+          "floor_unit_price",
+          "tax_code_version_id"
+        ],
+        "title": "PriceListLineResponse",
+        "type": "object"
+      },
+      "PriceListVersionResponse": {
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "inclusion_mode": {
+            "enum": [
+              "inclusive",
+              "exclusive"
+            ],
+            "title": "Inclusion Mode",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PriceListLineResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "price_list_id": {
+            "format": "uuid",
+            "title": "Price List Id",
+            "type": "string"
+          },
+          "price_list_version_id": {
+            "format": "uuid",
+            "title": "Price List Version Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "price_list_id",
+          "price_list_version_id",
+          "code",
+          "version",
+          "branch_id",
+          "customer_id",
+          "currency",
+          "inclusion_mode",
+          "effective_from",
+          "effective_to",
+          "items"
+        ],
+        "title": "PriceListVersionResponse",
+        "type": "object"
+      },
       "ProjectionRebuildResponse": {
         "properties": {
           "availability_rows": {
@@ -1899,6 +2597,560 @@
           "version"
         ],
         "title": "RoleTemplateResponse",
+        "type": "object"
+      },
+      "SalesOrderDraftResponse": {
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "calculation_contract_version": {
+            "title": "Calculation Contract Version",
+            "type": "integer"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "customer_version": {
+            "title": "Customer Version",
+            "type": "integer"
+          },
+          "delivery_address_snapshot": {
+            "additionalProperties": true,
+            "title": "Delivery Address Snapshot",
+            "type": "object"
+          },
+          "delivery_address_version_id": {
+            "format": "uuid",
+            "title": "Delivery Address Version Id",
+            "type": "string"
+          },
+          "discount_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Total",
+            "type": "string"
+          },
+          "grand_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Grand Total",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/SalesOrderLineResponse"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "order_discount_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Order Discount Amount",
+            "type": "string"
+          },
+          "payment_timing_default": {
+            "enum": [
+              "prepaid",
+              "cash_on_delivery",
+              "on_account"
+            ],
+            "title": "Payment Timing Default",
+            "type": "string"
+          },
+          "payment_timing_overridden_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Timing Overridden By"
+          },
+          "payment_timing_override_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Timing Override Reason"
+          },
+          "payment_timing_policy": {
+            "enum": [
+              "prepaid",
+              "cash_on_delivery",
+              "on_account"
+            ],
+            "title": "Payment Timing Policy",
+            "type": "string"
+          },
+          "price_inclusion_mode": {
+            "enum": [
+              "inclusive",
+              "exclusive"
+            ],
+            "title": "Price Inclusion Mode",
+            "type": "string"
+          },
+          "price_list_code": {
+            "title": "Price List Code",
+            "type": "string"
+          },
+          "price_list_version": {
+            "title": "Price List Version",
+            "type": "integer"
+          },
+          "price_list_version_id": {
+            "format": "uuid",
+            "title": "Price List Version Id",
+            "type": "string"
+          },
+          "pricing_date": {
+            "format": "date",
+            "title": "Pricing Date",
+            "type": "string"
+          },
+          "sales_order_id": {
+            "format": "uuid",
+            "title": "Sales Order Id",
+            "type": "string"
+          },
+          "status": {
+            "const": "draft",
+            "title": "Status",
+            "type": "string"
+          },
+          "subtotal": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Subtotal",
+            "type": "string"
+          },
+          "tax_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tax Total",
+            "type": "string"
+          },
+          "taxable_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Taxable Total",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sales_order_id",
+          "status",
+          "version",
+          "branch_id",
+          "customer_id",
+          "customer_version",
+          "delivery_address_version_id",
+          "delivery_address_snapshot",
+          "currency",
+          "price_inclusion_mode",
+          "price_list_version_id",
+          "price_list_code",
+          "price_list_version",
+          "pricing_date",
+          "payment_timing_default",
+          "payment_timing_policy",
+          "payment_timing_override_reason",
+          "payment_timing_overridden_by",
+          "order_discount_amount",
+          "subtotal",
+          "discount_total",
+          "taxable_total",
+          "tax_total",
+          "grand_total",
+          "calculation_contract_version",
+          "lines"
+        ],
+        "title": "SalesOrderDraftResponse",
+        "type": "object"
+      },
+      "SalesOrderLineInput": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_price_list_line_id": {
+            "format": "uuid",
+            "title": "Expected Price List Line Id",
+            "type": "string"
+          },
+          "expected_unit_conversion_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Unit Conversion Id"
+          },
+          "expected_unit_conversion_version": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Unit Conversion Version"
+          },
+          "line_id": {
+            "format": "uuid",
+            "title": "Line Id",
+            "type": "string"
+          },
+          "manual_override_unit_price": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manual Override Unit Price"
+          },
+          "price_override_reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Override Reason"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "unit_code": {
+            "pattern": "^[A-Z][A-Z0-9_-]{0,29}$",
+            "title": "Unit Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line_id",
+          "sku_id",
+          "expected_price_list_line_id",
+          "expected_unit_conversion_id",
+          "quantity",
+          "unit_code"
+        ],
+        "title": "SalesOrderLineInput",
+        "type": "object"
+      },
+      "SalesOrderLineResponse": {
+        "properties": {
+          "allocated_discount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Allocated Discount",
+            "type": "string"
+          },
+          "below_floor": {
+            "title": "Below Floor",
+            "type": "boolean"
+          },
+          "calculation_snapshot": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Calculation Snapshot",
+            "type": "object"
+          },
+          "conversion_snapshot": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Conversion Snapshot",
+            "type": "object"
+          },
+          "effective_unit_price": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Effective Unit Price",
+            "type": "string"
+          },
+          "entered_quantity": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Entered Quantity",
+            "type": "string"
+          },
+          "entered_unit": {
+            "title": "Entered Unit",
+            "type": "string"
+          },
+          "floor_unit_price": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Floor Unit Price"
+          },
+          "line_id": {
+            "format": "uuid",
+            "title": "Line Id",
+            "type": "string"
+          },
+          "line_position": {
+            "title": "Line Position",
+            "type": "integer"
+          },
+          "line_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Line Total",
+            "type": "string"
+          },
+          "list_unit_price": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "List Unit Price",
+            "type": "string"
+          },
+          "manual_override_unit_price": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manual Override Unit Price"
+          },
+          "price_list_code": {
+            "title": "Price List Code",
+            "type": "string"
+          },
+          "price_list_line_id": {
+            "format": "uuid",
+            "title": "Price List Line Id",
+            "type": "string"
+          },
+          "price_list_version": {
+            "title": "Price List Version",
+            "type": "integer"
+          },
+          "price_list_version_id": {
+            "format": "uuid",
+            "title": "Price List Version Id",
+            "type": "string"
+          },
+          "price_override_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Override Reason"
+          },
+          "price_source": {
+            "enum": [
+              "customer",
+              "branch"
+            ],
+            "title": "Price Source",
+            "type": "string"
+          },
+          "quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity Base",
+            "type": "string"
+          },
+          "sku_code": {
+            "title": "Sku Code",
+            "type": "string"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "sku_name": {
+            "title": "Sku Name",
+            "type": "string"
+          },
+          "tax_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tax Amount",
+            "type": "string"
+          },
+          "tax_snapshot": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Tax Snapshot",
+            "type": "object"
+          },
+          "taxable_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Taxable Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line_id",
+          "line_position",
+          "sku_id",
+          "sku_code",
+          "sku_name",
+          "entered_quantity",
+          "entered_unit",
+          "quantity_base",
+          "conversion_snapshot",
+          "price_list_line_id",
+          "price_list_code",
+          "price_list_version_id",
+          "price_list_version",
+          "price_source",
+          "list_unit_price",
+          "floor_unit_price",
+          "manual_override_unit_price",
+          "price_override_reason",
+          "effective_unit_price",
+          "allocated_discount",
+          "tax_snapshot",
+          "calculation_snapshot",
+          "taxable_amount",
+          "tax_amount",
+          "line_total",
+          "below_floor"
+        ],
+        "title": "SalesOrderLineResponse",
+        "type": "object"
+      },
+      "SalesOrderSearchItem": {
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "customer_name": {
+            "title": "Customer Name",
+            "type": "string"
+          },
+          "grand_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Grand Total",
+            "type": "string"
+          },
+          "payment_timing_policy": {
+            "enum": [
+              "prepaid",
+              "cash_on_delivery",
+              "on_account"
+            ],
+            "title": "Payment Timing Policy",
+            "type": "string"
+          },
+          "sales_order_id": {
+            "format": "uuid",
+            "title": "Sales Order Id",
+            "type": "string"
+          },
+          "status": {
+            "const": "draft",
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sales_order_id",
+          "status",
+          "version",
+          "branch_id",
+          "customer_id",
+          "customer_name",
+          "currency",
+          "grand_total",
+          "payment_timing_policy"
+        ],
+        "title": "SalesOrderSearchItem",
+        "type": "object"
+      },
+      "SalesOrderSearchResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SalesOrderSearchItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "SalesOrderSearchResponse",
         "type": "object"
       },
       "ScopeBranchResponse": {
@@ -2127,6 +3379,66 @@
         "title": "SkuResponse",
         "type": "object"
       },
+      "TaxCodeVersionResponse": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "rate": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Rate",
+            "type": "string"
+          },
+          "tax_code_id": {
+            "format": "uuid",
+            "title": "Tax Code Id",
+            "type": "string"
+          },
+          "tax_code_version_id": {
+            "format": "uuid",
+            "title": "Tax Code Version Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tax_code_id",
+          "tax_code_version_id",
+          "code",
+          "name",
+          "version",
+          "rate",
+          "effective_from",
+          "effective_to"
+        ],
+        "title": "TaxCodeVersionResponse",
+        "type": "object"
+      },
       "UpdateAddressCommand": {
         "additionalProperties": false,
         "properties": {
@@ -2254,6 +3566,104 @@
         "title": "UpdateConversionCommand",
         "type": "object"
       },
+      "UpdateSalesOrderDraftCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "delivery_address_version_id": {
+            "format": "uuid",
+            "title": "Delivery Address Version Id",
+            "type": "string"
+          },
+          "expected_customer_version": {
+            "minimum": 1.0,
+            "title": "Expected Customer Version",
+            "type": "integer"
+          },
+          "expected_price_list_version_id": {
+            "format": "uuid",
+            "title": "Expected Price List Version Id",
+            "type": "string"
+          },
+          "expected_pricing_date": {
+            "format": "date",
+            "title": "Expected Pricing Date",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/SalesOrderLineInput"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "order_discount_amount": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Order Discount Amount"
+          },
+          "payment_timing_override_reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Timing Override Reason"
+          },
+          "payment_timing_policy": {
+            "anyOf": [
+              {
+                "enum": [
+                  "prepaid",
+                  "cash_on_delivery",
+                  "on_account"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Timing Policy"
+          }
+        },
+        "required": [
+          "branch_id",
+          "customer_id",
+          "expected_customer_version",
+          "expected_price_list_version_id",
+          "expected_pricing_date",
+          "delivery_address_version_id",
+          "lines"
+        ],
+        "title": "UpdateSalesOrderDraftCommand",
+        "type": "object"
+      },
       "UserConfigurationResponse": {
         "properties": {
           "approval_authorities": {
@@ -2373,6 +3783,46 @@
           "display_name"
         ],
         "title": "UserInput",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
         "type": "object"
       },
       "WarehouseInput": {
@@ -4797,6 +6247,725 @@
         "summary": "Ping",
         "tags": [
           "platform"
+        ]
+      }
+    },
+    "/v1/sales/order-entry-reference": {
+      "get": {
+        "operationId": "get_order_entry_reference_v1_sales_order_entry_reference_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "branch_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Branch Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Customer Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderEntryReferenceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Order Entry Reference",
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/v1/sales/orders": {
+      "get": {
+        "operationId": "search_sales_order_drafts_v1_sales_orders_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 200,
+              "title": "Query",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesOrderSearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Search Sales Order Drafts",
+        "tags": [
+          "sales"
+        ]
+      },
+      "post": {
+        "operationId": "create_sales_order_draft_v1_sales_orders_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSalesOrderDraftCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesOrderDraftResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Sales Order Draft",
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/v1/sales/orders/{sales_order_id}": {
+      "get": {
+        "operationId": "get_sales_order_draft_v1_sales_orders__sales_order_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sales_order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sales Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesOrderDraftResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Sales Order Draft",
+        "tags": [
+          "sales"
+        ]
+      },
+      "put": {
+        "operationId": "update_sales_order_draft_v1_sales_orders__sales_order_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sales_order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sales Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "If-Match",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSalesOrderDraftCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesOrderDraftResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Sales Order Draft",
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/v1/sales/price-list-versions": {
+      "post": {
+        "operationId": "create_price_list_version_v1_sales_price_list_versions_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePriceListVersionCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceListVersionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Price List Version",
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/v1/sales/tax-code-versions": {
+      "post": {
+        "operationId": "create_tax_code_version_v1_sales_tax_code_versions_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTaxCodeVersionCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaxCodeVersionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Tax Code Version",
+        "tags": [
+          "sales"
         ]
       }
     },

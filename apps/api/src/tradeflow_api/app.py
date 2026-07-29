@@ -33,6 +33,7 @@ from tradeflow_api.observability import (
 )
 from tradeflow_api.organization import router as organization_router
 from tradeflow_api.platform import router as platform_router
+from tradeflow_api.sales import router as sales_router
 
 
 class LiveResponse(BaseModel):
@@ -87,6 +88,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(customers_router)
     app.include_router(organization_router)
     app.include_router(platform_router)
+    app.include_router(sales_router)
     instrument_app(app, engine, resolved_settings)
 
     @app.exception_handler(AppError)

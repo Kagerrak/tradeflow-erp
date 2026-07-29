@@ -49,6 +49,23 @@ test("@real-stack renders movement-derived Warehouse availability", async ({
   await expect(page.getByText("REAL-LOT-A / 2027-12-31")).toBeVisible();
 });
 
+test("@real-stack creates an authoritative priced Sales Order Draft", async ({
+  page,
+}) => {
+  await page.goto("/sales-orders/new");
+  await page
+    .getByLabel("Customer Account")
+    .selectOption({ label: "MNL-REAL-001 / Real Stack Retail" });
+  await expect(page.getByText(/REAL-MNL-DEFAULT/)).toBeVisible();
+  await page.getByLabel("REAL-COLA-330 quantity").fill("2.000000");
+  await page.getByRole("button", { name: "Save Sales Order Draft" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Draft acknowledged by TradeFlow" }),
+  ).toBeVisible();
+  await expect(page.getByText("PHP 22.40")).toBeVisible();
+});
+
 test("@real-stack creates a cash-on-delivery customer through the web docket", async ({
   page,
 }) => {

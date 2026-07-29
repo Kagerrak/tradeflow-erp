@@ -29,8 +29,8 @@ type HomeState = PlatformSessionState | { kind: "loading" };
 
 const routeTasks = [
   ["01", "Customer lookup", "Account and delivery context"],
-  ["02", "Pick list", "Reserved goods and tracked identities"],
-  ["03", "Delivery proof", "Recipient, evidence, and exceptions"],
+  ["02", "Sales order draft", "Priced capture with durable Pending Sync"],
+  ["03", "Pick list", "Reserved goods and tracked identities"],
 ] as const;
 
 export function PlatformHome({
@@ -286,10 +286,14 @@ function RoutePreview() {
         <Text style={styles.routeCount}>3 TASKS</Text>
       </View>
       {routeTasks.map(([number, label, detail], index) =>
-        index === 0 ? (
-          <Link asChild href="./customers" key={number}>
+        index < 2 ? (
+          <Link
+            asChild
+            href={index === 0 ? "./customers" : "./sales-orders"}
+            key={number}
+          >
             <Pressable
-              accessibilityLabel="Open customer lookup"
+              accessibilityLabel={`Open ${label.toLowerCase()}`}
               accessibilityRole="button"
               style={styles.routeRow}
             >
@@ -313,8 +317,8 @@ function RoutePreview() {
         ),
       )}
       <Text style={styles.routeNote}>
-        Customer lookup respects server scope. Later route tasks remain locked
-        until their capabilities are assigned.
+        Customer lookup and Sales Order capture respect server scope. Posting,
+        stock commitment, and credit commitment remain locked.
       </Text>
     </View>
   );

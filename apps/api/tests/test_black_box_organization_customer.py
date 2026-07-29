@@ -40,7 +40,19 @@ def test_external_organization_and_customer_contract() -> None:
                 "code": "OPS_ADMIN",
                 "name": "Operations admin",
             },
-            {"capabilities": ["customer:read", "customer:write"], "code": "SALES", "name": "Sales"},
+            {
+                "capabilities": [
+                    "customer:read",
+                    "customer:write",
+                    "sales:order-read",
+                    "sales:order-write",
+                    "sales:payment-timing-override",
+                    "sales:price-override",
+                    "sales:pricing-write",
+                ],
+                "code": "SALES",
+                "name": "Sales",
+            },
             {
                 "capabilities": [
                     "catalog:write",

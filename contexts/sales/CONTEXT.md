@@ -7,8 +7,20 @@ products, quantities, prices, taxes, discounts, addresses, and requested
 fulfillment. It snapshots the Customer Account's Payment Timing Policy, with
 authorized overrides retaining a reason.
 
+**Sales Order Draft**: A mutable, server-authoritative commercial proposal
+captured before Commercial Approval. It may be repriced or edited and consumes
+neither Credit Exposure nor Inventory Reservation.
+
 **Sales Order Line**: One priced product and quantity commitment within a sales
 order.
+
+**Pending Sync**: A locally retained Sales Order Draft command that has not
+received server acknowledgement. It is captured work, not an approved customer
+commitment, and consumes neither Credit Exposure nor Inventory Reservation.
+
+**Sync Conflict**: A rejected draft command whose expected server version no
+longer matches the authoritative Sales Order Draft. It requires explicit user
+review and is not automatically merged.
 
 **Commercial Approval**: Authorization that credit, price, discount, and terms
 allow an order to proceed and request inventory reservation.
@@ -35,6 +47,9 @@ quantity is handled through a return, not cancellation.
 **Price List**: An effective-dated source of default selling prices.
 Customer-specific Price Lists take precedence over the Branch default.
 
+**Price List Version**: One immutable effective-dated definition of a Price
+List whose prices and inclusion mode can be snapshotted by a Sales Order Line.
+
 **Price Inclusion Mode**: A Price List policy declaring whether its prices
 include or exclude sales tax. A Sales Order uses one mode across all lines.
 
@@ -48,6 +63,10 @@ approved totals can be reproduced.
 
 **Price Override**: An authorized replacement of the applicable list price. A
 price below the SKU's configured floor requires maker-checker approval.
+
+**Payment Timing Override**: An authorized deviation from the Customer
+Account's default Payment Timing Policy that retains the requesting User and
+reason on the Sales Order.
 
 **Tax Code**: An effective-dated classification that determines the sales-tax
 rate and treatment for a Sales Order Line.

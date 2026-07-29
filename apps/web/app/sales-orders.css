@@ -1,0 +1,206 @@
+.sales-app {
+  min-height: 100vh;
+  background: #f3efe5;
+  color: #17201b;
+}
+
+.sales-header {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 1.5rem;
+  align-items: center;
+  padding: 1rem 3vw;
+  border-bottom: 1px solid #17201b;
+  font-size: 0.74rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sales-wordmark {
+  color: inherit;
+  font-family: var(--font-newsreader), serif;
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+  text-transform: none;
+}
+
+.sales-main {
+  width: min(1180px, 94vw);
+  margin: 0 auto;
+  padding: 3.5rem 0 6rem;
+}
+
+.sales-title {
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr;
+  gap: 3rem;
+  align-items: end;
+  margin-bottom: 2.5rem;
+}
+
+.sales-title h1 {
+  max-width: 780px;
+  margin: 0.25rem 0 0;
+  font-family: var(--font-newsreader), serif;
+  font-size: clamp(3rem, 7vw, 6.5rem);
+  font-weight: 500;
+  letter-spacing: -0.055em;
+  line-height: 0.88;
+}
+
+.sales-title > p {
+  max-width: 34rem;
+  margin: 0;
+  line-height: 1.55;
+}
+
+.sales-panel {
+  border: 1px solid #17201b;
+  background: #faf7ef;
+}
+
+.sales-panel-head,
+.sales-form-section,
+.sales-total-strip,
+.sales-result {
+  padding: 1.35rem 1.5rem;
+  border-bottom: 1px solid #17201b;
+}
+
+.sales-panel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.sales-panel-head h2 {
+  margin: 0;
+  font-family: var(--font-newsreader), serif;
+  font-size: 2rem;
+}
+
+.sales-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.sales-form label {
+  display: grid;
+  gap: 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sales-form input,
+.sales-form select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #798078;
+  border-radius: 0;
+  background: #fffef8;
+  color: inherit;
+  font: inherit;
+  padding: 0.7rem 0.8rem;
+}
+
+.sales-line {
+  display: grid;
+  grid-template-columns: 1.4fr 0.55fr 0.55fr 0.8fr;
+  gap: 1rem;
+  align-items: end;
+  padding: 1rem 0;
+  border-top: 1px solid #d8d2c5;
+}
+
+.sales-line:first-of-type {
+  margin-top: 1rem;
+}
+
+.sales-line strong,
+.sales-line small {
+  display: block;
+}
+
+.sales-line small {
+  margin-top: 0.25rem;
+  color: #5d665f;
+}
+
+.sales-total-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  background: #17201b;
+  color: #f7f2e8;
+}
+
+.sales-total-strip span {
+  display: block;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sales-total-strip strong {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 1.35rem;
+}
+
+.sales-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.35rem 1.5rem;
+}
+
+.sales-actions button {
+  min-height: 46px;
+  border: 1px solid #17201b;
+  background: #e65c2f;
+  color: #17201b;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 0.8rem 1.25rem;
+}
+
+.sales-message {
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.sales-message h3 {
+  margin: 0.5rem 0;
+  font-family: var(--font-newsreader), serif;
+  font-size: 2rem;
+}
+
+.sales-result {
+  background: #e7f0e7;
+}
+
+.sales-result h3 {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-newsreader), serif;
+  font-size: 2rem;
+}
+
+@media (max-width: 760px) {
+  .sales-header,
+  .sales-title,
+  .sales-form-grid,
+  .sales-line,
+  .sales-total-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .sales-title {
+    gap: 1.5rem;
+  }
+}

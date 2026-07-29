@@ -595,3 +595,315 @@ inventory_valuation = Table(
     Column("inventory_value", Numeric(24, 6), nullable=False),
     Column("moving_average_unit_cost", Numeric(18, 6), nullable=False),
 )
+
+tax_codes = Table(
+    "tax_codes",
+    metadata,
+    Column("tax_code_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column("code", String(30), nullable=False, unique=True),
+    Column("name", String(200), nullable=False),
+    Column("is_active", Boolean, nullable=False, server_default="true"),
+    Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+)
+
+tax_code_versions = Table(
+    "tax_code_versions",
+    metadata,
+    Column("tax_code_version_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "tax_code_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("tax_codes.tax_code_id"),
+        nullable=False,
+    ),
+    Column("version", Integer, nullable=False),
+    Column("rate", Numeric(9, 6), nullable=False),
+    Column("effective_from", Date, nullable=False),
+    Column("effective_to", Date, nullable=True),
+    Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("version > 0", name="ck_tax_code_versions_version_positive"),
+    CheckConstraint("rate >= 0 AND rate <= 1", name="ck_tax_code_versions_rate"),
+    CheckConstraint(
+        "effective_to IS NULL OR effective_to >= effective_from",
+        name="ck_tax_code_versions_effective_range",
+    ),
+    UniqueConstraint("tax_code_id", "version", name="uq_tax_code_version"),
+    UniqueConstraint(
+        "tax_code_id",
+        "effective_from",
+        name="uq_tax_code_version_effective_date",
+    ),
+)
+
+price_lists = Table(
+    "price_lists",
+    metadata,
+    Column("price_list_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "branch_id", PostgresUUID(as_uuid=True), ForeignKey("branches.branch_id"), nullable=False
+    ),
+    Column(
+        "customer_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("customer_accounts.customer_id"),
+        nullable=True,
+    ),
+    Column("code", String(50), nullable=False, unique=True),
+    Column("is_active", Boolean, nullable=False, server_default="true"),
+    Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+)
+
+price_list_versions = Table(
+    "price_list_versions",
+    metadata,
+    Column("price_list_version_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "price_list_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("price_lists.price_list_id"),
+        nullable=False,
+    ),
+    Column("version", Integer, nullable=False),
+    Column("currency", String(3), nullable=False),
+    Column("inclusion_mode", String(20), nullable=False),
+    Column("effective_from", Date, nullable=False),
+    Column("effective_to", Date, nullable=True),
+    Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("version > 0", name="ck_price_list_versions_version_positive"),
+    CheckConstraint(
+        "inclusion_mode IN ('inclusive', 'exclusive')",
+        name="ck_price_list_versions_inclusion_mode",
+    ),
+    CheckConstraint(
+        "effective_to IS NULL OR effective_to >= effective_from",
+        name="ck_price_list_versions_effective_range",
+    ),
+    UniqueConstraint("price_list_id", "version", name="uq_price_list_version"),
+    UniqueConstraint(
+        "price_list_id",
+        "effective_from",
+        name="uq_price_list_version_effective_date",
+    ),
+)
+
+price_list_lines = Table(
+    "price_list_lines",
+    metadata,
+    Column("price_list_line_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "price_list_version_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("price_list_versions.price_list_version_id"),
+        nullable=False,
+    ),
+    Column("sku_id", PostgresUUID(as_uuid=True), ForeignKey("skus.sku_id"), nullable=False),
+    Column("unit_code", String(30), nullable=False),
+    Column("list_unit_price", Numeric(18, 6), nullable=False),
+    Column("floor_unit_price", Numeric(18, 6), nullable=True),
+    Column(
+        "tax_code_version_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("tax_code_versions.tax_code_version_id"),
+        nullable=False,
+    ),
+    Column("line_position", Integer, nullable=False),
+    CheckConstraint("list_unit_price >= 0", name="ck_price_list_lines_price_nonnegative"),
+    CheckConstraint(
+        "floor_unit_price IS NULL OR floor_unit_price >= 0",
+        name="ck_price_list_lines_floor_nonnegative",
+    ),
+    CheckConstraint("line_position > 0", name="ck_price_list_lines_position_positive"),
+    UniqueConstraint(
+        "price_list_version_id",
+        "sku_id",
+        "unit_code",
+        name="uq_price_list_line_sku_unit",
+    ),
+)
+
+sales_orders = Table(
+    "sales_orders",
+    metadata,
+    Column("sales_order_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "branch_id", PostgresUUID(as_uuid=True), ForeignKey("branches.branch_id"), nullable=False
+    ),
+    Column(
+        "customer_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("customer_accounts.customer_id"),
+        nullable=False,
+    ),
+    Column("status", String(20), nullable=False, server_default="draft"),
+    Column("version", Integer, nullable=False, server_default="1"),
+    Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("updated_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    ),
+    CheckConstraint("status = 'draft'", name="ck_sales_orders_status"),
+    CheckConstraint("version > 0", name="ck_sales_orders_version_positive"),
+)
+
+sales_order_revisions = Table(
+    "sales_order_revisions",
+    metadata,
+    Column("sales_order_revision_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "sales_order_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("sales_orders.sales_order_id"),
+        nullable=False,
+    ),
+    Column("version", Integer, nullable=False),
+    Column(
+        "branch_id", PostgresUUID(as_uuid=True), ForeignKey("branches.branch_id"), nullable=False
+    ),
+    Column(
+        "customer_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("customer_accounts.customer_id"),
+        nullable=False,
+    ),
+    Column(
+        "customer_version",
+        Integer,
+        nullable=False,
+    ),
+    Column(
+        "delivery_address_version_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("customer_address_versions.address_version_id"),
+        nullable=False,
+    ),
+    Column("delivery_address_snapshot", JSONB, nullable=False),
+    Column("currency", String(3), nullable=False),
+    Column("price_inclusion_mode", String(20), nullable=False),
+    Column(
+        "price_list_version_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("price_list_versions.price_list_version_id"),
+        nullable=False,
+    ),
+    Column("price_list_code", String(50), nullable=False),
+    Column("price_list_version", Integer, nullable=False),
+    Column("pricing_date", Date, nullable=False),
+    Column("payment_timing_default", String(30), nullable=False),
+    Column("payment_timing_policy", String(30), nullable=False),
+    Column("payment_timing_override_reason", String(500), nullable=True),
+    Column(
+        "payment_timing_overridden_by",
+        String(200),
+        ForeignKey("users.subject"),
+        nullable=True,
+    ),
+    Column("order_discount_amount", Numeric(18, 6), nullable=False),
+    Column("subtotal", Numeric(24, 6), nullable=False),
+    Column("discount_total", Numeric(24, 6), nullable=False),
+    Column("taxable_total", Numeric(24, 6), nullable=False),
+    Column("tax_total", Numeric(24, 6), nullable=False),
+    Column("grand_total", Numeric(24, 6), nullable=False),
+    Column("calculation_contract_version", Integer, nullable=False, server_default="1"),
+    Column("actor_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("version > 0", name="ck_sales_order_revisions_version_positive"),
+    CheckConstraint(
+        "price_inclusion_mode IN ('inclusive', 'exclusive')",
+        name="ck_sales_order_revisions_inclusion_mode",
+    ),
+    CheckConstraint(
+        "payment_timing_default IN ('prepaid', 'cash_on_delivery', 'on_account')",
+        name="ck_sales_order_revisions_payment_default",
+    ),
+    CheckConstraint(
+        "payment_timing_policy IN ('prepaid', 'cash_on_delivery', 'on_account')",
+        name="ck_sales_order_revisions_payment_policy",
+    ),
+    CheckConstraint(
+        "order_discount_amount >= 0 AND discount_total >= 0",
+        name="ck_sales_order_revisions_discount_nonnegative",
+    ),
+    CheckConstraint(
+        "subtotal >= 0 AND taxable_total >= 0 AND tax_total >= 0 AND grand_total >= 0",
+        name="ck_sales_order_revisions_totals_nonnegative",
+    ),
+    UniqueConstraint("sales_order_id", "version", name="uq_sales_order_revision"),
+)
+
+sales_order_line_revisions = Table(
+    "sales_order_line_revisions",
+    metadata,
+    Column("sales_order_line_revision_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "sales_order_revision_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("sales_order_revisions.sales_order_revision_id"),
+        nullable=False,
+    ),
+    Column("line_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("line_position", Integer, nullable=False),
+    Column("sku_id", PostgresUUID(as_uuid=True), ForeignKey("skus.sku_id"), nullable=False),
+    Column("sku_code", String(50), nullable=False),
+    Column("sku_name", String(200), nullable=False),
+    Column("entered_quantity", Numeric(18, 6), nullable=False),
+    Column("entered_unit", String(30), nullable=False),
+    Column("quantity_base", Numeric(18, 6), nullable=False),
+    Column("conversion_snapshot", JSONB, nullable=False),
+    Column(
+        "price_list_line_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("price_list_lines.price_list_line_id"),
+        nullable=False,
+    ),
+    Column("list_unit_price", Numeric(18, 6), nullable=False),
+    Column("floor_unit_price", Numeric(18, 6), nullable=True),
+    Column("manual_override_unit_price", Numeric(18, 6), nullable=True),
+    Column("price_override_reason", String(500), nullable=True),
+    Column("effective_unit_price", Numeric(18, 6), nullable=False),
+    Column("price_source", String(20), nullable=False),
+    Column("below_floor", Boolean, nullable=False),
+    Column("allocated_discount", Numeric(24, 6), nullable=False),
+    Column("tax_snapshot", JSONB, nullable=False),
+    Column("calculation_snapshot", JSONB, nullable=False),
+    Column("taxable_amount", Numeric(24, 6), nullable=False),
+    Column("tax_amount", Numeric(24, 6), nullable=False),
+    Column("line_total", Numeric(24, 6), nullable=False),
+    CheckConstraint("line_position > 0", name="ck_sales_order_line_revisions_position"),
+    CheckConstraint(
+        "entered_quantity > 0 AND quantity_base > 0",
+        name="ck_sales_order_line_revisions_quantity",
+    ),
+    CheckConstraint(
+        "list_unit_price >= 0 AND effective_unit_price >= 0",
+        name="ck_sales_order_line_revisions_price",
+    ),
+    CheckConstraint(
+        "price_source IN ('customer', 'branch')",
+        name="ck_sales_order_line_revisions_price_source",
+    ),
+    CheckConstraint(
+        "allocated_discount >= 0 AND taxable_amount >= 0 AND tax_amount >= 0 AND line_total >= 0",
+        name="ck_sales_order_line_revisions_amounts",
+    ),
+    UniqueConstraint(
+        "sales_order_revision_id",
+        "line_id",
+        name="uq_sales_order_line_revision_identity",
+    ),
+    UniqueConstraint(
+        "sales_order_revision_id",
+        "line_position",
+        name="uq_sales_order_line_revision_position",
+    ),
+)

@@ -127,7 +127,7 @@ jobs:
             fi
             sleep 1
           done
-          uv run pytest apps/api/tests/test_black_box_platform.py apps/api/tests/test_black_box_organization_customer.py apps/api/tests/test_black_box_catalog_inventory.py
+          uv run pytest apps/api/tests/test_black_box_platform.py apps/api/tests/test_black_box_organization_customer.py apps/api/tests/test_black_box_catalog_inventory.py apps/api/tests/test_black_box_sales.py
           pnpm --filter @tradeflow/web test:integration
           pnpm --filter @tradeflow/mobile test:integration
 

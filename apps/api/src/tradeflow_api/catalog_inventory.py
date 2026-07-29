@@ -40,39 +40,10 @@ from tradeflow_api.models import (
     warehouse_stock_locations,
     warehouses,
 )
+from tradeflow_api.money import currency_quantum
 
 router = APIRouter(tags=["catalog and inventory"])
 SIX_PLACES = Decimal("0.000001")
-ZERO_MINOR_UNIT_CURRENCIES = {
-    "BIF",
-    "CLP",
-    "DJF",
-    "GNF",
-    "ISK",
-    "JPY",
-    "KMF",
-    "KRW",
-    "PYG",
-    "RWF",
-    "UGX",
-    "VND",
-    "VUV",
-    "XAF",
-    "XOF",
-    "XPF",
-}
-THREE_MINOR_UNIT_CURRENCIES = {"BHD", "IQD", "JOD", "KWD", "LYD", "OMR", "TND"}
-FOUR_MINOR_UNIT_CURRENCIES = {"CLF", "UYW"}
-
-
-def currency_quantum(currency: str) -> Decimal:
-    if currency in ZERO_MINOR_UNIT_CURRENCIES:
-        return Decimal("1")
-    if currency in THREE_MINOR_UNIT_CURRENCIES:
-        return Decimal("0.001")
-    if currency in FOUR_MINOR_UNIT_CURRENCIES:
-        return Decimal("0.0001")
-    return Decimal("0.01")
 
 
 class CommandModel(BaseModel):

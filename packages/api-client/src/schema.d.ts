@@ -345,6 +345,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sales/order-entry-reference": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Order Entry Reference */
+        get: operations["get_order_entry_reference_v1_sales_order_entry_reference_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sales/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search Sales Order Drafts */
+        get: operations["search_sales_order_drafts_v1_sales_orders_get"];
+        put?: never;
+        /** Create Sales Order Draft */
+        post: operations["create_sales_order_draft_v1_sales_orders_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sales/orders/{sales_order_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Sales Order Draft */
+        get: operations["get_sales_order_draft_v1_sales_orders__sales_order_id__get"];
+        /** Update Sales Order Draft */
+        put: operations["update_sales_order_draft_v1_sales_orders__sales_order_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sales/price-list-versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Price List Version */
+        post: operations["create_price_list_version_v1_sales_price_list_versions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sales/tax-code-versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Tax Code Version */
+        post: operations["create_tax_code_version_v1_sales_tax_code_versions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/session": {
         parameters: {
             query?: never;
@@ -784,6 +871,94 @@ export interface components {
              */
             warehouse_id: string;
         };
+        /** CreatePriceListVersionCommand */
+        CreatePriceListVersionCommand: {
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Code */
+            code: string;
+            /** Customer Id */
+            customer_id?: string | null;
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+            /** Effective To */
+            effective_to?: string | null;
+            /**
+             * Inclusion Mode
+             * @enum {string}
+             */
+            inclusion_mode: "inclusive" | "exclusive";
+            /** Items */
+            items: components["schemas"]["PriceListLineInput"][];
+        };
+        /** CreateSalesOrderDraftCommand */
+        CreateSalesOrderDraftCommand: {
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /**
+             * Delivery Address Version Id
+             * Format: uuid
+             */
+            delivery_address_version_id: string;
+            /** Expected Customer Version */
+            expected_customer_version: number;
+            /**
+             * Expected Price List Version Id
+             * Format: uuid
+             */
+            expected_price_list_version_id: string;
+            /**
+             * Expected Pricing Date
+             * Format: date
+             */
+            expected_pricing_date: string;
+            /** Lines */
+            lines: components["schemas"]["SalesOrderLineInput"][];
+            /**
+             * Order Discount Amount
+             * @default 0
+             */
+            order_discount_amount: number | string;
+            /** Payment Timing Override Reason */
+            payment_timing_override_reason?: string | null;
+            /** Payment Timing Policy */
+            payment_timing_policy?: ("prepaid" | "cash_on_delivery" | "on_account") | null;
+            /**
+             * Sales Order Id
+             * Format: uuid
+             */
+            sales_order_id: string;
+        };
+        /** CreateTaxCodeVersionCommand */
+        CreateTaxCodeVersionCommand: {
+            /** Code */
+            code: string;
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+            /** Effective To */
+            effective_to?: string | null;
+            /** Name */
+            name: string;
+            /** Rate */
+            rate: number | string;
+        };
         /** CreditApprovalCommand */
         CreditApprovalCommand: {
             /** Reason */
@@ -902,6 +1077,11 @@ export interface components {
         ErrorEnvelope: {
             error: components["schemas"]["ErrorDetail"];
         };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
         /** LifecycleCommand */
         LifecycleCommand: {
             /** Is Active */
@@ -1009,6 +1189,117 @@ export interface components {
              */
             warehouse_id: string;
         };
+        /** OrderEntryAddressResponse */
+        OrderEntryAddressResponse: {
+            /** Address Key */
+            address_key: string;
+            /**
+             * Address Version Id
+             * Format: uuid
+             */
+            address_version_id: string;
+            /** City */
+            city: string;
+            /** Country Code */
+            country_code: string;
+            /** Line 1 */
+            line_1: string;
+            /** Line 2 */
+            line_2: string | null;
+            /** Postal Code */
+            postal_code: string;
+            /** Region */
+            region: string;
+            /** Version */
+            version: number;
+        };
+        /** OrderEntryItemResponse */
+        OrderEntryItemResponse: {
+            /** Base Quantity Per Unit */
+            base_quantity_per_unit: string;
+            /** Base Stocking Unit */
+            base_stocking_unit: string;
+            /** Floor Unit Price */
+            floor_unit_price: string | null;
+            /** List Unit Price */
+            list_unit_price: string;
+            /**
+             * Price List Line Id
+             * Format: uuid
+             */
+            price_list_line_id: string;
+            /** Sku Code */
+            sku_code: string;
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Tax Code */
+            tax_code: string;
+            /**
+             * Tax Code Version Id
+             * Format: uuid
+             */
+            tax_code_version_id: string;
+            /** Tax Rate */
+            tax_rate: string;
+            /** Unit Code */
+            unit_code: string;
+            /** Unit Conversion Id */
+            unit_conversion_id: string | null;
+            /** Unit Conversion Version */
+            unit_conversion_version: number | null;
+        };
+        /** OrderEntryReferenceResponse */
+        OrderEntryReferenceResponse: {
+            /** Addresses */
+            addresses: components["schemas"]["OrderEntryAddressResponse"][];
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /** Customer Name */
+            customer_name: string;
+            /** Customer Version */
+            customer_version: number;
+            /** Items */
+            items: components["schemas"]["OrderEntryItemResponse"][];
+            /**
+             * Payment Timing Default
+             * @enum {string}
+             */
+            payment_timing_default: "prepaid" | "cash_on_delivery" | "on_account";
+            /**
+             * Price Inclusion Mode
+             * @enum {string}
+             */
+            price_inclusion_mode: "inclusive" | "exclusive";
+            /** Price List Code */
+            price_list_code: string;
+            /** Price List Version */
+            price_list_version: number;
+            /**
+             * Price List Version Id
+             * Format: uuid
+             */
+            price_list_version_id: string;
+            /**
+             * Pricing Date
+             * Format: date
+             */
+            pricing_date: string;
+        };
         /** OrganizationBootstrapCommand */
         OrganizationBootstrapCommand: {
             /** Branches */
@@ -1049,6 +1340,89 @@ export interface components {
             /** Message */
             message: string;
         };
+        /** PriceListLineInput */
+        PriceListLineInput: {
+            /** Floor Unit Price */
+            floor_unit_price?: number | string | null;
+            /** List Unit Price */
+            list_unit_price: number | string;
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+            /**
+             * Tax Code Version Id
+             * Format: uuid
+             */
+            tax_code_version_id: string;
+            /** Unit Code */
+            unit_code: string;
+        };
+        /** PriceListLineResponse */
+        PriceListLineResponse: {
+            /** Floor Unit Price */
+            floor_unit_price: string | null;
+            /** List Unit Price */
+            list_unit_price: string;
+            /**
+             * Price List Line Id
+             * Format: uuid
+             */
+            price_list_line_id: string;
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+            /**
+             * Tax Code Version Id
+             * Format: uuid
+             */
+            tax_code_version_id: string;
+            /** Unit Code */
+            unit_code: string;
+        };
+        /** PriceListVersionResponse */
+        PriceListVersionResponse: {
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Code */
+            code: string;
+            /** Currency */
+            currency: string;
+            /** Customer Id */
+            customer_id: string | null;
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+            /** Effective To */
+            effective_to: string | null;
+            /**
+             * Inclusion Mode
+             * @enum {string}
+             */
+            inclusion_mode: "inclusive" | "exclusive";
+            /** Items */
+            items: components["schemas"]["PriceListLineResponse"][];
+            /**
+             * Price List Id
+             * Format: uuid
+             */
+            price_list_id: string;
+            /**
+             * Price List Version Id
+             * Format: uuid
+             */
+            price_list_version_id: string;
+            /** Version */
+            version: number;
+        };
         /** ProjectionRebuildResponse */
         ProjectionRebuildResponse: {
             /** Availability Rows */
@@ -1086,6 +1460,242 @@ export interface components {
             name: string;
             /** Version */
             version: number;
+        };
+        /** SalesOrderDraftResponse */
+        SalesOrderDraftResponse: {
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Calculation Contract Version */
+            calculation_contract_version: number;
+            /** Currency */
+            currency: string;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /** Customer Version */
+            customer_version: number;
+            /** Delivery Address Snapshot */
+            delivery_address_snapshot: {
+                [key: string]: unknown;
+            };
+            /**
+             * Delivery Address Version Id
+             * Format: uuid
+             */
+            delivery_address_version_id: string;
+            /** Discount Total */
+            discount_total: string;
+            /** Grand Total */
+            grand_total: string;
+            /** Lines */
+            lines: components["schemas"]["SalesOrderLineResponse"][];
+            /** Order Discount Amount */
+            order_discount_amount: string;
+            /**
+             * Payment Timing Default
+             * @enum {string}
+             */
+            payment_timing_default: "prepaid" | "cash_on_delivery" | "on_account";
+            /** Payment Timing Overridden By */
+            payment_timing_overridden_by: string | null;
+            /** Payment Timing Override Reason */
+            payment_timing_override_reason: string | null;
+            /**
+             * Payment Timing Policy
+             * @enum {string}
+             */
+            payment_timing_policy: "prepaid" | "cash_on_delivery" | "on_account";
+            /**
+             * Price Inclusion Mode
+             * @enum {string}
+             */
+            price_inclusion_mode: "inclusive" | "exclusive";
+            /** Price List Code */
+            price_list_code: string;
+            /** Price List Version */
+            price_list_version: number;
+            /**
+             * Price List Version Id
+             * Format: uuid
+             */
+            price_list_version_id: string;
+            /**
+             * Pricing Date
+             * Format: date
+             */
+            pricing_date: string;
+            /**
+             * Sales Order Id
+             * Format: uuid
+             */
+            sales_order_id: string;
+            /**
+             * Status
+             * @constant
+             */
+            status: "draft";
+            /** Subtotal */
+            subtotal: string;
+            /** Tax Total */
+            tax_total: string;
+            /** Taxable Total */
+            taxable_total: string;
+            /** Version */
+            version: number;
+        };
+        /** SalesOrderLineInput */
+        SalesOrderLineInput: {
+            /**
+             * Expected Price List Line Id
+             * Format: uuid
+             */
+            expected_price_list_line_id: string;
+            /** Expected Unit Conversion Id */
+            expected_unit_conversion_id: string | null;
+            /** Expected Unit Conversion Version */
+            expected_unit_conversion_version?: number | null;
+            /**
+             * Line Id
+             * Format: uuid
+             */
+            line_id: string;
+            /** Manual Override Unit Price */
+            manual_override_unit_price?: number | string | null;
+            /** Price Override Reason */
+            price_override_reason?: string | null;
+            /** Quantity */
+            quantity: number | string;
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+            /** Unit Code */
+            unit_code: string;
+        };
+        /** SalesOrderLineResponse */
+        SalesOrderLineResponse: {
+            /** Allocated Discount */
+            allocated_discount: string;
+            /** Below Floor */
+            below_floor: boolean;
+            /** Calculation Snapshot */
+            calculation_snapshot: {
+                [key: string]: string;
+            };
+            /** Conversion Snapshot */
+            conversion_snapshot: {
+                [key: string]: string;
+            };
+            /** Effective Unit Price */
+            effective_unit_price: string;
+            /** Entered Quantity */
+            entered_quantity: string;
+            /** Entered Unit */
+            entered_unit: string;
+            /** Floor Unit Price */
+            floor_unit_price: string | null;
+            /**
+             * Line Id
+             * Format: uuid
+             */
+            line_id: string;
+            /** Line Position */
+            line_position: number;
+            /** Line Total */
+            line_total: string;
+            /** List Unit Price */
+            list_unit_price: string;
+            /** Manual Override Unit Price */
+            manual_override_unit_price: string | null;
+            /** Price List Code */
+            price_list_code: string;
+            /**
+             * Price List Line Id
+             * Format: uuid
+             */
+            price_list_line_id: string;
+            /** Price List Version */
+            price_list_version: number;
+            /**
+             * Price List Version Id
+             * Format: uuid
+             */
+            price_list_version_id: string;
+            /** Price Override Reason */
+            price_override_reason: string | null;
+            /**
+             * Price Source
+             * @enum {string}
+             */
+            price_source: "customer" | "branch";
+            /** Quantity Base */
+            quantity_base: string;
+            /** Sku Code */
+            sku_code: string;
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Tax Amount */
+            tax_amount: string;
+            /** Tax Snapshot */
+            tax_snapshot: {
+                [key: string]: string;
+            };
+            /** Taxable Amount */
+            taxable_amount: string;
+        };
+        /** SalesOrderSearchItem */
+        SalesOrderSearchItem: {
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /** Customer Name */
+            customer_name: string;
+            /** Grand Total */
+            grand_total: string;
+            /**
+             * Payment Timing Policy
+             * @enum {string}
+             */
+            payment_timing_policy: "prepaid" | "cash_on_delivery" | "on_account";
+            /**
+             * Sales Order Id
+             * Format: uuid
+             */
+            sales_order_id: string;
+            /**
+             * Status
+             * @constant
+             */
+            status: "draft";
+            /** Version */
+            version: number;
+        };
+        /** SalesOrderSearchResponse */
+        SalesOrderSearchResponse: {
+            /** Items */
+            items: components["schemas"]["SalesOrderSearchItem"][];
+            /** Total */
+            total: number;
         };
         /** ScopeBranchResponse */
         ScopeBranchResponse: {
@@ -1186,6 +1796,34 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** TaxCodeVersionResponse */
+        TaxCodeVersionResponse: {
+            /** Code */
+            code: string;
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+            /** Effective To */
+            effective_to: string | null;
+            /** Name */
+            name: string;
+            /** Rate */
+            rate: string;
+            /**
+             * Tax Code Id
+             * Format: uuid
+             */
+            tax_code_id: string;
+            /**
+             * Tax Code Version Id
+             * Format: uuid
+             */
+            tax_code_version_id: string;
+            /** Version */
+            version: number;
+        };
         /** UpdateAddressCommand */
         UpdateAddressCommand: {
             /** City */
@@ -1224,6 +1862,47 @@ export interface components {
             effective_from: string;
             /** Effective To */
             effective_to?: string | null;
+        };
+        /** UpdateSalesOrderDraftCommand */
+        UpdateSalesOrderDraftCommand: {
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /**
+             * Delivery Address Version Id
+             * Format: uuid
+             */
+            delivery_address_version_id: string;
+            /** Expected Customer Version */
+            expected_customer_version: number;
+            /**
+             * Expected Price List Version Id
+             * Format: uuid
+             */
+            expected_price_list_version_id: string;
+            /**
+             * Expected Pricing Date
+             * Format: date
+             */
+            expected_pricing_date: string;
+            /** Lines */
+            lines: components["schemas"]["SalesOrderLineInput"][];
+            /**
+             * Order Discount Amount
+             * @default 0
+             */
+            order_discount_amount: number | string;
+            /** Payment Timing Override Reason */
+            payment_timing_override_reason?: string | null;
+            /** Payment Timing Policy */
+            payment_timing_policy?: ("prepaid" | "cash_on_delivery" | "on_account") | null;
         };
         /** UserConfigurationResponse */
         UserConfigurationResponse: {
@@ -1265,6 +1944,19 @@ export interface components {
             subject: string;
             /** Warehouse Codes */
             warehouse_codes?: string[];
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Context */
+            ctx?: Record<string, never>;
+            /** Input */
+            input?: unknown;
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
         };
         /** WarehouseInput */
         WarehouseInput: {
@@ -2844,6 +3536,514 @@ export interface operations {
             };
             /** @description Stable TradeFlow error envelope. */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_order_entry_reference_v1_sales_order_entry_reference_get: {
+        parameters: {
+            query: {
+                branch_id: string;
+                customer_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderEntryReferenceResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    search_sales_order_drafts_v1_sales_orders_get: {
+        parameters: {
+            query?: {
+                query?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalesOrderSearchResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_sales_order_draft_v1_sales_orders_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSalesOrderDraftCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalesOrderDraftResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_sales_order_draft_v1_sales_orders__sales_order_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sales_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalesOrderDraftResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    update_sales_order_draft_v1_sales_orders__sales_order_id__put: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": number;
+                "Idempotency-Key": string;
+            };
+            path: {
+                sales_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSalesOrderDraftCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalesOrderDraftResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_price_list_version_v1_sales_price_list_versions_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePriceListVersionCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListVersionResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_tax_code_version_v1_sales_tax_code_versions_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTaxCodeVersionCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxCodeVersionResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };
