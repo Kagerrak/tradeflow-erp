@@ -141,6 +141,160 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/finance/payment-receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Payment Receipts */
+        get: operations["list_payment_receipts_v1_finance_payment_receipts_get"];
+        put?: never;
+        /** Record Payment Receipt */
+        post: operations["record_payment_receipt_v1_finance_payment_receipts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/finance/payment-receipts/{payment_receipt_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Payment Receipt */
+        get: operations["get_payment_receipt_v1_finance_payment_receipts__payment_receipt_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/finance/payment-receipts/{payment_receipt_id}/bank-clearance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Clear Check Payment */
+        post: operations["clear_check_payment_v1_finance_payment_receipts__payment_receipt_id__bank_clearance_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/finance/payment-receipts/{payment_receipt_id}/cash-reconciliation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reconcile Cash Payment */
+        post: operations["reconcile_cash_payment_v1_finance_payment_receipts__payment_receipt_id__cash_reconciliation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/finance/payment-receipts/{payment_receipt_id}/reversal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reverse Payment Receipt */
+        post: operations["reverse_payment_receipt_v1_finance_payment_receipts__payment_receipt_id__reversal_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/finance/payment-receipts/{payment_receipt_id}/verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify Payment Receipt */
+        post: operations["verify_payment_receipt_v1_finance_payment_receipts__payment_receipt_id__verification_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/fulfillment/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Fulfillment Orders */
+        get: operations["list_fulfillment_orders_v1_fulfillment_orders_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/fulfillment/orders/{fulfillment_order_id}/pick-release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Release Fulfillment To Pick */
+        post: operations["release_fulfillment_to_pick_v1_fulfillment_orders__fulfillment_order_id__pick_release_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/fulfillment/payment-deadlines/process": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Process Payment Deadline */
+        post: operations["process_payment_deadline_v1_fulfillment_payment_deadlines_process_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/inventory/availability": {
         parameters: {
             query?: never;
@@ -449,6 +603,23 @@ export interface paths {
         patch: operations["change_non_material_order_fields_v1_sales_orders__sales_order_id__non_material_patch"];
         trace?: never;
     };
+    "/v1/sales/orders/{sales_order_id}/reservation-retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry Sales Order Reservation */
+        post: operations["retry_sales_order_reservation_v1_sales_orders__sales_order_id__reservation_retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sales/price-list-versions": {
         parameters: {
             query?: never;
@@ -708,6 +879,11 @@ export interface components {
             code: string;
             /** Name */
             name: string;
+            /**
+             * Prepaid Payment Deadline Minutes
+             * @default 1440
+             */
+            prepaid_payment_deadline_minutes: number;
             /** Warehouses */
             warehouses: components["schemas"]["WarehouseInput"][];
         };
@@ -740,10 +916,63 @@ export interface components {
             is_active: boolean;
             /** Name */
             name: string;
+            /** Prepaid Payment Deadline Minutes */
+            prepaid_payment_deadline_minutes: number;
             /** Version */
             version: number;
             /** Warehouses */
             warehouses: components["schemas"]["WarehouseResponse"][];
+        };
+        /** CashReconciliationCommand */
+        CashReconciliationCommand: {
+            /**
+             * Cash Reconciliation Id
+             * Format: uuid
+             */
+            cash_reconciliation_id: string;
+            /** Counted Amount */
+            counted_amount: number | string;
+            /** Reason */
+            reason: string;
+            /**
+             * Reconciled At
+             * Format: date-time
+             */
+            reconciled_at: string;
+        };
+        /** CashReconciliationResponse */
+        CashReconciliationResponse: {
+            /**
+             * Cash Reconciliation Id
+             * Format: uuid
+             */
+            cash_reconciliation_id: string;
+            /** Counted Amount */
+            counted_amount: string;
+            /**
+             * Payment Receipt Id
+             * Format: uuid
+             */
+            payment_receipt_id: string;
+            /**
+             * Status
+             * @constant
+             */
+            status: "reconciled";
+            /** Variance Amount */
+            variance_amount: string;
+        };
+        /** CheckClearanceCommand */
+        CheckClearanceCommand: {
+            /** Bank Reference */
+            bank_reference: string;
+            /**
+             * Cleared At
+             * Format: date-time
+             */
+            cleared_at: string;
+            /** Reason */
+            reason: string;
         };
         /** CommercialApprovalCommand */
         CommercialApprovalCommand: {
@@ -1360,12 +1589,56 @@ export interface components {
             code: string;
             /** Correlation Id */
             correlation_id: string;
+            /** Details */
+            details?: {
+                [key: string]: unknown;
+            } | null;
             /** Message */
             message: string;
         };
         /** ErrorEnvelope */
         ErrorEnvelope: {
             error: components["schemas"]["ErrorDetail"];
+        };
+        /** FulfillmentOrderListResponse */
+        FulfillmentOrderListResponse: {
+            /** Items */
+            items: components["schemas"]["FulfillmentOrderResponse"][];
+            /** Total */
+            total: number;
+        };
+        /** FulfillmentOrderResponse */
+        FulfillmentOrderResponse: {
+            /** Backorder Quantity Base */
+            backorder_quantity_base: string;
+            /** Cleared Payment */
+            cleared_payment: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Fulfillment Order Id
+             * Format: uuid
+             */
+            fulfillment_order_id: string;
+            /** Order Value */
+            order_value: string;
+            /** Payment Deadline At */
+            payment_deadline_at: string | null;
+            /** Payment Hold */
+            payment_hold: boolean;
+            /** Payment Required */
+            payment_required: string;
+            /** Reservation Generation */
+            reservation_generation: number;
+            /** Reserved Quantity Base */
+            reserved_quantity_base: string;
+            /**
+             * Sales Order Id
+             * Format: uuid
+             */
+            sales_order_id: string;
+            /** Status */
+            status: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1648,6 +1921,166 @@ export interface components {
             /** Warehouses */
             warehouses: components["schemas"]["ScopeWarehouseResponse"][];
         };
+        /** PaymentDeadlineResponse */
+        PaymentDeadlineResponse: {
+            /** Backorder Quantity Base */
+            backorder_quantity_base: string;
+            /**
+             * Fulfillment Order Id
+             * Format: uuid
+             */
+            fulfillment_order_id: string;
+            /** Released Quantity Base */
+            released_quantity_base: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "not_due" | "payment_satisfied" | "payment_hold";
+        };
+        /** PaymentEvidence */
+        PaymentEvidence: {
+            /** Account Or Provider */
+            account_or_provider: string;
+            /** Document Url */
+            document_url: string;
+            /** Value Date */
+            value_date: string;
+        };
+        /** PaymentReceiptListResponse */
+        PaymentReceiptListResponse: {
+            /** Items */
+            items: components["schemas"]["PaymentReceiptResponse"][];
+            /** Total */
+            total: number;
+        };
+        /** PaymentReceiptResponse */
+        PaymentReceiptResponse: {
+            /** Amount */
+            amount: string;
+            /** Available For Coverage */
+            available_for_coverage: string;
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Cash Reconciliation Status */
+            cash_reconciliation_status: string | null;
+            /** Cleared Amount */
+            cleared_amount: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /** External Reference */
+            external_reference: string | null;
+            /** External Reference Normalized */
+            external_reference_normalized: string | null;
+            /** Payment Method */
+            payment_method: string;
+            /**
+             * Payment Receipt Id
+             * Format: uuid
+             */
+            payment_receipt_id: string;
+            /**
+             * Received At
+             * Format: date-time
+             */
+            received_at: string;
+            /** Recorded By */
+            recorded_by: string;
+            /** Reversal Id */
+            reversal_id: string | null;
+            /** Sales Order Id */
+            sales_order_id: string | null;
+            /** Status */
+            status: string;
+            /** Unapplied Amount */
+            unapplied_amount: string;
+            /** Verified By */
+            verified_by: string | null;
+        };
+        /** PaymentReversalCommand */
+        PaymentReversalCommand: {
+            /**
+             * Payment Reversal Id
+             * Format: uuid
+             */
+            payment_reversal_id: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Reversed At
+             * Format: date-time
+             */
+            reversed_at: string;
+        };
+        /** PaymentReversalResponse */
+        PaymentReversalResponse: {
+            /** Amount */
+            amount: string;
+            /**
+             * Original Payment Receipt Id
+             * Format: uuid
+             */
+            original_payment_receipt_id: string;
+            /**
+             * Payment Reversal Id
+             * Format: uuid
+             */
+            payment_reversal_id: string;
+            /** Reason */
+            reason: string;
+        };
+        /** PaymentVerificationCommand */
+        PaymentVerificationCommand: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "cleared" | "evidence_verified" | "rejected";
+            /** Reason */
+            reason: string;
+            /**
+             * Verified At
+             * Format: date-time
+             */
+            verified_at: string;
+        };
+        /** PickReleaseCommand */
+        PickReleaseCommand: {
+            /** Reason */
+            reason: string;
+        };
+        /** PickReleaseResponse */
+        PickReleaseResponse: {
+            /** Cleared Payment */
+            cleared_payment: string;
+            /**
+             * Fulfillment Order Id
+             * Format: uuid
+             */
+            fulfillment_order_id: string;
+            /** Payment Required */
+            payment_required: string;
+            /**
+             * Pick Release Id
+             * Format: uuid
+             */
+            pick_release_id: string;
+            /** Quantity Base */
+            quantity_base: string;
+            /**
+             * Status
+             * @constant
+             */
+            status: "released";
+        };
         /** PingCommand */
         PingCommand: {
             /** Message */
@@ -1743,6 +2176,16 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** ProcessPaymentDeadlineCommand */
+        ProcessPaymentDeadlineCommand: {
+            /** As Of */
+            as_of?: string | null;
+            /**
+             * Fulfillment Order Id
+             * Format: uuid
+             */
+            fulfillment_order_id: string;
+        };
         /** ReadyResponse */
         ReadyResponse: {
             /** Database */
@@ -1751,6 +2194,43 @@ export interface components {
             service: string;
             /** Status */
             status: string;
+        };
+        /** RecordPaymentReceiptCommand */
+        RecordPaymentReceiptCommand: {
+            /** Amount */
+            amount: number | string;
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            evidence?: components["schemas"]["PaymentEvidence"] | null;
+            /** External Reference */
+            external_reference?: string | null;
+            /**
+             * Payment Method
+             * @enum {string}
+             */
+            payment_method: "cash" | "bank_transfer" | "check" | "electronic";
+            /**
+             * Payment Receipt Id
+             * Format: uuid
+             */
+            payment_receipt_id: string;
+            /**
+             * Received At
+             * Format: date-time
+             */
+            received_at: string;
+            /** Sales Order Id */
+            sales_order_id?: string | null;
         };
         /** ReservationLineResponse */
         ReservationLineResponse: {
@@ -1770,6 +2250,40 @@ export interface components {
              * Format: uuid
              */
             sku_id: string;
+        };
+        /** ReservationRetryCommand */
+        ReservationRetryCommand: {
+            /** Reason */
+            reason: string;
+            /**
+             * Warehouse Id
+             * Format: uuid
+             */
+            warehouse_id: string;
+        };
+        /** ReservationRetryResponse */
+        ReservationRetryResponse: {
+            /** Backorder Quantity Base */
+            backorder_quantity_base: string;
+            /**
+             * Fulfillment Order Id
+             * Format: uuid
+             */
+            fulfillment_order_id: string;
+            /** Payment Hold */
+            payment_hold: boolean;
+            /** Reserved Quantity Base */
+            reserved_quantity_base: string;
+            /**
+             * Sales Order Id
+             * Format: uuid
+             */
+            sales_order_id: string;
+            /**
+             * Status
+             * @constant
+             */
+            status: "approved";
         };
         /** RoleTemplateInput */
         RoleTemplateInput: {
@@ -2904,6 +3418,832 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreditApprovalResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    list_payment_receipts_v1_finance_payment_receipts_get: {
+        parameters: {
+            query?: {
+                branch_id?: string | null;
+                status?: ("pending_verification" | "awaiting_bank_clearance" | "cleared" | "rejected" | "reversed") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentReceiptListResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    record_payment_receipt_v1_finance_payment_receipts_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordPaymentReceiptCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentReceiptResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_payment_receipt_v1_finance_payment_receipts__payment_receipt_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payment_receipt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentReceiptResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    clear_check_payment_v1_finance_payment_receipts__payment_receipt_id__bank_clearance_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                payment_receipt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckClearanceCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentReceiptResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    reconcile_cash_payment_v1_finance_payment_receipts__payment_receipt_id__cash_reconciliation_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                payment_receipt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CashReconciliationCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashReconciliationResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    reverse_payment_receipt_v1_finance_payment_receipts__payment_receipt_id__reversal_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                payment_receipt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentReversalCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentReversalResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    verify_payment_receipt_v1_finance_payment_receipts__payment_receipt_id__verification_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                payment_receipt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentVerificationCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentReceiptResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    list_fulfillment_orders_v1_fulfillment_orders_get: {
+        parameters: {
+            query: {
+                sales_order_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FulfillmentOrderListResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    release_fulfillment_to_pick_v1_fulfillment_orders__fulfillment_order_id__pick_release_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                fulfillment_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PickReleaseCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PickReleaseResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    process_payment_deadline_v1_fulfillment_payment_deadlines_process_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProcessPaymentDeadlineCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentDeadlineResponse"];
                 };
             };
             /** @description Stable TradeFlow error envelope. */
@@ -4436,6 +5776,97 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NonMaterialOrderChangeResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    retry_sales_order_reservation_v1_sales_orders__sales_order_id__reservation_retry_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                sales_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReservationRetryCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReservationRetryResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
             /** @description Stable TradeFlow error envelope. */

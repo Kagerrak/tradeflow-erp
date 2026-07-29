@@ -1,14 +1,24 @@
 # Fulfillment domain language
 
-**Fulfillment Order**: The instruction assigning eligible sales-order demand to
-one Warehouse. Fulfilling a Sales Order from multiple Warehouses requires a
-separate Fulfillment Order for each Warehouse.
+**Reservation Generation**: The exact Warehouse-specific set of sales-order
+line quantities created by one successful reservation or re-reservation. A
+release closes that generation; any later reservation creates a new generation.
 
-Only reserved sales-order quantity is eligible for a Fulfillment Order.
+**Fulfillment Order**: The instruction assigning one active Reservation
+Generation to one Warehouse. Fulfilling a Sales Order from multiple Warehouses
+requires a separate Fulfillment Order for each Warehouse, and Backorder Demand
+is never included.
+
+**Reserved Value**: The approved order payable value allocated to a Fulfillment
+Order's reserved quantities under the Sales Order's immutable Calculation
+Snapshot. It excludes Backorder Demand and is not recalculated from current
+prices.
 
 **Pick Release**: Authorization for warehouse staff to begin picking a
-Fulfillment Order. A Prepaid order requires sufficient cleared Customer
-Prepayment before Pick Release.
+Fulfillment Order. A Prepaid Fulfillment Order requires active Prepayment
+Coverage Designations whose total equals or exceeds that exact Reservation
+Generation's Reserved Value; partial coverage does not authorize partial Pick
+Release.
 
 **Pick**: The act of identifying and moving reserved goods for dispatch.
 Picking assigns required Lot Identities or Serial Identities.

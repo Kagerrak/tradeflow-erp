@@ -22,9 +22,11 @@ from tradeflow_api.database import get_database_session
 from tradeflow_api.errors import AppError, error_responses
 from tradeflow_api.models import (
     approval_authorities,
+    branch_payment_deadline_policies,
     branches,
     capabilities,
     companies,
+    payment_methods,
     role_template_capabilities,
     role_templates,
     user_branch_scopes,
@@ -55,6 +57,7 @@ class WarehouseInput(CommandModel):
 class BranchInput(CommandModel):
     code: str = Field(pattern=r"^[A-Z][A-Z0-9_-]{1,29}$")
     name: str = Field(min_length=1, max_length=200)
+    prepaid_payment_deadline_minutes: int = Field(default=1440, gt=0, le=43200)
     warehouses: list[WarehouseInput] = Field(min_length=1)
 
 
@@ -115,6 +118,7 @@ class BranchResponse(BaseModel):
     code: str
     name: str
     is_active: bool
+    prepaid_payment_deadline_minutes: int
     version: int
     warehouses: list[WarehouseResponse]
 
@@ -1134,6 +1138,24 @@ async def bootstrap_organization(
                 base_currency=command.company.base_currency,
             )
         )
+        for code, name, kind, requires_reference, requires_evidence in (
+            ("CASH", "Cash", "cash", False, False),
+            ("BANK_TRANSFER", "Bank transfer", "bank_transfer", True, True),
+            ("CHECK", "Check", "check", True, True),
+            ("ELECTRONIC", "Electronic payment", "electronic", True, True),
+        ):
+            await session.execute(
+                insert(payment_methods).values(
+                    payment_method_id=uuid4(),
+                    company_id=company_id,
+                    code=code,
+                    name=name,
+                    kind=kind,
+                    requires_external_reference=requires_reference,
+                    requires_evidence=requires_evidence,
+                    provider_confirmation_enabled=False,
+                )
+            )
 
         branch_ids: dict[str, UUID] = {}
         warehouse_ids: dict[str, UUID] = {}
@@ -1180,6 +1202,7 @@ async def bootstrap_organization(
                     code=branch.code,
                     name=branch.name,
                     is_active=True,
+                    prepaid_payment_deadline_minutes=(branch.prepaid_payment_deadline_minutes),
                     version=1,
                     warehouses=warehouse_responses,
                 )
@@ -1278,6 +1301,18 @@ async def bootstrap_organization(
                         maker_checker_required=authority.maker_checker_required,
                     )
                 )
+
+        policy_actor = command.users[0].subject
+        for branch in command.branches:
+            await session.execute(
+                insert(branch_payment_deadline_policies).values(
+                    policy_id=uuid4(),
+                    branch_id=branch_ids[branch.code],
+                    version=1,
+                    deadline_minutes=branch.prepaid_payment_deadline_minutes,
+                    created_by=policy_actor,
+                )
+            )
 
         result = OrganizationBootstrapResponse(
             company=CompanyResponse(

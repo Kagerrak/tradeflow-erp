@@ -18,6 +18,7 @@
     "@tradeflow/customer-directory": "workspace:*",
     "@tradeflow/design-tokens": "workspace:*",
     "@tradeflow/inventory-directory": "workspace:*",
+    "@tradeflow/payment-clearance": "workspace:*",
     "@tradeflow/platform-session": "workspace:*",
     "@tradeflow/sales-order-draft": "workspace:*",
     "@tradeflow/telemetry": "workspace:*",

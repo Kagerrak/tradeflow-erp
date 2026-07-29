@@ -30,7 +30,8 @@ type HomeState = PlatformSessionState | { kind: "loading" };
 const routeTasks = [
   ["01", "Customer lookup", "Account and delivery context"],
   ["02", "Sales order draft", "Priced capture with durable Pending Sync"],
-  ["03", "Pick list", "Reserved goods and tracked identities"],
+  ["03", "Payment receipt", "Capture evidence; server controls clearance"],
+  ["04", "Pick list", "Reserved goods and tracked identities"],
 ] as const;
 
 export function PlatformHome({
@@ -286,10 +287,16 @@ function RoutePreview() {
         <Text style={styles.routeCount}>3 TASKS</Text>
       </View>
       {routeTasks.map(([number, label, detail], index) =>
-        index < 2 ? (
+        index < 3 ? (
           <Link
             asChild
-            href={index === 0 ? "./customers" : "./sales-orders"}
+            href={
+              index === 0
+                ? "./customers"
+                : index === 1
+                  ? "./sales-orders"
+                  : "./payments"
+            }
             key={number}
           >
             <Pressable

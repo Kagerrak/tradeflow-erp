@@ -49,11 +49,16 @@ uncancelled Sales Order that has not yet been replaced by its posted Invoice.
 **Order Hold**: A reversible block preventing reservation or fulfillment.
 
 **Payment Deadline**: The Branch-policy deadline by which a Prepaid Sales
-Order's reserved quantity must have sufficient Cleared Payment.
+Order's active Fulfillment Order Reservation Generation must have sufficient
+Prepayment Coverage Designations for its full Reserved Value. If it does not,
+the entire generation is released atomically and idempotently to Backorder
+Demand; partial payment does not retain a partial reservation.
 
 **Payment Hold**: An Order Hold applied after a Prepaid Payment Deadline expires
-without sufficient Cleared Payment. Its reservation is released to Backorder
-Demand.
+without sufficient Prepayment Coverage. It blocks Pick Release but not the
+controlled re-reservation attempt; later payment alone neither removes the hold
+nor restores the released reservation, and Pick Release requires a new
+successful Reservation Generation with sufficient coverage.
 
 **Open Quantity**: Ordered quantity not cancelled or fulfilled.
 

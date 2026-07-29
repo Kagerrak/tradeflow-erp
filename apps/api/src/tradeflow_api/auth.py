@@ -308,6 +308,72 @@ async def require_sales_projection_rebuilder(
     return require_capability(user, "sales:projection-rebuild")
 
 
+async def require_payment_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:payment-read")
+
+
+async def require_payment_recorder(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:payment-record")
+
+
+async def require_payment_verifier(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:payment-verify")
+
+
+async def require_check_clearer(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:check-clear")
+
+
+async def require_payment_reverser(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:payment-reverse")
+
+
+async def require_payment_refunder(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:payment-refund")
+
+
+async def require_cash_reconciler(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:cash-reconcile")
+
+
+async def require_payment_projection_rebuilder(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:projection-rebuild")
+
+
+async def require_pick_releaser(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "fulfillment:pick-release")
+
+
+async def require_reservation_retrier(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "inventory:reservation-retry")
+
+
+async def require_payment_deadline_processor(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "inventory:payment-deadline-process")
+
+
 async def require_organization_administrator(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:

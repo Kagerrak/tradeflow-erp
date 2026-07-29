@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
+    Index,
     Integer,
     MetaData,
     Numeric,
@@ -1341,5 +1342,545 @@ sales_order_line_commitments = Table(
             "sales_order_line_revisions.sku_id",
         ],
         name="fk_sales_order_line_commitments_line_ownership",
+    ),
+)
+
+branch_payment_deadline_policies = Table(
+    "branch_payment_deadline_policies",
+    metadata,
+    Column("policy_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "branch_id", PostgresUUID(as_uuid=True), ForeignKey("branches.branch_id"), nullable=False
+    ),
+    Column("version", Integer, nullable=False),
+    Column("deadline_minutes", Integer, nullable=False),
+    Column("effective_from", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("is_active", Boolean, nullable=False, server_default="true"),
+    Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("version > 0", name="ck_branch_payment_deadline_policy_version"),
+    CheckConstraint(
+        "deadline_minutes > 0",
+        name="ck_branch_payment_deadline_policy_duration",
+    ),
+    UniqueConstraint(
+        "branch_id",
+        "version",
+        name="uq_branch_payment_deadline_policy_version",
+    ),
+)
+
+payment_methods = Table(
+    "payment_methods",
+    metadata,
+    Column("payment_method_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "company_id", PostgresUUID(as_uuid=True), ForeignKey("companies.company_id"), nullable=False
+    ),
+    Column("code", String(50), nullable=False),
+    Column("name", String(100), nullable=False),
+    Column("kind", String(30), nullable=False),
+    Column("requires_external_reference", Boolean, nullable=False),
+    Column("requires_evidence", Boolean, nullable=False),
+    Column("provider_confirmation_enabled", Boolean, nullable=False, server_default="false"),
+    Column("provider_code", String(100), nullable=True),
+    Column("is_active", Boolean, nullable=False, server_default="true"),
+    Column("version", Integer, nullable=False, server_default="1"),
+    CheckConstraint(
+        "kind IN ('cash', 'bank_transfer', 'check', 'electronic')",
+        name="ck_payment_methods_kind",
+    ),
+    CheckConstraint("version > 0", name="ck_payment_methods_version"),
+    UniqueConstraint("company_id", "code", name="uq_payment_method_company_code"),
+)
+
+fulfillment_orders = Table(
+    "fulfillment_orders",
+    metadata,
+    Column("fulfillment_order_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column("sales_order_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("sales_order_revision_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("commercial_approval_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column(
+        "customer_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("customer_accounts.customer_id"),
+        nullable=False,
+    ),
+    Column(
+        "branch_id", PostgresUUID(as_uuid=True), ForeignKey("branches.branch_id"), nullable=False
+    ),
+    Column("warehouse_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("reservation_generation", Integer, nullable=False),
+    Column("payment_timing_policy", String(30), nullable=False),
+    Column("currency", String(3), nullable=False),
+    Column("order_value", Numeric(24, 6), nullable=False),
+    Column("payment_required", Numeric(24, 6), nullable=False),
+    Column("payment_deadline_at", DateTime(timezone=True), nullable=True),
+    Column(
+        "payment_deadline_policy_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("branch_payment_deadline_policies.policy_id"),
+        nullable=True,
+    ),
+    Column("payment_deadline_minutes", Integer, nullable=True),
+    Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "reservation_generation > 0",
+        name="ck_fulfillment_orders_generation",
+    ),
+    CheckConstraint(
+        "payment_timing_policy IN ('prepaid', 'cash_on_delivery', 'on_account')",
+        name="ck_fulfillment_orders_payment_timing",
+    ),
+    CheckConstraint(
+        "order_value >= 0 AND payment_required >= 0 AND payment_required <= order_value",
+        name="ck_fulfillment_orders_values",
+    ),
+    CheckConstraint(
+        "(payment_timing_policy = 'prepaid' AND payment_deadline_at IS NOT NULL "
+        "AND payment_deadline_policy_id IS NOT NULL AND payment_deadline_minutes > 0) "
+        "OR (payment_timing_policy <> 'prepaid' AND payment_deadline_at IS NULL)",
+        name="ck_fulfillment_orders_deadline",
+    ),
+    ForeignKeyConstraint(
+        [
+            "commercial_approval_id",
+            "sales_order_id",
+            "sales_order_revision_id",
+            "warehouse_id",
+        ],
+        [
+            "commercial_approvals.commercial_approval_id",
+            "commercial_approvals.sales_order_id",
+            "commercial_approvals.sales_order_revision_id",
+            "commercial_approvals.warehouse_id",
+        ],
+        name="fk_fulfillment_orders_approval_ownership",
+    ),
+    UniqueConstraint(
+        "sales_order_id",
+        "reservation_generation",
+        name="uq_fulfillment_order_generation",
+    ),
+    UniqueConstraint(
+        "fulfillment_order_id",
+        "sales_order_id",
+        "sales_order_revision_id",
+        "commercial_approval_id",
+        "warehouse_id",
+        name="uq_fulfillment_order_ownership",
+    ),
+)
+
+fulfillment_order_lines = Table(
+    "fulfillment_order_lines",
+    metadata,
+    Column(
+        "fulfillment_order_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("fulfillment_orders.fulfillment_order_id"),
+        primary_key=True,
+    ),
+    Column("line_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column("sales_order_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("sales_order_revision_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("commercial_approval_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("sku_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("warehouse_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("ordered_quantity_base", Numeric(18, 6), nullable=False),
+    Column("reserved_quantity_base", Numeric(18, 6), nullable=False),
+    Column("backorder_quantity_base", Numeric(18, 6), nullable=False),
+    Column("approved_line_total", Numeric(24, 6), nullable=False),
+    Column("reserved_value", Numeric(24, 6), nullable=False),
+    Column("calculation_snapshot", JSONB, nullable=False),
+    CheckConstraint(
+        "ordered_quantity_base > 0 AND reserved_quantity_base >= 0 "
+        "AND backorder_quantity_base >= 0 "
+        "AND reserved_quantity_base + backorder_quantity_base = ordered_quantity_base",
+        name="ck_fulfillment_order_lines_quantities",
+    ),
+    CheckConstraint(
+        "approved_line_total >= 0 AND reserved_value >= 0 "
+        "AND reserved_value <= approved_line_total",
+        name="ck_fulfillment_order_lines_values",
+    ),
+    ForeignKeyConstraint(
+        [
+            "fulfillment_order_id",
+            "sales_order_id",
+            "sales_order_revision_id",
+            "commercial_approval_id",
+            "warehouse_id",
+        ],
+        [
+            "fulfillment_orders.fulfillment_order_id",
+            "fulfillment_orders.sales_order_id",
+            "fulfillment_orders.sales_order_revision_id",
+            "fulfillment_orders.commercial_approval_id",
+            "fulfillment_orders.warehouse_id",
+        ],
+        name="fk_fulfillment_order_lines_order_ownership",
+    ),
+    ForeignKeyConstraint(
+        ["sales_order_revision_id", "line_id", "sku_id"],
+        [
+            "sales_order_line_revisions.sales_order_revision_id",
+            "sales_order_line_revisions.line_id",
+            "sales_order_line_revisions.sku_id",
+        ],
+        name="fk_fulfillment_order_lines_line_ownership",
+    ),
+)
+
+fulfillment_order_state = Table(
+    "fulfillment_order_state",
+    metadata,
+    Column(
+        "fulfillment_order_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("fulfillment_orders.fulfillment_order_id"),
+        primary_key=True,
+    ),
+    Column("status", String(30), nullable=False),
+    Column("reserved_quantity_base", Numeric(18, 6), nullable=False),
+    Column("backorder_quantity_base", Numeric(18, 6), nullable=False),
+    Column("covered_amount", Numeric(24, 6), nullable=False, server_default="0"),
+    Column("payment_hold", Boolean, nullable=False, server_default="false"),
+    Column("version", Integer, nullable=False, server_default="1"),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "status IN ('reserved', 'payment_ready', 'pick_released', 'payment_hold', 'cancelled')",
+        name="ck_fulfillment_order_state_status",
+    ),
+    CheckConstraint(
+        "reserved_quantity_base >= 0 AND backorder_quantity_base >= 0 AND covered_amount >= 0",
+        name="ck_fulfillment_order_state_amounts",
+    ),
+    CheckConstraint("version > 0", name="ck_fulfillment_order_state_version"),
+)
+
+payment_receipts = Table(
+    "payment_receipts",
+    metadata,
+    Column("payment_receipt_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "company_id", PostgresUUID(as_uuid=True), ForeignKey("companies.company_id"), nullable=False
+    ),
+    Column(
+        "branch_id", PostgresUUID(as_uuid=True), ForeignKey("branches.branch_id"), nullable=False
+    ),
+    Column(
+        "customer_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("customer_accounts.customer_id"),
+        nullable=False,
+    ),
+    Column(
+        "payment_method_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("payment_methods.payment_method_id"),
+        nullable=False,
+    ),
+    Column("payment_method_code", String(50), nullable=False),
+    Column("payment_method_kind", String(30), nullable=False),
+    Column("amount", Numeric(24, 6), nullable=False),
+    Column("currency", String(3), nullable=False),
+    Column("received_at", DateTime(timezone=True), nullable=False),
+    Column("external_reference", String(200), nullable=True),
+    Column("external_reference_normalized", String(200), nullable=True),
+    Column("evidence", JSONB, nullable=True),
+    Column(
+        "intended_sales_order_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("sales_orders.sales_order_id"),
+        nullable=True,
+    ),
+    Column(
+        "intended_fulfillment_order_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("fulfillment_orders.fulfillment_order_id"),
+        nullable=True,
+    ),
+    Column("recorded_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("amount > 0", name="ck_payment_receipts_amount"),
+    CheckConstraint(
+        "payment_method_kind IN ('cash', 'bank_transfer', 'check', 'electronic')",
+        name="ck_payment_receipts_kind",
+    ),
+)
+
+payment_receipt_events = Table(
+    "payment_receipt_events",
+    metadata,
+    Column("payment_receipt_event_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "payment_receipt_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("payment_receipts.payment_receipt_id"),
+        nullable=False,
+    ),
+    Column("event_type", String(30), nullable=False),
+    Column("actor_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("reason", String(500), nullable=True),
+    Column("evidence", JSONB, nullable=True),
+    Column("source_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False),
+    Column("occurred_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "event_type IN ('recorded', 'verified', 'bank_cleared', 'provider_confirmed', "
+        "'cleared', 'rejected', 'reversed', 'refunded')",
+        name="ck_payment_receipt_events_type",
+    ),
+    UniqueConstraint(
+        "payment_receipt_id",
+        "idempotency_key",
+        "event_type",
+        name="uq_payment_receipt_event_command_type",
+    ),
+)
+
+payment_receipt_status = Table(
+    "payment_receipt_status",
+    metadata,
+    Column(
+        "payment_receipt_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("payment_receipts.payment_receipt_id"),
+        primary_key=True,
+    ),
+    Column("company_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("payment_method_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("external_reference_normalized", String(200), nullable=True),
+    Column("state", String(30), nullable=False),
+    Column("verified_by", String(200), ForeignKey("users.subject"), nullable=True),
+    Column("cleared_at", DateTime(timezone=True), nullable=True),
+    Column("reversal_id", PostgresUUID(as_uuid=True), nullable=True),
+    Column("version", Integer, nullable=False, server_default="1"),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "state IN ('pending_verification', 'pending_clearance', 'cleared', 'rejected', 'reversed')",
+        name="ck_payment_receipt_status_state",
+    ),
+    CheckConstraint("version > 0", name="ck_payment_receipt_status_version"),
+)
+
+Index(
+    "uq_payment_receipt_active_external_reference",
+    payment_receipt_status.c.company_id,
+    payment_receipt_status.c.payment_method_id,
+    payment_receipt_status.c.external_reference_normalized,
+    unique=True,
+    postgresql_where=(
+        payment_receipt_status.c.external_reference_normalized.is_not(None)
+        & payment_receipt_status.c.state.in_(
+            ("pending_verification", "pending_clearance", "cleared")
+        )
+    ),
+)
+
+payment_receipt_balances = Table(
+    "payment_receipt_balances",
+    metadata,
+    Column(
+        "payment_receipt_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("payment_receipts.payment_receipt_id"),
+        primary_key=True,
+    ),
+    Column("cleared_amount", Numeric(24, 6), nullable=False, server_default="0"),
+    Column("reversed_amount", Numeric(24, 6), nullable=False, server_default="0"),
+    Column("refunded_amount", Numeric(24, 6), nullable=False, server_default="0"),
+    Column("allocated_amount", Numeric(24, 6), nullable=False, server_default="0"),
+    Column("coverage_designated_amount", Numeric(24, 6), nullable=False, server_default="0"),
+    Column("version", Integer, nullable=False, server_default="1"),
+    CheckConstraint(
+        "cleared_amount >= 0 AND reversed_amount >= 0 AND refunded_amount >= 0 "
+        "AND allocated_amount >= 0 AND coverage_designated_amount >= 0 "
+        "AND reversed_amount + refunded_amount + allocated_amount <= cleared_amount "
+        "AND coverage_designated_amount <= "
+        "cleared_amount - reversed_amount - refunded_amount - allocated_amount",
+        name="ck_payment_receipt_balances_nonnegative",
+    ),
+    CheckConstraint("version > 0", name="ck_payment_receipt_balances_version"),
+)
+
+cash_reconciliation_items = Table(
+    "cash_reconciliation_items",
+    metadata,
+    Column(
+        "payment_receipt_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("payment_receipts.payment_receipt_id"),
+        primary_key=True,
+    ),
+    Column("status", String(20), nullable=False, server_default="pending"),
+    Column("expected_amount", Numeric(24, 6), nullable=False),
+    Column("counted_amount", Numeric(24, 6), nullable=True),
+    Column("variance_amount", Numeric(24, 6), nullable=True),
+    Column("cash_reconciliation_id", PostgresUUID(as_uuid=True), nullable=True, unique=True),
+    Column("reconciled_by", String(200), ForeignKey("users.subject"), nullable=True),
+    Column("reconciled_at", DateTime(timezone=True), nullable=True),
+    Column("reason", String(500), nullable=True),
+    CheckConstraint(
+        "status IN ('pending', 'reconciled')",
+        name="ck_cash_reconciliation_items_status",
+    ),
+)
+
+prepayment_coverage_events = Table(
+    "prepayment_coverage_events",
+    metadata,
+    Column("coverage_event_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "fulfillment_order_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("fulfillment_orders.fulfillment_order_id"),
+        nullable=False,
+    ),
+    Column(
+        "payment_receipt_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("payment_receipts.payment_receipt_id"),
+        nullable=False,
+    ),
+    Column("event_type", String(20), nullable=False),
+    Column("amount", Numeric(24, 6), nullable=False),
+    Column("reason", String(500), nullable=False),
+    Column("actor_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("source_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "event_type IN ('designated', 'released', 'consumed')",
+        name="ck_prepayment_coverage_events_type",
+    ),
+    CheckConstraint("amount > 0", name="ck_prepayment_coverage_events_amount"),
+    UniqueConstraint(
+        "idempotency_key",
+        "payment_receipt_id",
+        "fulfillment_order_id",
+        "event_type",
+        name="uq_prepayment_coverage_event_command",
+    ),
+)
+
+sales_order_hold_events = Table(
+    "sales_order_hold_events",
+    metadata,
+    Column("hold_event_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "sales_order_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("sales_orders.sales_order_id"),
+        nullable=False,
+    ),
+    Column(
+        "fulfillment_order_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("fulfillment_orders.fulfillment_order_id"),
+        nullable=False,
+    ),
+    Column("hold_type", String(30), nullable=False),
+    Column("event_type", String(20), nullable=False),
+    Column("reason", String(500), nullable=False),
+    Column("actor_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("hold_type IN ('payment')", name="ck_sales_order_hold_events_type"),
+    CheckConstraint(
+        "event_type IN ('applied', 'released')",
+        name="ck_sales_order_hold_events_event",
+    ),
+    UniqueConstraint(
+        "idempotency_key",
+        "sales_order_id",
+        "hold_type",
+        "event_type",
+        name="uq_sales_order_hold_event_command",
+    ),
+)
+
+active_sales_order_holds = Table(
+    "active_sales_order_holds",
+    metadata,
+    Column(
+        "sales_order_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("sales_orders.sales_order_id"),
+        primary_key=True,
+    ),
+    Column("hold_type", String(30), primary_key=True),
+    Column(
+        "fulfillment_order_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("fulfillment_orders.fulfillment_order_id"),
+        nullable=False,
+    ),
+    Column(
+        "hold_event_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("sales_order_hold_events.hold_event_id"),
+        nullable=False,
+    ),
+    Column("applied_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+)
+
+pick_releases = Table(
+    "pick_releases",
+    metadata,
+    Column("pick_release_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "fulfillment_order_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("fulfillment_orders.fulfillment_order_id"),
+        nullable=False,
+        unique=True,
+    ),
+    Column("quantity_base", Numeric(18, 6), nullable=False),
+    Column("payment_required", Numeric(24, 6), nullable=False),
+    Column("cleared_payment", Numeric(24, 6), nullable=False),
+    Column("reason", String(500), nullable=False),
+    Column("released_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("quantity_base > 0", name="ck_pick_releases_quantity"),
+    CheckConstraint(
+        "payment_required >= 0 AND cleared_payment >= payment_required",
+        name="ck_pick_releases_payment",
+    ),
+)
+
+payment_refunds = Table(
+    "payment_refunds",
+    metadata,
+    Column("payment_refund_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "payment_receipt_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("payment_receipts.payment_receipt_id"),
+        nullable=False,
+    ),
+    Column("amount", Numeric(24, 6), nullable=False),
+    Column("reason", String(500), nullable=False),
+    Column("requested_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("approved_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("amount > 0", name="ck_payment_refunds_amount"),
+    CheckConstraint(
+        "requested_by <> approved_by",
+        name="ck_payment_refunds_maker_checker",
     ),
 )

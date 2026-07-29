@@ -522,6 +522,13 @@
             "title": "Name",
             "type": "string"
           },
+          "prepaid_payment_deadline_minutes": {
+            "default": 1440,
+            "exclusiveMinimum": 0.0,
+            "maximum": 43200.0,
+            "title": "Prepaid Payment Deadline Minutes",
+            "type": "integer"
+          },
           "warehouses": {
             "items": {
               "$ref": "#/components/schemas/WarehouseInput"
@@ -592,6 +599,10 @@
             "title": "Name",
             "type": "string"
           },
+          "prepaid_payment_deadline_minutes": {
+            "title": "Prepaid Payment Deadline Minutes",
+            "type": "integer"
+          },
           "version": {
             "title": "Version",
             "type": "integer"
@@ -609,10 +620,120 @@
           "code",
           "name",
           "is_active",
+          "prepaid_payment_deadline_minutes",
           "version",
           "warehouses"
         ],
         "title": "BranchResponse",
+        "type": "object"
+      },
+      "CashReconciliationCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "cash_reconciliation_id": {
+            "format": "uuid",
+            "title": "Cash Reconciliation Id",
+            "type": "string"
+          },
+          "counted_amount": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,18}|(?=[\\d.]{1,25}0*$)\\d{0,18}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Counted Amount"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "reconciled_at": {
+            "format": "date-time",
+            "title": "Reconciled At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cash_reconciliation_id",
+          "counted_amount",
+          "reconciled_at",
+          "reason"
+        ],
+        "title": "CashReconciliationCommand",
+        "type": "object"
+      },
+      "CashReconciliationResponse": {
+        "properties": {
+          "cash_reconciliation_id": {
+            "format": "uuid",
+            "title": "Cash Reconciliation Id",
+            "type": "string"
+          },
+          "counted_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Counted Amount",
+            "type": "string"
+          },
+          "payment_receipt_id": {
+            "format": "uuid",
+            "title": "Payment Receipt Id",
+            "type": "string"
+          },
+          "status": {
+            "const": "reconciled",
+            "title": "Status",
+            "type": "string"
+          },
+          "variance_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Variance Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cash_reconciliation_id",
+          "payment_receipt_id",
+          "status",
+          "counted_amount",
+          "variance_amount"
+        ],
+        "title": "CashReconciliationResponse",
+        "type": "object"
+      },
+      "CheckClearanceCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "bank_reference": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Bank Reference",
+            "type": "string"
+          },
+          "cleared_at": {
+            "format": "date-time",
+            "title": "Cleared At",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cleared_at",
+          "bank_reference",
+          "reason"
+        ],
+        "title": "CheckClearanceCommand",
         "type": "object"
       },
       "CommercialApprovalCommand": {
@@ -2171,6 +2292,18 @@
             "title": "Correlation Id",
             "type": "string"
           },
+          "details": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
+          },
           "message": {
             "title": "Message",
             "type": "string"
@@ -2194,6 +2327,110 @@
           "error"
         ],
         "title": "ErrorEnvelope",
+        "type": "object"
+      },
+      "FulfillmentOrderListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FulfillmentOrderResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "FulfillmentOrderListResponse",
+        "type": "object"
+      },
+      "FulfillmentOrderResponse": {
+        "properties": {
+          "backorder_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Backorder Quantity Base",
+            "type": "string"
+          },
+          "cleared_payment": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cleared Payment",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "fulfillment_order_id": {
+            "format": "uuid",
+            "title": "Fulfillment Order Id",
+            "type": "string"
+          },
+          "order_value": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Order Value",
+            "type": "string"
+          },
+          "payment_deadline_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Deadline At"
+          },
+          "payment_hold": {
+            "title": "Payment Hold",
+            "type": "boolean"
+          },
+          "payment_required": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Payment Required",
+            "type": "string"
+          },
+          "reservation_generation": {
+            "title": "Reservation Generation",
+            "type": "integer"
+          },
+          "reserved_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Reserved Quantity Base",
+            "type": "string"
+          },
+          "sales_order_id": {
+            "format": "uuid",
+            "title": "Sales Order Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fulfillment_order_id",
+          "sales_order_id",
+          "reservation_generation",
+          "status",
+          "currency",
+          "order_value",
+          "payment_required",
+          "cleared_payment",
+          "reserved_quantity_base",
+          "backorder_quantity_base",
+          "payment_deadline_at",
+          "payment_hold"
+        ],
+        "title": "FulfillmentOrderResponse",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -2922,6 +3159,394 @@
         "title": "OrganizationScopeResponse",
         "type": "object"
       },
+      "PaymentDeadlineResponse": {
+        "properties": {
+          "backorder_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Backorder Quantity Base",
+            "type": "string"
+          },
+          "fulfillment_order_id": {
+            "format": "uuid",
+            "title": "Fulfillment Order Id",
+            "type": "string"
+          },
+          "released_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Released Quantity Base",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "not_due",
+              "payment_satisfied",
+              "payment_hold"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fulfillment_order_id",
+          "status",
+          "released_quantity_base",
+          "backorder_quantity_base"
+        ],
+        "title": "PaymentDeadlineResponse",
+        "type": "object"
+      },
+      "PaymentEvidence": {
+        "additionalProperties": false,
+        "properties": {
+          "account_or_provider": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Account Or Provider",
+            "type": "string"
+          },
+          "document_url": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Document Url",
+            "type": "string"
+          },
+          "value_date": {
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Value Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_or_provider",
+          "value_date",
+          "document_url"
+        ],
+        "title": "PaymentEvidence",
+        "type": "object"
+      },
+      "PaymentReceiptListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentReceiptResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "PaymentReceiptListResponse",
+        "type": "object"
+      },
+      "PaymentReceiptResponse": {
+        "properties": {
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "available_for_coverage": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Available For Coverage",
+            "type": "string"
+          },
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "cash_reconciliation_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Reconciliation Status"
+          },
+          "cleared_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cleared Amount",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "external_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Reference"
+          },
+          "external_reference_normalized": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Reference Normalized"
+          },
+          "payment_method": {
+            "title": "Payment Method",
+            "type": "string"
+          },
+          "payment_receipt_id": {
+            "format": "uuid",
+            "title": "Payment Receipt Id",
+            "type": "string"
+          },
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          },
+          "recorded_by": {
+            "title": "Recorded By",
+            "type": "string"
+          },
+          "reversal_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reversal Id"
+          },
+          "sales_order_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sales Order Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "unapplied_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unapplied Amount",
+            "type": "string"
+          },
+          "verified_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified By"
+          }
+        },
+        "required": [
+          "payment_receipt_id",
+          "branch_id",
+          "customer_id",
+          "sales_order_id",
+          "payment_method",
+          "amount",
+          "currency",
+          "received_at",
+          "external_reference",
+          "external_reference_normalized",
+          "status",
+          "cleared_amount",
+          "unapplied_amount",
+          "available_for_coverage",
+          "cash_reconciliation_status",
+          "recorded_by",
+          "verified_by",
+          "reversal_id"
+        ],
+        "title": "PaymentReceiptResponse",
+        "type": "object"
+      },
+      "PaymentReversalCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "payment_reversal_id": {
+            "format": "uuid",
+            "title": "Payment Reversal Id",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "reversed_at": {
+            "format": "date-time",
+            "title": "Reversed At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payment_reversal_id",
+          "reason",
+          "reversed_at"
+        ],
+        "title": "PaymentReversalCommand",
+        "type": "object"
+      },
+      "PaymentReversalResponse": {
+        "properties": {
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "original_payment_receipt_id": {
+            "format": "uuid",
+            "title": "Original Payment Receipt Id",
+            "type": "string"
+          },
+          "payment_reversal_id": {
+            "format": "uuid",
+            "title": "Payment Reversal Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payment_reversal_id",
+          "original_payment_receipt_id",
+          "amount",
+          "reason"
+        ],
+        "title": "PaymentReversalResponse",
+        "type": "object"
+      },
+      "PaymentVerificationCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "enum": [
+              "cleared",
+              "evidence_verified",
+              "rejected"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "verified_at": {
+            "format": "date-time",
+            "title": "Verified At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision",
+          "verified_at",
+          "reason"
+        ],
+        "title": "PaymentVerificationCommand",
+        "type": "object"
+      },
+      "PickReleaseCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "PickReleaseCommand",
+        "type": "object"
+      },
+      "PickReleaseResponse": {
+        "properties": {
+          "cleared_payment": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cleared Payment",
+            "type": "string"
+          },
+          "fulfillment_order_id": {
+            "format": "uuid",
+            "title": "Fulfillment Order Id",
+            "type": "string"
+          },
+          "payment_required": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Payment Required",
+            "type": "string"
+          },
+          "pick_release_id": {
+            "format": "uuid",
+            "title": "Pick Release Id",
+            "type": "string"
+          },
+          "quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity Base",
+            "type": "string"
+          },
+          "status": {
+            "const": "released",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pick_release_id",
+          "fulfillment_order_id",
+          "status",
+          "quantity_base",
+          "payment_required",
+          "cleared_payment"
+        ],
+        "title": "PickReleaseResponse",
+        "type": "object"
+      },
       "PingCommand": {
         "properties": {
           "message": {
@@ -3152,6 +3777,33 @@
         "title": "PriceListVersionResponse",
         "type": "object"
       },
+      "ProcessPaymentDeadlineCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          },
+          "fulfillment_order_id": {
+            "format": "uuid",
+            "title": "Fulfillment Order Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fulfillment_order_id"
+        ],
+        "title": "ProcessPaymentDeadlineCommand",
+        "type": "object"
+      },
       "ReadyResponse": {
         "properties": {
           "database": {
@@ -3173,6 +3825,104 @@
           "database"
         ],
         "title": "ReadyResponse",
+        "type": "object"
+      },
+      "RecordPaymentReceiptCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,18}|(?=[\\d.]{1,25}0*$)\\d{0,18}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Amount"
+          },
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "currency": {
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency",
+            "type": "string"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaymentEvidence"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "external_reference": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Reference"
+          },
+          "payment_method": {
+            "enum": [
+              "cash",
+              "bank_transfer",
+              "check",
+              "electronic"
+            ],
+            "title": "Payment Method",
+            "type": "string"
+          },
+          "payment_receipt_id": {
+            "format": "uuid",
+            "title": "Payment Receipt Id",
+            "type": "string"
+          },
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          },
+          "sales_order_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sales Order Id"
+          }
+        },
+        "required": [
+          "payment_receipt_id",
+          "branch_id",
+          "customer_id",
+          "payment_method",
+          "amount",
+          "currency",
+          "received_at"
+        ],
+        "title": "RecordPaymentReceiptCommand",
         "type": "object"
       },
       "ReservationLineResponse": {
@@ -3211,6 +3961,71 @@
           "backorder_quantity_base"
         ],
         "title": "ReservationLineResponse",
+        "type": "object"
+      },
+      "ReservationRetryCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "warehouse_id",
+          "reason"
+        ],
+        "title": "ReservationRetryCommand",
+        "type": "object"
+      },
+      "ReservationRetryResponse": {
+        "properties": {
+          "backorder_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Backorder Quantity Base",
+            "type": "string"
+          },
+          "fulfillment_order_id": {
+            "format": "uuid",
+            "title": "Fulfillment Order Id",
+            "type": "string"
+          },
+          "payment_hold": {
+            "title": "Payment Hold",
+            "type": "boolean"
+          },
+          "reserved_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Reserved Quantity Base",
+            "type": "string"
+          },
+          "sales_order_id": {
+            "format": "uuid",
+            "title": "Sales Order Id",
+            "type": "string"
+          },
+          "status": {
+            "const": "approved",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sales_order_id",
+          "fulfillment_order_id",
+          "status",
+          "payment_hold",
+          "reserved_quantity_base",
+          "backorder_quantity_base"
+        ],
+        "title": "ReservationRetryResponse",
         "type": "object"
       },
       "RoleTemplateInput": {
@@ -5581,6 +6396,1230 @@
         ]
       }
     },
+    "/v1/finance/payment-receipts": {
+      "get": {
+        "operationId": "list_payment_receipts_v1_finance_payment_receipts_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "branch_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Branch Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pending_verification",
+                    "awaiting_bank_clearance",
+                    "cleared",
+                    "rejected",
+                    "reversed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentReceiptListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Payment Receipts",
+        "tags": [
+          "finance",
+          "fulfillment"
+        ]
+      },
+      "post": {
+        "operationId": "record_payment_receipt_v1_finance_payment_receipts_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordPaymentReceiptCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentReceiptResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Record Payment Receipt",
+        "tags": [
+          "finance",
+          "fulfillment"
+        ]
+      }
+    },
+    "/v1/finance/payment-receipts/{payment_receipt_id}": {
+      "get": {
+        "operationId": "get_payment_receipt_v1_finance_payment_receipts__payment_receipt_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payment_receipt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Payment Receipt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentReceiptResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Payment Receipt",
+        "tags": [
+          "finance",
+          "fulfillment"
+        ]
+      }
+    },
+    "/v1/finance/payment-receipts/{payment_receipt_id}/bank-clearance": {
+      "post": {
+        "operationId": "clear_check_payment_v1_finance_payment_receipts__payment_receipt_id__bank_clearance_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payment_receipt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Payment Receipt Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckClearanceCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentReceiptResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Clear Check Payment",
+        "tags": [
+          "finance",
+          "fulfillment"
+        ]
+      }
+    },
+    "/v1/finance/payment-receipts/{payment_receipt_id}/cash-reconciliation": {
+      "post": {
+        "operationId": "reconcile_cash_payment_v1_finance_payment_receipts__payment_receipt_id__cash_reconciliation_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payment_receipt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Payment Receipt Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CashReconciliationCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashReconciliationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reconcile Cash Payment",
+        "tags": [
+          "finance",
+          "fulfillment"
+        ]
+      }
+    },
+    "/v1/finance/payment-receipts/{payment_receipt_id}/reversal": {
+      "post": {
+        "operationId": "reverse_payment_receipt_v1_finance_payment_receipts__payment_receipt_id__reversal_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payment_receipt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Payment Receipt Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentReversalCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentReversalResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reverse Payment Receipt",
+        "tags": [
+          "finance",
+          "fulfillment"
+        ]
+      }
+    },
+    "/v1/finance/payment-receipts/{payment_receipt_id}/verification": {
+      "post": {
+        "operationId": "verify_payment_receipt_v1_finance_payment_receipts__payment_receipt_id__verification_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payment_receipt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Payment Receipt Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentVerificationCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentReceiptResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Verify Payment Receipt",
+        "tags": [
+          "finance",
+          "fulfillment"
+        ]
+      }
+    },
+    "/v1/fulfillment/orders": {
+      "get": {
+        "operationId": "list_fulfillment_orders_v1_fulfillment_orders_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "sales_order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sales Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FulfillmentOrderListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Fulfillment Orders",
+        "tags": [
+          "finance",
+          "fulfillment"
+        ]
+      }
+    },
+    "/v1/fulfillment/orders/{fulfillment_order_id}/pick-release": {
+      "post": {
+        "operationId": "release_fulfillment_to_pick_v1_fulfillment_orders__fulfillment_order_id__pick_release_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fulfillment_order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Fulfillment Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PickReleaseCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PickReleaseResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Release Fulfillment To Pick",
+        "tags": [
+          "finance",
+          "fulfillment"
+        ]
+      }
+    },
+    "/v1/fulfillment/payment-deadlines/process": {
+      "post": {
+        "operationId": "process_payment_deadline_v1_fulfillment_payment_deadlines_process_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProcessPaymentDeadlineCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentDeadlineResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Process Payment Deadline",
+        "tags": [
+          "finance",
+          "fulfillment"
+        ]
+      }
+    },
     "/v1/inventory/availability": {
       "get": {
         "operationId": "search_availability_v1_inventory_availability_get",
@@ -7854,6 +9893,143 @@
         "summary": "Change Non Material Order Fields",
         "tags": [
           "sales"
+        ]
+      }
+    },
+    "/v1/sales/orders/{sales_order_id}/reservation-retry": {
+      "post": {
+        "operationId": "retry_sales_order_reservation_v1_sales_orders__sales_order_id__reservation_retry_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sales_order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sales Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReservationRetryCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationRetryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Retry Sales Order Reservation",
+        "tags": [
+          "finance",
+          "fulfillment"
         ]
       }
     },

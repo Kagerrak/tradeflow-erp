@@ -41,6 +41,10 @@ from tradeflow_api.models import (
     warehouses,
 )
 from tradeflow_api.money import currency_quantum
+from tradeflow_api.payment_fulfillment import (
+    cancel_fulfillment_for_approval,
+    create_fulfillment_for_approval,
+)
 
 router = APIRouter(prefix="/v1/sales", tags=["sales"])
 ZERO = Decimal("0")
@@ -310,6 +314,14 @@ async def invalidate_active_approval(
             correlation_id=correlation_id,
             idempotency_key=f"{idempotency_key}:invalidate",
         )
+    )
+    await cancel_fulfillment_for_approval(
+        session,
+        approval_id=approval_id,
+        actor_subject=actor_subject,
+        correlation_id=correlation_id,
+        idempotency_key=idempotency_key,
+        reason=reason,
     )
     credit_entry = (
         (
@@ -1257,6 +1269,13 @@ async def approve_sales_order(
                 updated_by=actor.subject,
                 updated_at=func.now(),
             )
+        )
+        await create_fulfillment_for_approval(
+            session,
+            approval_id=approval_id,
+            actor_subject=actor.subject,
+            correlation_id=request.state.correlation_id,
+            idempotency_key=idempotency_key,
         )
         result = CommercialApprovalResponse(
             commercial_approval_id=approval_id,
