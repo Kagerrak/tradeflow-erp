@@ -214,16 +214,16 @@ function DirectoryState({
           <View style={styles.quantities}>
             <View>
               <Text style={styles.metricLabel}>ON HAND</Text>
-              <Text style={styles.metric}>{item.onHand}</Text>
+              <Text style={styles.metric}>{item.warehouseOnHand}</Text>
             </View>
             <View>
               <Text style={styles.metricLabel}>RESERVED</Text>
-              <Text style={styles.metric}>{item.reserved}</Text>
+              <Text style={styles.metric}>{item.commercialReserved}</Text>
             </View>
             <View>
               <Text style={styles.metricLabel}>AVAILABLE</Text>
               <Text style={[styles.metric, styles.available]}>
-                {item.available}
+                {item.warehouseAvailable}
               </Text>
             </View>
           </View>

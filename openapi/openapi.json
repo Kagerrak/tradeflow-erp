@@ -295,6 +295,11 @@
             "title": "Base Stocking Unit",
             "type": "string"
           },
+          "commercial_reserved": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Commercial Reserved",
+            "type": "string"
+          },
           "custody": {
             "enum": [
               "available",
@@ -378,6 +383,11 @@
             "title": "Tracking Policy",
             "type": "string"
           },
+          "warehouse_available": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Warehouse Available",
+            "type": "string"
+          },
           "warehouse_code": {
             "title": "Warehouse Code",
             "type": "string"
@@ -390,6 +400,11 @@
           "warehouse_inventory_value": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Warehouse Inventory Value",
+            "type": "string"
+          },
+          "warehouse_on_hand": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Warehouse On Hand",
             "type": "string"
           }
         },
@@ -411,6 +426,9 @@
           "on_hand",
           "reserved",
           "available",
+          "commercial_reserved",
+          "warehouse_on_hand",
+          "warehouse_available",
           "warehouse_inventory_value",
           "moving_average_unit_cost"
         ],
@@ -595,6 +613,491 @@
           "warehouses"
         ],
         "title": "BranchResponse",
+        "type": "object"
+      },
+      "CommercialApprovalCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "credit_override_reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit Override Reason"
+          },
+          "exception_reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exception Reason"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "warehouse_id"
+        ],
+        "title": "CommercialApprovalCommand",
+        "type": "object"
+      },
+      "CommercialApprovalResponse": {
+        "properties": {
+          "approved_by": {
+            "title": "Approved By",
+            "type": "string"
+          },
+          "backorder_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Backorder Quantity Base",
+            "type": "string"
+          },
+          "commercial_approval_id": {
+            "format": "uuid",
+            "title": "Commercial Approval Id",
+            "type": "string"
+          },
+          "credit": {
+            "$ref": "#/components/schemas/CreditCheckResponse"
+          },
+          "maker_subject": {
+            "title": "Maker Subject",
+            "type": "string"
+          },
+          "payment_timing_policy": {
+            "enum": [
+              "prepaid",
+              "cash_on_delivery",
+              "on_account"
+            ],
+            "title": "Payment Timing Policy",
+            "type": "string"
+          },
+          "required_exceptions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Exceptions",
+            "type": "array"
+          },
+          "reservations": {
+            "items": {
+              "$ref": "#/components/schemas/ReservationLineResponse"
+            },
+            "title": "Reservations",
+            "type": "array"
+          },
+          "reserved_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Reserved Quantity Base",
+            "type": "string"
+          },
+          "sales_order_id": {
+            "format": "uuid",
+            "title": "Sales Order Id",
+            "type": "string"
+          },
+          "sales_order_revision_id": {
+            "format": "uuid",
+            "title": "Sales Order Revision Id",
+            "type": "string"
+          },
+          "status": {
+            "const": "approved",
+            "title": "Status",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "commercial_approval_id",
+          "sales_order_id",
+          "sales_order_revision_id",
+          "status",
+          "warehouse_id",
+          "payment_timing_policy",
+          "approved_by",
+          "maker_subject",
+          "required_exceptions",
+          "credit",
+          "reservations",
+          "reserved_quantity_base",
+          "backorder_quantity_base"
+        ],
+        "title": "CommercialApprovalResponse",
+        "type": "object"
+      },
+      "CommercialReviewExceptionResponse": {
+        "properties": {
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "exception_type": {
+            "enum": [
+              "discount",
+              "below_floor",
+              "credit_override"
+            ],
+            "title": "Exception Type",
+            "type": "string"
+          },
+          "percentage": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percentage"
+          }
+        },
+        "required": [
+          "exception_type",
+          "amount",
+          "percentage"
+        ],
+        "title": "CommercialReviewExceptionResponse",
+        "type": "object"
+      },
+      "CommercialReviewLineResponse": {
+        "properties": {
+          "allocated_discount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Allocated Discount",
+            "type": "string"
+          },
+          "backorder_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Backorder Quantity Base",
+            "type": "string"
+          },
+          "below_floor": {
+            "title": "Below Floor",
+            "type": "boolean"
+          },
+          "calculation_snapshot": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Calculation Snapshot",
+            "type": "object"
+          },
+          "conversion_snapshot": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Conversion Snapshot",
+            "type": "object"
+          },
+          "effective_unit_price": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Effective Unit Price",
+            "type": "string"
+          },
+          "entered_quantity": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Entered Quantity",
+            "type": "string"
+          },
+          "entered_unit": {
+            "title": "Entered Unit",
+            "type": "string"
+          },
+          "floor_unit_price": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Floor Unit Price"
+          },
+          "line_id": {
+            "format": "uuid",
+            "title": "Line Id",
+            "type": "string"
+          },
+          "list_unit_price": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "List Unit Price",
+            "type": "string"
+          },
+          "manual_override_unit_price": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manual Override Unit Price"
+          },
+          "quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity Base",
+            "type": "string"
+          },
+          "reservable_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Reservable Quantity Base",
+            "type": "string"
+          },
+          "sku_code": {
+            "title": "Sku Code",
+            "type": "string"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "sku_name": {
+            "title": "Sku Name",
+            "type": "string"
+          },
+          "tax_snapshot": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Tax Snapshot",
+            "type": "object"
+          },
+          "warehouse_on_hand_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Warehouse On Hand Base",
+            "type": "string"
+          },
+          "warehouse_reserved_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Warehouse Reserved Base",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line_id",
+          "sku_id",
+          "sku_code",
+          "sku_name",
+          "entered_quantity",
+          "entered_unit",
+          "quantity_base",
+          "conversion_snapshot",
+          "list_unit_price",
+          "floor_unit_price",
+          "manual_override_unit_price",
+          "effective_unit_price",
+          "allocated_discount",
+          "below_floor",
+          "tax_snapshot",
+          "calculation_snapshot",
+          "warehouse_on_hand_base",
+          "warehouse_reserved_base",
+          "reservable_quantity_base",
+          "backorder_quantity_base"
+        ],
+        "title": "CommercialReviewLineResponse",
+        "type": "object"
+      },
+      "CommercialReviewResponse": {
+        "properties": {
+          "approved_uninvoiced": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Approved Uninvoiced",
+            "type": "string"
+          },
+          "credit_hold": {
+            "title": "Credit Hold",
+            "type": "boolean"
+          },
+          "credit_limit": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit Limit"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "customer_account_number": {
+            "title": "Customer Account Number",
+            "type": "string"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "customer_name": {
+            "title": "Customer Name",
+            "type": "string"
+          },
+          "customer_snapshot_current": {
+            "title": "Customer Snapshot Current",
+            "type": "boolean"
+          },
+          "customer_status": {
+            "enum": [
+              "active",
+              "inactive",
+              "prospect"
+            ],
+            "title": "Customer Status",
+            "type": "string"
+          },
+          "discount_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Total",
+            "type": "string"
+          },
+          "grand_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Grand Total",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialReviewLineResponse"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "maker_subject": {
+            "title": "Maker Subject",
+            "type": "string"
+          },
+          "open_balance": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Open Balance",
+            "type": "string"
+          },
+          "payment_terms": {
+            "title": "Payment Terms",
+            "type": "string"
+          },
+          "payment_timing_policy": {
+            "enum": [
+              "prepaid",
+              "cash_on_delivery",
+              "on_account"
+            ],
+            "title": "Payment Timing Policy",
+            "type": "string"
+          },
+          "projected_exposure": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Projected Exposure",
+            "type": "string"
+          },
+          "required_exceptions": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialReviewExceptionResponse"
+            },
+            "title": "Required Exceptions",
+            "type": "array"
+          },
+          "sales_order_id": {
+            "format": "uuid",
+            "title": "Sales Order Id",
+            "type": "string"
+          },
+          "sales_order_revision_id": {
+            "format": "uuid",
+            "title": "Sales Order Revision Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "approved",
+              "held"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "subtotal": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Subtotal",
+            "type": "string"
+          },
+          "tax_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tax Total",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sales_order_id",
+          "sales_order_revision_id",
+          "version",
+          "status",
+          "maker_subject",
+          "warehouse_id",
+          "customer_id",
+          "customer_account_number",
+          "customer_name",
+          "customer_status",
+          "customer_snapshot_current",
+          "payment_terms",
+          "credit_hold",
+          "currency",
+          "payment_timing_policy",
+          "subtotal",
+          "discount_total",
+          "tax_total",
+          "grand_total",
+          "open_balance",
+          "approved_uninvoiced",
+          "projected_exposure",
+          "credit_limit",
+          "required_exceptions",
+          "lines"
+        ],
+        "title": "CommercialReviewResponse",
         "type": "object"
       },
       "CompanyInput": {
@@ -1427,6 +1930,62 @@
         "title": "CreditApprovalResponse",
         "type": "object"
       },
+      "CreditCheckResponse": {
+        "properties": {
+          "approved_excess": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Approved Excess",
+            "type": "string"
+          },
+          "approved_uninvoiced_before": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Approved Uninvoiced Before",
+            "type": "string"
+          },
+          "credit_limit": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit Limit"
+          },
+          "open_balance": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Open Balance",
+            "type": "string"
+          },
+          "order_value": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Order Value",
+            "type": "string"
+          },
+          "override_required": {
+            "title": "Override Required",
+            "type": "boolean"
+          },
+          "projected_exposure": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Projected Exposure",
+            "type": "string"
+          }
+        },
+        "required": [
+          "open_balance",
+          "approved_uninvoiced_before",
+          "order_value",
+          "projected_exposure",
+          "credit_limit",
+          "override_required",
+          "approved_excess"
+        ],
+        "title": "CreditCheckResponse",
+        "type": "object"
+      },
       "CustomerResponse": {
         "properties": {
           "account_number": {
@@ -1724,6 +2283,108 @@
           "version"
         ],
         "title": "LocationResponse",
+        "type": "object"
+      },
+      "NonMaterialOrderChangeCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "delivery_instructions": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Instructions"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "title": "NonMaterialOrderChangeCommand",
+        "type": "object"
+      },
+      "NonMaterialOrderChangeResponse": {
+        "properties": {
+          "commercial_approval_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commercial Approval Id"
+          },
+          "commercial_version": {
+            "title": "Commercial Version",
+            "type": "integer"
+          },
+          "delivery_instructions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Instructions"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "sales_order_id": {
+            "format": "uuid",
+            "title": "Sales Order Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "approved",
+              "held"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sales_order_id",
+          "commercial_version",
+          "version",
+          "status",
+          "notes",
+          "delivery_instructions",
+          "commercial_approval_id"
+        ],
+        "title": "NonMaterialOrderChangeResponse",
         "type": "object"
       },
       "OpeningStockCommand": {
@@ -2491,24 +3152,6 @@
         "title": "PriceListVersionResponse",
         "type": "object"
       },
-      "ProjectionRebuildResponse": {
-        "properties": {
-          "availability_rows": {
-            "title": "Availability Rows",
-            "type": "integer"
-          },
-          "valuation_rows": {
-            "title": "Valuation Rows",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "availability_rows",
-          "valuation_rows"
-        ],
-        "title": "ProjectionRebuildResponse",
-        "type": "object"
-      },
       "ReadyResponse": {
         "properties": {
           "database": {
@@ -2530,6 +3173,44 @@
           "database"
         ],
         "title": "ReadyResponse",
+        "type": "object"
+      },
+      "ReservationLineResponse": {
+        "properties": {
+          "backorder_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Backorder Quantity Base",
+            "type": "string"
+          },
+          "line_id": {
+            "format": "uuid",
+            "title": "Line Id",
+            "type": "string"
+          },
+          "ordered_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Ordered Quantity Base",
+            "type": "string"
+          },
+          "reserved_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Reserved Quantity Base",
+            "type": "string"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line_id",
+          "sku_id",
+          "ordered_quantity_base",
+          "reserved_quantity_base",
+          "backorder_quantity_base"
+        ],
+        "title": "ReservationLineResponse",
         "type": "object"
       },
       "RoleTemplateInput": {
@@ -2727,7 +3408,11 @@
             "type": "string"
           },
           "status": {
-            "const": "draft",
+            "enum": [
+              "draft",
+              "approved",
+              "held"
+            ],
             "title": "Status",
             "type": "string"
           },
@@ -3109,7 +3794,11 @@
             "type": "string"
           },
           "status": {
-            "const": "draft",
+            "enum": [
+              "draft",
+              "approved",
+              "held"
+            ],
             "title": "Status",
             "type": "string"
           },
@@ -3879,6 +4568,47 @@
           "version"
         ],
         "title": "WarehouseResponse",
+        "type": "object"
+      },
+      "tradeflow_api__catalog_inventory__ProjectionRebuildResponse": {
+        "properties": {
+          "availability_rows": {
+            "title": "Availability Rows",
+            "type": "integer"
+          },
+          "valuation_rows": {
+            "title": "Valuation Rows",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "availability_rows",
+          "valuation_rows"
+        ],
+        "title": "ProjectionRebuildResponse",
+        "type": "object"
+      },
+      "tradeflow_api__commercial_approval__ProjectionRebuildResponse": {
+        "properties": {
+          "credit_customers": {
+            "title": "Credit Customers",
+            "type": "integer"
+          },
+          "line_commitments": {
+            "title": "Line Commitments",
+            "type": "integer"
+          },
+          "reservation_items": {
+            "title": "Reservation Items",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "credit_customers",
+          "line_commitments",
+          "reservation_items"
+        ],
+        "title": "ProjectionRebuildResponse",
         "type": "object"
       }
     },
@@ -5168,7 +5898,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProjectionRebuildResponse"
+                  "$ref": "#/components/schemas/tradeflow_api__catalog_inventory__ProjectionRebuildResponse"
                 }
               }
             },
@@ -6761,6 +7491,372 @@
         ]
       }
     },
+    "/v1/sales/orders/{sales_order_id}/commercial-approval": {
+      "post": {
+        "operationId": "approve_sales_order_v1_sales_orders__sales_order_id__commercial_approval_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sales_order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sales Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "If-Match",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommercialApprovalCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommercialApprovalResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Approve Sales Order",
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/v1/sales/orders/{sales_order_id}/commercial-review": {
+      "get": {
+        "operationId": "review_commercial_approval_v1_sales_orders__sales_order_id__commercial_review_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sales_order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sales Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "warehouse_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Warehouse Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommercialReviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Review Commercial Approval",
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/v1/sales/orders/{sales_order_id}/non-material": {
+      "patch": {
+        "operationId": "change_non_material_order_fields_v1_sales_orders__sales_order_id__non_material_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sales_order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sales Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "If-Match",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NonMaterialOrderChangeCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NonMaterialOrderChangeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Change Non Material Order Fields",
+        "tags": [
+          "sales"
+        ]
+      }
+    },
     "/v1/sales/price-list-versions": {
       "post": {
         "operationId": "create_price_list_version_v1_sales_price_list_versions_post",
@@ -6865,6 +7961,62 @@
           }
         ],
         "summary": "Create Price List Version",
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/v1/sales/projections/rebuild": {
+      "post": {
+        "operationId": "rebuild_commercial_projections_v1_sales_projections_rebuild_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/tradeflow_api__commercial_approval__ProjectionRebuildResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rebuild Commercial Projections",
         "tags": [
           "sales"
         ]

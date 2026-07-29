@@ -7,6 +7,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     MetaData,
     Numeric,
@@ -739,7 +740,21 @@ sales_orders = Table(
         nullable=False,
     ),
     Column("status", String(20), nullable=False, server_default="draft"),
+    Column(
+        "approved_revision_id",
+        PostgresUUID(as_uuid=True),
+        nullable=True,
+    ),
+    Column(
+        "fulfillment_warehouse_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouses.warehouse_id"),
+        nullable=True,
+    ),
+    Column("notes", String(2000), nullable=True),
+    Column("delivery_instructions", String(2000), nullable=True),
     Column("version", Integer, nullable=False, server_default="1"),
+    Column("metadata_version", Integer, nullable=False, server_default="1"),
     Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
     Column("updated_by", String(200), ForeignKey("users.subject"), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
@@ -750,8 +765,24 @@ sales_orders = Table(
         server_default=func.now(),
         onupdate=func.now(),
     ),
-    CheckConstraint("status = 'draft'", name="ck_sales_orders_status"),
+    CheckConstraint(
+        "status IN ('draft', 'approved', 'held')",
+        name="ck_sales_orders_status",
+    ),
     CheckConstraint("version > 0", name="ck_sales_orders_version_positive"),
+    CheckConstraint(
+        "metadata_version > 0",
+        name="ck_sales_orders_metadata_version_positive",
+    ),
+    ForeignKeyConstraint(
+        ["sales_order_id", "approved_revision_id"],
+        [
+            "sales_order_revisions.sales_order_id",
+            "sales_order_revisions.sales_order_revision_id",
+        ],
+        name="fk_sales_orders_approved_revision",
+        use_alter=True,
+    ),
 )
 
 sales_order_revisions = Table(
@@ -839,6 +870,17 @@ sales_order_revisions = Table(
         name="ck_sales_order_revisions_totals_nonnegative",
     ),
     UniqueConstraint("sales_order_id", "version", name="uq_sales_order_revision"),
+    UniqueConstraint(
+        "sales_order_id",
+        "sales_order_revision_id",
+        name="uq_sales_order_revision_ownership",
+    ),
+    UniqueConstraint(
+        "sales_order_id",
+        "sales_order_revision_id",
+        "customer_id",
+        name="uq_sales_order_revision_customer_ownership",
+    ),
 )
 
 sales_order_line_revisions = Table(
@@ -905,5 +947,399 @@ sales_order_line_revisions = Table(
         "sales_order_revision_id",
         "line_position",
         name="uq_sales_order_line_revision_position",
+    ),
+    UniqueConstraint(
+        "sales_order_revision_id",
+        "line_id",
+        "sku_id",
+        name="uq_sales_order_line_revision_sku_ownership",
+    ),
+)
+
+commercial_approvals = Table(
+    "commercial_approvals",
+    metadata,
+    Column("commercial_approval_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column("sales_order_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("sales_order_revision_id", PostgresUUID(as_uuid=True), nullable=False, unique=True),
+    Column("customer_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column(
+        "warehouse_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouses.warehouse_id"),
+        nullable=False,
+    ),
+    Column("maker_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("approved_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("payment_timing_policy", String(30), nullable=False),
+    Column("order_total", Numeric(24, 6), nullable=False),
+    Column("open_balance_snapshot", Numeric(24, 6), nullable=False),
+    Column("approved_uninvoiced_snapshot", Numeric(24, 6), nullable=False),
+    Column("credit_limit_snapshot", Numeric(24, 6), nullable=True),
+    Column("credit_excess_approved", Numeric(24, 6), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "payment_timing_policy IN ('prepaid', 'cash_on_delivery', 'on_account')",
+        name="ck_commercial_approvals_payment_timing",
+    ),
+    CheckConstraint(
+        "order_total >= 0 AND open_balance_snapshot >= 0 "
+        "AND approved_uninvoiced_snapshot >= 0 AND credit_excess_approved >= 0",
+        name="ck_commercial_approvals_amounts",
+    ),
+    ForeignKeyConstraint(
+        ["sales_order_id", "sales_order_revision_id", "customer_id"],
+        [
+            "sales_order_revisions.sales_order_id",
+            "sales_order_revisions.sales_order_revision_id",
+            "sales_order_revisions.customer_id",
+        ],
+        name="fk_commercial_approvals_customer_revision_ownership",
+    ),
+    UniqueConstraint(
+        "commercial_approval_id",
+        "sales_order_id",
+        "customer_id",
+        name="uq_commercial_approval_customer_ownership",
+    ),
+    UniqueConstraint(
+        "commercial_approval_id",
+        "sales_order_id",
+        "sales_order_revision_id",
+        "warehouse_id",
+        name="uq_commercial_approval_reservation_ownership",
+    ),
+)
+
+commercial_exception_approvals = Table(
+    "commercial_exception_approvals",
+    metadata,
+    Column("exception_approval_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "commercial_approval_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("commercial_approvals.commercial_approval_id"),
+        nullable=False,
+    ),
+    Column("exception_type", String(30), nullable=False),
+    Column("maker_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("approved_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("reason", String(500), nullable=False),
+    Column("exception_amount", Numeric(24, 6), nullable=False),
+    Column("exception_percentage", Numeric(9, 6), nullable=True),
+    Column("authority_snapshot", JSONB, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "exception_type IN ('discount', 'below_floor', 'credit_override')",
+        name="ck_commercial_exception_approvals_type",
+    ),
+    CheckConstraint(
+        "exception_amount >= 0",
+        name="ck_commercial_exception_approvals_amount",
+    ),
+    CheckConstraint(
+        "exception_percentage IS NULL "
+        "OR (exception_percentage >= 0 AND exception_percentage <= 100)",
+        name="ck_commercial_exception_approvals_percentage",
+    ),
+    CheckConstraint(
+        "maker_subject <> approved_by",
+        name="ck_commercial_exception_approvals_maker_checker",
+    ),
+    UniqueConstraint(
+        "commercial_approval_id",
+        "exception_type",
+        name="uq_commercial_exception_approval_type",
+    ),
+)
+
+commercial_approval_invalidations = Table(
+    "commercial_approval_invalidations",
+    metadata,
+    Column("invalidation_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "commercial_approval_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("commercial_approvals.commercial_approval_id"),
+        nullable=False,
+        unique=True,
+    ),
+    Column("reason", String(500), nullable=False),
+    Column("invalidated_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+)
+
+customer_credit_exposure = Table(
+    "customer_credit_exposure",
+    metadata,
+    Column(
+        "customer_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("customer_accounts.customer_id"),
+        primary_key=True,
+    ),
+    Column("open_balance", Numeric(24, 6), nullable=False, server_default="0"),
+    Column("approved_uninvoiced", Numeric(24, 6), nullable=False, server_default="0"),
+    Column("version", Integer, nullable=False, server_default="1"),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    ),
+    CheckConstraint(
+        "open_balance >= 0 AND approved_uninvoiced >= 0",
+        name="ck_customer_credit_exposure_amounts",
+    ),
+    CheckConstraint("version > 0", name="ck_customer_credit_exposure_version"),
+)
+
+credit_exposure_entries = Table(
+    "credit_exposure_entries",
+    metadata,
+    Column("entry_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "customer_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("customer_accounts.customer_id"),
+        nullable=False,
+    ),
+    Column(
+        "commercial_approval_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("commercial_approvals.commercial_approval_id"),
+        nullable=True,
+    ),
+    Column(
+        "sales_order_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("sales_orders.sales_order_id"),
+        nullable=True,
+    ),
+    Column("component", String(30), nullable=False),
+    Column("amount_delta", Numeric(24, 6), nullable=False),
+    Column("source_type", String(50), nullable=False),
+    Column("source_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("actor_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "component IN ('posted_open_balance', 'approved_uninvoiced')",
+        name="ck_credit_exposure_entries_component",
+    ),
+    CheckConstraint(
+        "amount_delta <> 0",
+        name="ck_credit_exposure_entries_amount_nonzero",
+    ),
+    CheckConstraint(
+        "(component <> 'approved_uninvoiced') "
+        "OR (commercial_approval_id IS NOT NULL AND sales_order_id IS NOT NULL)",
+        name="ck_credit_exposure_entries_order_reference",
+    ),
+    UniqueConstraint(
+        "source_type",
+        "source_id",
+        "component",
+        name="uq_credit_exposure_entry_source_component",
+    ),
+    UniqueConstraint(
+        "idempotency_key",
+        "component",
+        name="uq_credit_exposure_entry_command_component",
+    ),
+    ForeignKeyConstraint(
+        ["commercial_approval_id", "sales_order_id", "customer_id"],
+        [
+            "commercial_approvals.commercial_approval_id",
+            "commercial_approvals.sales_order_id",
+            "commercial_approvals.customer_id",
+        ],
+        name="fk_credit_exposure_entries_approval_ownership",
+    ),
+)
+
+inventory_reservation_events = Table(
+    "inventory_reservation_events",
+    metadata,
+    Column("reservation_event_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "commercial_approval_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("commercial_approvals.commercial_approval_id"),
+        nullable=False,
+    ),
+    Column(
+        "sales_order_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("sales_orders.sales_order_id"),
+        nullable=False,
+    ),
+    Column(
+        "sales_order_revision_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("sales_order_revisions.sales_order_revision_id"),
+        nullable=False,
+    ),
+    Column("line_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("sku_id", PostgresUUID(as_uuid=True), ForeignKey("skus.sku_id"), nullable=False),
+    Column(
+        "warehouse_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouses.warehouse_id"),
+        nullable=False,
+    ),
+    Column("event_type", String(20), nullable=False),
+    Column("quantity_base", Numeric(18, 6), nullable=False),
+    Column("reason", String(500), nullable=False),
+    Column("actor_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "event_type IN ('reserved', 'released')",
+        name="ck_inventory_reservation_events_type",
+    ),
+    CheckConstraint(
+        "quantity_base > 0",
+        name="ck_inventory_reservation_events_quantity",
+    ),
+    UniqueConstraint(
+        "idempotency_key",
+        "line_id",
+        "event_type",
+        name="uq_inventory_reservation_event_command_line",
+    ),
+    ForeignKeyConstraint(
+        [
+            "commercial_approval_id",
+            "sales_order_id",
+            "sales_order_revision_id",
+            "warehouse_id",
+        ],
+        [
+            "commercial_approvals.commercial_approval_id",
+            "commercial_approvals.sales_order_id",
+            "commercial_approvals.sales_order_revision_id",
+            "commercial_approvals.warehouse_id",
+        ],
+        name="fk_inventory_reservation_events_approval_ownership",
+    ),
+    ForeignKeyConstraint(
+        ["sales_order_revision_id", "line_id", "sku_id"],
+        [
+            "sales_order_line_revisions.sales_order_revision_id",
+            "sales_order_line_revisions.line_id",
+            "sales_order_line_revisions.sku_id",
+        ],
+        name="fk_inventory_reservation_events_line_ownership",
+    ),
+)
+
+inventory_reserved_by_sku_warehouse = Table(
+    "inventory_reserved_by_sku_warehouse",
+    metadata,
+    Column(
+        "sku_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("skus.sku_id"),
+        primary_key=True,
+    ),
+    Column(
+        "warehouse_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouses.warehouse_id"),
+        primary_key=True,
+    ),
+    Column(
+        "reserved_quantity_base",
+        Numeric(18, 6),
+        nullable=False,
+        server_default="0",
+    ),
+    Column("version", Integer, nullable=False, server_default="1"),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    ),
+    CheckConstraint(
+        "reserved_quantity_base >= 0",
+        name="ck_inventory_reserved_by_sku_warehouse_quantity",
+    ),
+    CheckConstraint(
+        "version > 0",
+        name="ck_inventory_reserved_by_sku_warehouse_version",
+    ),
+)
+
+sales_order_line_commitments = Table(
+    "sales_order_line_commitments",
+    metadata,
+    Column(
+        "sales_order_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("sales_orders.sales_order_id"),
+        primary_key=True,
+    ),
+    Column("line_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "commercial_approval_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("commercial_approvals.commercial_approval_id"),
+        nullable=False,
+    ),
+    Column(
+        "sales_order_revision_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("sales_order_revisions.sales_order_revision_id"),
+        nullable=False,
+    ),
+    Column("sku_id", PostgresUUID(as_uuid=True), ForeignKey("skus.sku_id"), nullable=False),
+    Column(
+        "warehouse_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouses.warehouse_id"),
+        nullable=False,
+    ),
+    Column("ordered_quantity_base", Numeric(18, 6), nullable=False),
+    Column("reserved_quantity_base", Numeric(18, 6), nullable=False),
+    Column("backorder_quantity_base", Numeric(18, 6), nullable=False),
+    CheckConstraint(
+        "ordered_quantity_base > 0 AND reserved_quantity_base >= 0 "
+        "AND backorder_quantity_base >= 0 "
+        "AND reserved_quantity_base + backorder_quantity_base = ordered_quantity_base",
+        name="ck_sales_order_line_commitments_quantities",
+    ),
+    ForeignKeyConstraint(
+        [
+            "commercial_approval_id",
+            "sales_order_id",
+            "sales_order_revision_id",
+            "warehouse_id",
+        ],
+        [
+            "commercial_approvals.commercial_approval_id",
+            "commercial_approvals.sales_order_id",
+            "commercial_approvals.sales_order_revision_id",
+            "commercial_approvals.warehouse_id",
+        ],
+        name="fk_sales_order_line_commitments_approval_ownership",
+    ),
+    ForeignKeyConstraint(
+        ["sales_order_revision_id", "line_id", "sku_id"],
+        [
+            "sales_order_line_revisions.sales_order_revision_id",
+            "sales_order_line_revisions.line_id",
+            "sales_order_line_revisions.sku_id",
+        ],
+        name="fk_sales_order_line_commitments_line_ownership",
     ),
 )

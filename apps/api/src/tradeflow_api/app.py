@@ -16,6 +16,7 @@ from tradeflow_api.auth import (
     require_platform_reader,
 )
 from tradeflow_api.catalog_inventory import router as catalog_inventory_router
+from tradeflow_api.commercial_approval import router as commercial_approval_router
 from tradeflow_api.config import Settings, get_settings
 from tradeflow_api.customers import router as customers_router
 from tradeflow_api.database import (
@@ -85,6 +86,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.session_factory = create_session_factory(engine)
     app.add_middleware(CorrelationMiddleware)
     app.include_router(catalog_inventory_router)
+    app.include_router(commercial_approval_router)
     app.include_router(customers_router)
     app.include_router(organization_router)
     app.include_router(platform_router)

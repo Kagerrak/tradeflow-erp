@@ -29,6 +29,7 @@ from tradeflow_api.models import (
     barcode_mappings,
     companies,
     inventory_availability,
+    inventory_reserved_by_sku_warehouse,
     inventory_valuation,
     lot_identities,
     products,
@@ -217,6 +218,9 @@ class AvailabilityItem(BaseModel):
     on_hand: Decimal
     reserved: Decimal
     available: Decimal
+    commercial_reserved: Decimal
+    warehouse_on_hand: Decimal
+    warehouse_available: Decimal
     warehouse_inventory_value: Decimal
     moving_average_unit_cost: Decimal
 
@@ -975,9 +979,54 @@ async def search_availability(
         .order_by(skus.c.code, warehouses.c.code, warehouse_stock_locations.c.code)
     )
     total = await session.scalar(select(func.count()).select_from(statement.subquery()))
-    rows = (await session.execute(statement.limit(limit))).mappings()
+    rows = list((await session.execute(statement.limit(limit))).mappings())
+    warehouse_on_hand_rows = (
+        await session.execute(
+            select(
+                inventory_availability.c.sku_id,
+                inventory_availability.c.warehouse_id,
+                func.sum(inventory_availability.c.on_hand).label("on_hand"),
+            )
+            .select_from(
+                inventory_availability.join(
+                    warehouse_stock_locations,
+                    inventory_availability.c.location_id == warehouse_stock_locations.c.location_id,
+                )
+            )
+            .where(
+                inventory_availability.c.warehouse_id.in_(actor.warehouse_ids),
+                warehouse_stock_locations.c.custody == "available",
+                warehouse_stock_locations.c.is_active.is_(True),
+                or_(
+                    inventory_availability.c.expiration_date.is_(None),
+                    inventory_availability.c.expiration_date >= date.today(),
+                ),
+            )
+            .group_by(
+                inventory_availability.c.sku_id,
+                inventory_availability.c.warehouse_id,
+            )
+        )
+    ).mappings()
+    warehouse_on_hand = {
+        (row["sku_id"], row["warehouse_id"]): row["on_hand"] for row in warehouse_on_hand_rows
+    }
+    commercial_reservation_rows = (
+        await session.execute(
+            select(inventory_reserved_by_sku_warehouse).where(
+                inventory_reserved_by_sku_warehouse.c.warehouse_id.in_(actor.warehouse_ids)
+            )
+        )
+    ).mappings()
+    commercial_reserved = {
+        (row["sku_id"], row["warehouse_id"]): row["reserved_quantity_base"]
+        for row in commercial_reservation_rows
+    }
     items: list[AvailabilityItem] = []
     for row in rows:
+        warehouse_key = (row["sku_id"], row["warehouse_id"])
+        order_reserved = commercial_reserved.get(warehouse_key, Decimal("0"))
+        eligible_on_hand = warehouse_on_hand.get(warehouse_key, Decimal("0"))
         items.append(
             AvailabilityItem(
                 sku_id=row["sku_id"],
@@ -999,6 +1048,9 @@ async def search_availability(
                 available=row["on_hand"] - row["reserved"]
                 if row["custody"] == "available"
                 else Decimal("0"),
+                commercial_reserved=order_reserved,
+                warehouse_on_hand=eligible_on_hand,
+                warehouse_available=max(eligible_on_hand - order_reserved, Decimal("0")),
                 warehouse_inventory_value=row["warehouse_inventory_value"],
                 moving_average_unit_cost=row["moving_average_unit_cost"],
             )

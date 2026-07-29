@@ -6,6 +6,7 @@ const ready = {
   items: [
     {
       available: "30.000000",
+      commercial_reserved: "0.000000",
       base_currency: "PHP",
       base_stocking_unit: "EA",
       custody: "available",
@@ -24,6 +25,8 @@ const ready = {
       tracking_policy: "lot",
       warehouse_code: "MNL-01",
       warehouse_id: "6cadf528-a2ff-4d05-b25c-940c79b112ad",
+      warehouse_on_hand: "30.000000",
+      warehouse_available: "30.000000",
     },
   ],
   total: 1,

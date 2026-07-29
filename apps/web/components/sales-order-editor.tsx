@@ -2,6 +2,7 @@
 
 import type { CustomerDirectoryState } from "@tradeflow/customer-directory";
 import {
+  type CommercialApprovalState,
   type CreateSalesOrderDraftInput,
   type ReferenceState,
   type SalesOrderDraft,
@@ -18,11 +19,20 @@ type Branch = {
   name: string;
 };
 
+type Warehouse = {
+  branch_id: string;
+  code: string;
+  is_active: boolean;
+  name: string;
+  warehouse_id: string;
+};
+
 type Scope =
   | {
       branches: Branch[];
       capabilities: string[];
       user: { display_name: string; subject: string };
+      warehouses: Warehouse[];
     }
   | {
       correlationId: string;
@@ -80,13 +90,25 @@ export function SalesOrderEditor() {
   const [save, setSave] = useState<SaveDraftState | null>(null);
   const [lastSaved, setLastSaved] = useState<SalesOrderDraft | null>(null);
   const [saving, setSaving] = useState(false);
+  const [approval, setApproval] = useState<CommercialApprovalState | null>(
+    null,
+  );
+  const [approving, setApproving] = useState(false);
+  const [warehouseId, setWarehouseId] = useState("");
+  const [exceptionReason, setExceptionReason] = useState("");
+  const [creditOverrideReason, setCreditOverrideReason] = useState("");
   const orderId = useRef(crypto.randomUUID());
   const idempotencyKey = useRef<string | null>(null);
+  const approvalIdempotencyKey = useRef<string | null>(null);
+  const approvalFingerprint = useRef<string | null>(null);
   const lineIds = useRef(new Map<string, string>());
 
   const markChanged = useCallback(() => {
     idempotencyKey.current = null;
     setSave(null);
+    setApproval(null);
+    approvalIdempotencyKey.current = null;
+    approvalFingerprint.current = null;
   }, []);
 
   useEffect(() => {
@@ -112,6 +134,10 @@ export function SalesOrderEditor() {
           return;
         }
         setWorkspace({ customers: customers.items, kind: "ready", scope });
+        setWarehouseId(
+          scope.warehouses.find((warehouse) => warehouse.is_active)
+            ?.warehouse_id ?? "",
+        );
       })
       .catch(() => {
         if (active) {
@@ -145,6 +171,13 @@ export function SalesOrderEditor() {
         setReference(next);
         if (next.kind === "ready") {
           setPaymentPolicy(next.reference.paymentTimingDefault);
+          setWarehouseId(
+            workspace.scope.warehouses.find(
+              (warehouse) =>
+                warehouse.is_active &&
+                warehouse.branch_id === next.reference.branchId,
+            )?.warehouse_id ?? "",
+          );
         }
       } catch {
         setReference({
@@ -271,6 +304,59 @@ export function SalesOrderEditor() {
       setSave({ correlationId: crypto.randomUUID(), kind: "unavailable" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const approve = async () => {
+    if (saved === undefined || warehouseId.length === 0) return;
+    const fingerprint = JSON.stringify({
+      creditOverrideReason: creditOverrideReason.trim(),
+      exceptionReason: exceptionReason.trim(),
+      salesOrderId: saved.salesOrderId,
+      version: saved.version,
+      warehouseId,
+    });
+    if (approvalFingerprint.current !== fingerprint) {
+      approvalFingerprint.current = fingerprint;
+      approvalIdempotencyKey.current = crypto.randomUUID();
+    }
+    setApproving(true);
+    try {
+      const response = await fetch(
+        `/api/sales-orders/${saved.salesOrderId}/commercial-approval`,
+        {
+          body: JSON.stringify({
+            command: {
+              credit_override_reason:
+                creditOverrideReason.trim().length === 0
+                  ? null
+                  : creditOverrideReason,
+              exception_reason:
+                exceptionReason.trim().length === 0 ? null : exceptionReason,
+              warehouse_id: warehouseId,
+            },
+            expectedVersion: saved.version,
+            idempotencyKey:
+              approvalIdempotencyKey.current ?? crypto.randomUUID(),
+          }),
+          headers: { "Content-Type": "application/json" },
+          method: "POST",
+        },
+      );
+      const next = (await response.json()) as CommercialApprovalState;
+      setApproval(next);
+      if (next.kind === "approved") {
+        setLastSaved((current) =>
+          current === null ? current : { ...current, status: "approved" },
+        );
+      }
+    } catch {
+      setApproval({
+        correlationId: crypto.randomUUID(),
+        kind: "unavailable",
+      });
+    } finally {
+      setApproving(false);
     }
   };
 
@@ -429,6 +515,85 @@ export function SalesOrderEditor() {
             {save !== null && save.kind !== "saved" && (
               <SalesFailure state={save} />
             )}
+            {saved !== undefined && saved.status === "draft" && (
+              <section
+                className="sales-approval"
+                aria-labelledby="approval-title"
+              >
+                <div>
+                  <p className="section-number">Commercial control / 006</p>
+                  <h3 id="approval-title">
+                    Approve, reserve, and expose exceptions
+                  </h3>
+                  <p>
+                    Approval binds this exact priced revision. Inventory may be
+                    partially reserved; On Account exposure consumes the full
+                    approved value.
+                  </p>
+                </div>
+                <div className="sales-approval-fields">
+                  <label>
+                    Fulfillment warehouse
+                    <select
+                      aria-label="Fulfillment warehouse"
+                      onChange={(event) => setWarehouseId(event.target.value)}
+                      value={warehouseId}
+                    >
+                      {workspace.scope.warehouses
+                        .filter(
+                          (warehouse) =>
+                            warehouse.is_active &&
+                            warehouse.branch_id === saved.branchId,
+                        )
+                        .map((warehouse) => (
+                          <option
+                            key={warehouse.warehouse_id}
+                            value={warehouse.warehouse_id}
+                          >
+                            {warehouse.code} / {warehouse.name}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <label>
+                    Discount / floor exception reason
+                    <input
+                      aria-label="Commercial exception reason"
+                      onChange={(event) =>
+                        setExceptionReason(event.target.value)
+                      }
+                      value={exceptionReason}
+                    />
+                  </label>
+                  {saved.paymentTimingPolicy === "on_account" && (
+                    <label>
+                      Credit Override reason
+                      <input
+                        aria-label="Credit Override reason"
+                        onChange={(event) =>
+                          setCreditOverrideReason(event.target.value)
+                        }
+                        value={creditOverrideReason}
+                      />
+                    </label>
+                  )}
+                  <button
+                    disabled={
+                      approving ||
+                      warehouseId.length === 0 ||
+                      !workspace.scope.capabilities.includes(
+                        "sales:commercial-approve",
+                      )
+                    }
+                    onClick={() => void approve()}
+                    type="button"
+                  >
+                    {approving ? "Checking controls…" : "Commercially approve"}
+                  </button>
+                </div>
+              </section>
+            )}
+            {approval !== null && <ApprovalResult state={approval} />}
             <div className="sales-actions">
               <span>
                 {saved === undefined
@@ -449,6 +614,56 @@ export function SalesOrderEditor() {
           </form>
         </section>
       </main>
+    </div>
+  );
+}
+
+function ApprovalResult({ state }: { state: CommercialApprovalState }) {
+  if (state.kind !== "approved") {
+    const title =
+      state.kind === "exception_required"
+        ? "A different eligible approver is required"
+        : state.kind === "held"
+          ? "Customer Credit Hold blocks approval"
+          : state.kind === "forbidden"
+            ? "Commercial Approval is not assigned"
+            : state.kind === "conflict"
+              ? "The commercial revision changed"
+              : state.kind === "validation"
+                ? "Approval evidence needs correction"
+                : state.kind === "unauthenticated"
+                  ? "Sign in to approve"
+                  : "Commercial controls are unavailable";
+    return (
+      <div className="sales-message" role="alert">
+        <h3>{title}</h3>
+        <p>
+          No credit or inventory commitment was created. Support reference{" "}
+          <code>{state.correlationId}</code>
+        </p>
+      </div>
+    );
+  }
+  const partial = Number(state.approval.backorderQuantityBase) > 0;
+  return (
+    <div className="sales-approval-result" role="status">
+      <div>
+        <p className="section-number">Approved revision</p>
+        <h3>{partial ? "Partially reserved" : "Fully reserved"}</h3>
+        <p>
+          {state.approval.reservedQuantityBase} base units reserved ·{" "}
+          {state.approval.backorderQuantityBase} on backorder
+        </p>
+      </div>
+      <div>
+        <span>Credit exposure after approval</span>
+        <strong>{state.approval.credit.projectedExposure}</strong>
+        <small>
+          {state.approval.credit.overrideRequired
+            ? `Order-specific override ${state.approval.credit.approvedExcess}`
+            : "Within terms and limit"}
+        </small>
+      </div>
     </div>
   );
 }

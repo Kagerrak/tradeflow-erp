@@ -49,6 +49,10 @@ available quantity to commercially approved sales-order demand. It does not
 remove stock and cannot cause Reserved Quantity to exceed eligible On-hand
 Quantity.
 
+**Reservation Event**: An immutable reservation or release entry in Base
+Stocking Unit quantity for one Sales Order Line, SKU, and Warehouse. Current
+Reserved Quantity is a rebuildable projection of these events.
+
 **Reservation Release**: An idempotent return of reserved quantity to
 availability caused by fulfillment, cancellation, an approval-invalidating
 change, an expired Payment Deadline, or an authorized manual action with a

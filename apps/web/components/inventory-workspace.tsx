@@ -183,16 +183,16 @@ function InventoryState({
             <div>
               <dt>On hand</dt>
               <dd>
-                {item.onHand} <small>{item.baseStockingUnit}</small>
+                {item.warehouseOnHand} <small>{item.baseStockingUnit}</small>
               </dd>
             </div>
             <div>
               <dt>Reserved</dt>
-              <dd>{item.reserved}</dd>
+              <dd>{item.commercialReserved}</dd>
             </div>
             <div className="inventory-available">
               <dt>Available</dt>
-              <dd>{item.available}</dd>
+              <dd>{item.warehouseAvailable}</dd>
             </div>
           </dl>
           <dl className="inventory-trace">

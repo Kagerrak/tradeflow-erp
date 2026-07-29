@@ -4,6 +4,8 @@ export type CreateSalesOrderDraftInput =
   components["schemas"]["CreateSalesOrderDraftCommand"];
 export type UpdateSalesOrderDraftInput =
   components["schemas"]["UpdateSalesOrderDraftCommand"];
+export type CommercialApprovalInput =
+  components["schemas"]["CommercialApprovalCommand"];
 
 export type OrderEntryReference = {
   addresses: Array<{
@@ -68,7 +70,7 @@ export type SalesOrderDraft = {
   priceInclusionMode: "inclusive" | "exclusive";
   priceListCode: string;
   salesOrderId: string;
-  status: "draft";
+  status: "draft" | "approved" | "held";
   subtotal: string;
   taxTotal: string;
   version: number;
@@ -88,6 +90,143 @@ export type SaveDraftState =
 export type LoadSalesDraftState =
   | { correlationId: string; kind: SalesDraftFailureKind }
   | { correlationId: string; draft: SalesOrderDraft; kind: "loaded" };
+
+export type CommercialApproval = {
+  approvalId: string;
+  approvedBy: string;
+  backorderQuantityBase: string;
+  credit: {
+    approvedExcess: string;
+    approvedUninvoicedBefore: string;
+    creditLimit: string | null;
+    openBalance: string;
+    orderValue: string;
+    overrideRequired: boolean;
+    projectedExposure: string;
+  };
+  makerSubject: string;
+  requiredExceptions: string[];
+  reservations: Array<{
+    backorderQuantityBase: string;
+    lineId: string;
+    orderedQuantityBase: string;
+    reservedQuantityBase: string;
+    skuId: string;
+  }>;
+  reservedQuantityBase: string;
+  salesOrderId: string;
+  salesOrderRevisionId: string;
+  status: "approved";
+  warehouseId: string;
+};
+
+export type CommercialApprovalState =
+  | {
+      correlationId: string;
+      errorCode?: string;
+      kind:
+        | "conflict"
+        | "exception_required"
+        | "forbidden"
+        | "held"
+        | "unauthenticated"
+        | "unavailable"
+        | "validation";
+      message?: string;
+    }
+  | {
+      approval: CommercialApproval;
+      correlationId: string;
+      kind: "approved";
+    };
+
+export type CommercialReview = {
+  approvedUninvoiced: string;
+  creditHold: boolean;
+  creditLimit: string | null;
+  currency: string;
+  customerAccountNumber: string;
+  customerId: string;
+  customerName: string;
+  customerSnapshotCurrent: boolean;
+  customerStatus: "active" | "inactive" | "prospect";
+  discountTotal: string;
+  grandTotal: string;
+  lines: Array<{
+    allocatedDiscount: string;
+    backorderQuantityBase: string;
+    belowFloor: boolean;
+    calculationSnapshot: Record<string, string>;
+    conversionSnapshot: Record<string, string>;
+    effectiveUnitPrice: string;
+    enteredQuantity: string;
+    enteredUnit: string;
+    floorUnitPrice: string | null;
+    lineId: string;
+    listUnitPrice: string;
+    manualOverrideUnitPrice: string | null;
+    quantityBase: string;
+    reservableQuantityBase: string;
+    skuCode: string;
+    skuId: string;
+    skuName: string;
+    taxSnapshot: Record<string, string>;
+    warehouseOnHandBase: string;
+    warehouseReservedBase: string;
+  }>;
+  makerSubject: string;
+  openBalance: string;
+  paymentTerms: string;
+  paymentTimingPolicy: "prepaid" | "cash_on_delivery" | "on_account";
+  projectedExposure: string;
+  requiredExceptions: Array<{
+    amount: string;
+    percentage: string | null;
+    type: "discount" | "below_floor" | "credit_override";
+  }>;
+  salesOrderId: string;
+  salesOrderRevisionId: string;
+  status: "draft" | "approved" | "held";
+  subtotal: string;
+  taxTotal: string;
+  version: number;
+  warehouseId: string;
+};
+
+export type CommercialReviewState =
+  | {
+      correlationId: string;
+      kind: SalesDraftFailureKind | "not_found";
+    }
+  | {
+      correlationId: string;
+      kind: "ready";
+      review: CommercialReview;
+    };
+
+export type SalesOrderSearchItem = {
+  branchId: string;
+  currency: string;
+  customerId: string;
+  customerName: string;
+  grandTotal: string;
+  paymentTimingPolicy: "prepaid" | "cash_on_delivery" | "on_account";
+  salesOrderId: string;
+  status: "draft" | "approved" | "held";
+  version: number;
+};
+
+export type SalesOrderSearchState =
+  | {
+      correlationId: string;
+      kind: SalesDraftFailureKind;
+    }
+  | {
+      correlationId: string;
+      items: SalesOrderSearchItem[];
+      kind: "ready";
+      total: number;
+    };
 
 export type SalesDraftPreviewLine = {
   allocatedDiscount: string;
@@ -386,6 +525,149 @@ function mapDraft(
   };
 }
 
+function mapApproval(
+  value: components["schemas"]["CommercialApprovalResponse"],
+): CommercialApproval {
+  return {
+    approvalId: value.commercial_approval_id,
+    approvedBy: value.approved_by,
+    backorderQuantityBase: value.backorder_quantity_base,
+    credit: {
+      approvedExcess: value.credit.approved_excess,
+      approvedUninvoicedBefore: value.credit.approved_uninvoiced_before,
+      creditLimit: value.credit.credit_limit,
+      openBalance: value.credit.open_balance,
+      orderValue: value.credit.order_value,
+      overrideRequired: value.credit.override_required,
+      projectedExposure: value.credit.projected_exposure,
+    },
+    makerSubject: value.maker_subject,
+    requiredExceptions: value.required_exceptions,
+    reservations: value.reservations.map((line) => ({
+      backorderQuantityBase: line.backorder_quantity_base,
+      lineId: line.line_id,
+      orderedQuantityBase: line.ordered_quantity_base,
+      reservedQuantityBase: line.reserved_quantity_base,
+      skuId: line.sku_id,
+    })),
+    reservedQuantityBase: value.reserved_quantity_base,
+    salesOrderId: value.sales_order_id,
+    salesOrderRevisionId: value.sales_order_revision_id,
+    status: value.status,
+    warehouseId: value.warehouse_id,
+  };
+}
+
+type CommercialReviewWire = components["schemas"]["CommercialReviewResponse"];
+
+function mapCommercialReview(value: CommercialReviewWire): CommercialReview {
+  return {
+    approvedUninvoiced: value.approved_uninvoiced,
+    creditHold: value.credit_hold,
+    creditLimit: value.credit_limit,
+    currency: value.currency,
+    customerAccountNumber: value.customer_account_number,
+    customerId: value.customer_id,
+    customerName: value.customer_name,
+    customerSnapshotCurrent: value.customer_snapshot_current,
+    customerStatus: value.customer_status,
+    discountTotal: value.discount_total,
+    grandTotal: value.grand_total,
+    lines: value.lines.map((line) => ({
+      allocatedDiscount: line.allocated_discount,
+      backorderQuantityBase: line.backorder_quantity_base,
+      belowFloor: line.below_floor,
+      calculationSnapshot: line.calculation_snapshot,
+      conversionSnapshot: line.conversion_snapshot,
+      effectiveUnitPrice: line.effective_unit_price,
+      enteredQuantity: line.entered_quantity,
+      enteredUnit: line.entered_unit,
+      floorUnitPrice: line.floor_unit_price,
+      lineId: line.line_id,
+      listUnitPrice: line.list_unit_price,
+      manualOverrideUnitPrice: line.manual_override_unit_price,
+      quantityBase: line.quantity_base,
+      reservableQuantityBase: line.reservable_quantity_base,
+      skuCode: line.sku_code,
+      skuId: line.sku_id,
+      skuName: line.sku_name,
+      taxSnapshot: line.tax_snapshot,
+      warehouseOnHandBase: line.warehouse_on_hand_base,
+      warehouseReservedBase: line.warehouse_reserved_base,
+    })),
+    makerSubject: value.maker_subject,
+    openBalance: value.open_balance,
+    paymentTerms: value.payment_terms,
+    paymentTimingPolicy: value.payment_timing_policy,
+    projectedExposure: value.projected_exposure,
+    requiredExceptions: value.required_exceptions.map((exception) => ({
+      amount: exception.amount,
+      percentage: exception.percentage,
+      type: exception.exception_type,
+    })),
+    salesOrderId: value.sales_order_id,
+    salesOrderRevisionId: value.sales_order_revision_id,
+    status: value.status,
+    subtotal: value.subtotal,
+    taxTotal: value.tax_total,
+    version: value.version,
+    warehouseId: value.warehouse_id,
+  };
+}
+
+function approvalFailure(
+  status: number,
+  errorCode: string | undefined,
+): Exclude<CommercialApprovalState, { kind: "approved" }>["kind"] | undefined {
+  if (errorCode === "customer_credit_hold") return "held";
+  if (
+    errorCode === "commercial_exception_required" ||
+    errorCode === "maker_checker_violation" ||
+    errorCode === "approval_authority_required" ||
+    errorCode === "approval_limit_exceeded" ||
+    errorCode === "exception_reason_required" ||
+    errorCode === "credit_override_reason_required"
+  ) {
+    return "exception_required";
+  }
+  if (status === 401) return "unauthenticated";
+  if (status === 403) return "forbidden";
+  if (status === 409) return "conflict";
+  if (status === 422) return "validation";
+  if (status >= 500) return "unavailable";
+  return undefined;
+}
+
+function safeApprovalError(error: unknown): {
+  errorCode?: string;
+  message?: string;
+} {
+  if (
+    error === undefined ||
+    error === null ||
+    typeof error !== "object" ||
+    !("error" in error) ||
+    error.error === null ||
+    typeof error.error !== "object"
+  ) {
+    return {};
+  }
+
+  const errorCode =
+    "code" in error.error && typeof error.error.code === "string"
+      ? error.error.code.trim().slice(0, 100)
+      : "";
+  const message =
+    "message" in error.error && typeof error.error.message === "string"
+      ? error.error.message.trim().slice(0, 500)
+      : "";
+
+  return {
+    ...(errorCode.length > 0 ? { errorCode } : {}),
+    ...(message.length > 0 ? { message } : {}),
+  };
+}
+
 export async function loadOrderEntryReference(
   options: ClientOptions & { branchId: string; customerId: string },
 ): Promise<ReferenceState> {
@@ -525,6 +807,137 @@ export async function updateSalesOrderDraft(
       correlationId: options.correlationId,
       draft: mapDraft(data),
       kind: "saved",
+    };
+  } catch (error: unknown) {
+    if (error instanceof TypeError) {
+      return { correlationId: options.correlationId, kind: "unavailable" };
+    }
+    throw error;
+  }
+}
+
+export async function commerciallyApproveSalesOrder(
+  options: ClientOptions & {
+    command: CommercialApprovalInput;
+    expectedVersion: number;
+    idempotencyKey: string;
+    salesOrderId: string;
+  },
+): Promise<CommercialApprovalState> {
+  if (options.accessToken === undefined || options.accessToken.length === 0) {
+    return { correlationId: options.correlationId, kind: "unauthenticated" };
+  }
+  try {
+    const { data, error, response } = await clientFor(options).POST(
+      "/v1/sales/orders/{sales_order_id}/commercial-approval",
+      {
+        body: options.command,
+        params: {
+          header: {
+            "Idempotency-Key": options.idempotencyKey,
+            "If-Match": options.expectedVersion,
+          },
+          path: { sales_order_id: options.salesOrderId },
+        },
+      },
+    );
+    const approvalError = safeApprovalError(error);
+    const failure = approvalFailure(response.status, approvalError.errorCode);
+    if (failure !== undefined) {
+      return {
+        correlationId: options.correlationId,
+        kind: failure,
+        ...approvalError,
+      };
+    }
+    if (data === undefined) throw new Error("Missing Commercial Approval.");
+    return {
+      approval: mapApproval(data),
+      correlationId: options.correlationId,
+      kind: "approved",
+    };
+  } catch (error: unknown) {
+    if (error instanceof TypeError) {
+      return { correlationId: options.correlationId, kind: "unavailable" };
+    }
+    throw error;
+  }
+}
+
+export async function loadCommercialReview(
+  options: ClientOptions & {
+    salesOrderId: string;
+    warehouseId: string;
+  },
+): Promise<CommercialReviewState> {
+  if (options.accessToken === undefined || options.accessToken.length === 0) {
+    return { correlationId: options.correlationId, kind: "unauthenticated" };
+  }
+  try {
+    const { data, response } = await clientFor(options).GET(
+      "/v1/sales/orders/{sales_order_id}/commercial-review",
+      {
+        params: {
+          path: { sales_order_id: options.salesOrderId },
+          query: { warehouse_id: options.warehouseId },
+        },
+      },
+    );
+    if (response.status === 404) {
+      return { correlationId: options.correlationId, kind: "not_found" };
+    }
+    const failure = failureKind(response.status);
+    if (failure !== undefined) {
+      return { correlationId: options.correlationId, kind: failure };
+    }
+    if (data === undefined) throw new Error("Missing Commercial Review.");
+    return {
+      correlationId: options.correlationId,
+      kind: "ready",
+      review: mapCommercialReview(data),
+    };
+  } catch (error: unknown) {
+    if (error instanceof TypeError) {
+      return { correlationId: options.correlationId, kind: "unavailable" };
+    }
+    throw error;
+  }
+}
+
+export async function searchSalesOrders(
+  options: ClientOptions & { query?: string },
+): Promise<SalesOrderSearchState> {
+  if (options.accessToken === undefined || options.accessToken.length === 0) {
+    return { correlationId: options.correlationId, kind: "unauthenticated" };
+  }
+  try {
+    const { data, response } = await clientFor(options).GET(
+      "/v1/sales/orders",
+      {
+        params: { query: { query: options.query ?? "" } },
+      },
+    );
+    const failure = failureKind(response.status);
+    if (failure !== undefined) {
+      return { correlationId: options.correlationId, kind: failure };
+    }
+    if (data === undefined)
+      throw new Error("Missing Sales Order search results.");
+    return {
+      correlationId: options.correlationId,
+      items: data.items.map((item) => ({
+        branchId: item.branch_id,
+        currency: item.currency,
+        customerId: item.customer_id,
+        customerName: item.customer_name,
+        grandTotal: item.grand_total,
+        paymentTimingPolicy: item.payment_timing_policy,
+        salesOrderId: item.sales_order_id,
+        status: item.status,
+        version: item.version,
+      })),
+      kind: "ready",
+      total: data.total,
     };
   } catch (error: unknown) {
     if (error instanceof TypeError) {

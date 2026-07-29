@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const item = {
   available: "30.000000",
+  commercialReserved: "0.000000",
   baseCurrency: "PHP",
   baseStockingUnit: "EA",
   custody: "available",
@@ -20,6 +21,8 @@ const item = {
   trackingPolicy: "lot",
   warehouseCode: "MNL-01",
   warehouseId: "6cadf528-a2ff-4d05-b25c-940c79b112ad",
+  warehouseOnHand: "30.000000",
+  warehouseAvailable: "30.000000",
 };
 
 test("shows scoped inventory quantity, custody, and traceability", async ({

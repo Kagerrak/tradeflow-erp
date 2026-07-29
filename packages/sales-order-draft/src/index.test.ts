@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  commerciallyApproveSalesOrder,
   createSalesOrderDraft,
+  loadCommercialReview,
   loadOrderEntryReference,
   previewSalesOrderDraft,
 } from "./index";
@@ -205,6 +207,249 @@ describe("Sales Order Draft client", () => {
     });
     expect(state).toEqual({
       correlationId: "sales-conflict",
+      kind: "conflict",
+    });
+  });
+
+  it("maps a partial Commercial Approval without losing base quantities", async () => {
+    const state = await commerciallyApproveSalesOrder({
+      accessToken: "token",
+      baseUrl: "https://api.test",
+      command: {
+        credit_override_reason: null,
+        exception_reason: "Discount reviewed",
+        warehouse_id: "02efc423-72ca-48dc-82a8-700566ffbd90",
+      },
+      correlationId: "approval-correlation",
+      expectedVersion: 1,
+      fetch: () =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              approved_by: "commercial-mnl",
+              backorder_quantity_base: "1.000000",
+              commercial_approval_id: "9ee0c3c0-d673-452f-bdef-eeec91a4773f",
+              credit: {
+                approved_excess: "0.00",
+                approved_uninvoiced_before: "0.00",
+                credit_limit: null,
+                open_balance: "0.00",
+                order_value: "0.00",
+                override_required: false,
+                projected_exposure: "0.00",
+              },
+              maker_subject: "sales-mnl",
+              payment_timing_policy: "prepaid",
+              required_exceptions: ["discount"],
+              reservations: [
+                {
+                  backorder_quantity_base: "1.000000",
+                  line_id: "a5551b35-34ff-4cb8-8062-d6386f7e4e25",
+                  ordered_quantity_base: "3.000000",
+                  reserved_quantity_base: "2.000000",
+                  sku_id: "4d209f00-0c57-49fc-9f0b-fc5cf082cb02",
+                },
+              ],
+              reserved_quantity_base: "2.000000",
+              sales_order_id: "323484f7-f3b5-4070-846f-83b9aad4fadb",
+              sales_order_revision_id: "be85cc1b-699f-4567-b833-a66944b2d8a6",
+              status: "approved",
+              warehouse_id: "02efc423-72ca-48dc-82a8-700566ffbd90",
+            }),
+            { headers: { "content-type": "application/json" }, status: 201 },
+          ),
+        ),
+      idempotencyKey: "approve-order",
+      salesOrderId: "323484f7-f3b5-4070-846f-83b9aad4fadb",
+    });
+    expect(state.kind).toBe("approved");
+    if (state.kind !== "approved") throw new Error("Expected approval.");
+    expect(state.approval.reservedQuantityBase).toBe("2.000000");
+    expect(state.approval.backorderQuantityBase).toBe("1.000000");
+    expect(state.approval.requiredExceptions).toEqual(["discount"]);
+  });
+
+  it("maps the exact Commercial Review evidence for the selected warehouse", async () => {
+    let requestedUrl = "";
+    const state = await loadCommercialReview({
+      accessToken: "token",
+      baseUrl: "https://api.test",
+      correlationId: "commercial-review",
+      fetch: (request) => {
+        requestedUrl = request.url;
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              approved_uninvoiced: "250.00",
+              credit_hold: false,
+              credit_limit: "1000.00",
+              currency: "PHP",
+              customer_account_number: "MNL-SALES-001",
+              customer_id: reference.customer_id,
+              customer_name: "Draft Order Retail",
+              customer_snapshot_current: true,
+              customer_status: "active",
+              discount_total: "25.00",
+              grand_total: "1120.00",
+              lines: [
+                {
+                  allocated_discount: "25.00",
+                  backorder_quantity_base: "1.000000",
+                  below_floor: true,
+                  calculation_snapshot: {
+                    line_total: "1120.00",
+                    subtotal: "1000.00",
+                  },
+                  conversion_snapshot: {
+                    base_quantity_per_unit: "12.000000",
+                    base_stocking_unit: "EA",
+                    entered_unit: "CASE",
+                  },
+                  effective_unit_price: "100.000000",
+                  entered_quantity: "10.000000",
+                  entered_unit: "CASE",
+                  floor_unit_price: "105.000000",
+                  line_id: "a5551b35-34ff-4cb8-8062-d6386f7e4e25",
+                  list_unit_price: "110.000000",
+                  manual_override_unit_price: "100.000000",
+                  quantity_base: "120.000000",
+                  reservable_quantity_base: "119.000000",
+                  sku_code: "COLA-CASE",
+                  sku_id: reference.items[0]!.sku_id,
+                  sku_name: "Cola case",
+                  tax_snapshot: {
+                    inclusion_mode: "exclusive",
+                    tax_code: "VAT12",
+                    tax_rate: "0.120000",
+                  },
+                  warehouse_on_hand_base: "150.000000",
+                  warehouse_reserved_base: "31.000000",
+                },
+              ],
+              maker_subject: "sales-mnl",
+              open_balance: "100.00",
+              payment_terms: "Net 30",
+              payment_timing_policy: "on_account",
+              projected_exposure: "1470.00",
+              required_exceptions: [
+                {
+                  amount: "20.00",
+                  exception_type: "discount",
+                  percentage: "2.500000",
+                },
+                {
+                  amount: "70.00",
+                  exception_type: "credit_override",
+                  percentage: null,
+                },
+              ],
+              sales_order_id: "323484f7-f3b5-4070-846f-83b9aad4fadb",
+              sales_order_revision_id: "be85cc1b-699f-4567-b833-a66944b2d8a6",
+              status: "draft",
+              subtotal: "1000.00",
+              tax_total: "145.00",
+              version: 1,
+              warehouse_id: "02efc423-72ca-48dc-82a8-700566ffbd90",
+            }),
+            { headers: { "content-type": "application/json" }, status: 200 },
+          ),
+        );
+      },
+      salesOrderId: "323484f7-f3b5-4070-846f-83b9aad4fadb",
+      warehouseId: "02efc423-72ca-48dc-82a8-700566ffbd90",
+    });
+
+    expect(requestedUrl).toBe(
+      "https://api.test/v1/sales/orders/323484f7-f3b5-4070-846f-83b9aad4fadb/commercial-review?warehouse_id=02efc423-72ca-48dc-82a8-700566ffbd90",
+    );
+    expect(state.kind).toBe("ready");
+    if (state.kind !== "ready") throw new Error("Expected review evidence.");
+    expect(state.review.requiredExceptions).toEqual([
+      { amount: "20.00", percentage: "2.500000", type: "discount" },
+      { amount: "70.00", percentage: null, type: "credit_override" },
+    ]);
+    expect(state.review.lines[0]).toMatchObject({
+      backorderQuantityBase: "1.000000",
+      conversionSnapshot: {
+        base_quantity_per_unit: "12.000000",
+        base_stocking_unit: "EA",
+        entered_unit: "CASE",
+      },
+      reservableQuantityBase: "119.000000",
+      taxSnapshot: {
+        inclusion_mode: "exclusive",
+        tax_code: "VAT12",
+        tax_rate: "0.120000",
+      },
+      warehouseOnHandBase: "150.000000",
+      warehouseReservedBase: "31.000000",
+    });
+  });
+
+  it("preserves safe Commercial Approval error details for recovery guidance", async () => {
+    const state = await commerciallyApproveSalesOrder({
+      accessToken: "token",
+      baseUrl: "https://api.test",
+      command: {
+        credit_override_reason: null,
+        exception_reason: "Discount reviewed",
+        warehouse_id: "02efc423-72ca-48dc-82a8-700566ffbd90",
+      },
+      correlationId: "approval-denied",
+      expectedVersion: 1,
+      fetch: () =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: {
+                code: "approval_limit_exceeded",
+                message: "This exception exceeds the checker's approval limit.",
+              },
+            }),
+            { headers: { "content-type": "application/json" }, status: 403 },
+          ),
+        ),
+      idempotencyKey: "approve-order",
+      salesOrderId: "323484f7-f3b5-4070-846f-83b9aad4fadb",
+    });
+
+    expect(state).toEqual({
+      correlationId: "approval-denied",
+      errorCode: "approval_limit_exceeded",
+      kind: "exception_required",
+      message: "This exception exceeds the checker's approval limit.",
+    });
+  });
+
+  it("does not coerce malformed Commercial Approval error details", async () => {
+    const state = await commerciallyApproveSalesOrder({
+      accessToken: "token",
+      baseUrl: "https://api.test",
+      command: {
+        credit_override_reason: null,
+        exception_reason: null,
+        warehouse_id: "02efc423-72ca-48dc-82a8-700566ffbd90",
+      },
+      correlationId: "approval-conflict",
+      expectedVersion: 1,
+      fetch: () =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: {
+                code: 409,
+                message: { reason: "not safe display text" },
+              },
+            }),
+            { headers: { "content-type": "application/json" }, status: 409 },
+          ),
+        ),
+      idempotencyKey: "approve-order",
+      salesOrderId: "323484f7-f3b5-4070-846f-83b9aad4fadb",
+    });
+
+    expect(state).toEqual({
+      correlationId: "approval-conflict",
       kind: "conflict",
     });
   });

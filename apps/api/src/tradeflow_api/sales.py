@@ -209,7 +209,7 @@ class SalesOrderLineResponse(BaseModel):
 
 class SalesOrderDraftResponse(BaseModel):
     sales_order_id: UUID
-    status: Literal["draft"]
+    status: Literal["draft", "approved", "held"]
     version: int
     branch_id: UUID
     customer_id: UUID
@@ -238,7 +238,7 @@ class SalesOrderDraftResponse(BaseModel):
 
 class SalesOrderSearchItem(BaseModel):
     sales_order_id: UUID
-    status: Literal["draft"]
+    status: Literal["draft", "approved", "held"]
     version: int
     branch_id: UUID
     customer_id: UUID
@@ -1448,7 +1448,6 @@ async def update_sales_order_draft(
     )
     if replay is not None:
         return SalesOrderDraftResponse.model_validate(replay)
-    context = await load_draft_context(session, command, actor)
     locked = (
         (
             await session.execute(
@@ -1465,6 +1464,18 @@ async def update_sales_order_draft(
             409,
             "optimistic_version_conflict",
             "The Sales Order Draft has changed and requires explicit review.",
+        )
+    context = await load_draft_context(session, command, actor)
+    if locked["status"] == "approved":
+        from tradeflow_api.commercial_approval import invalidate_active_approval
+
+        await invalidate_active_approval(
+            session,
+            sales_order_id=sales_order_id,
+            actor_subject=actor.subject,
+            reason="Material Sales Order revision",
+            correlation_id=request.state.correlation_id,
+            idempotency_key=idempotency_key,
         )
     next_version = if_match + 1
     result, revision_id, lines, revision_values = await calculate_draft(
@@ -1487,6 +1498,9 @@ async def update_sales_order_draft(
             .values(
                 branch_id=command.branch_id,
                 customer_id=command.customer_id,
+                status="draft",
+                approved_revision_id=None,
+                fulfillment_warehouse_id=None,
                 version=next_version,
                 updated_by=actor.subject,
                 updated_at=func.now(),
@@ -1601,7 +1615,7 @@ async def load_sales_order_response(
     ]
     return SalesOrderDraftResponse(
         sales_order_id=sales_order_id,
-        status="draft",
+        status=order["status"],
         version=revision["version"],
         branch_id=revision["branch_id"],
         customer_id=revision["customer_id"],

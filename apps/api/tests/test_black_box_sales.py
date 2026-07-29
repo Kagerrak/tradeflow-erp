@@ -19,6 +19,7 @@ def auth(token: str, **headers: str) -> dict[str, str]:
 def test_external_priced_sales_order_draft_contract() -> None:
     base_url = os.environ.get("TRADEFLOW_REAL_STACK_API_URL", "http://127.0.0.1:8000")
     token = os.environ["TRADEFLOW_REAL_STACK_SALES_TOKEN"]
+    commercial_token = os.environ["TRADEFLOW_REAL_STACK_CREDIT_TOKEN"]
     with httpx.Client(base_url=base_url, timeout=10) as client:
         scope = client.get("/v1/organization/scope", headers=auth(token))
         customer_search = client.get("/v1/customers?query=Real", headers=auth(token))
@@ -89,7 +90,7 @@ def test_external_priced_sales_order_draft_contract() -> None:
                     "expected_unit_conversion_version": None,
                     "manual_override_unit_price": None,
                     "price_override_reason": None,
-                    "quantity": "3.000000",
+                    "quantity": "35.000000",
                     "sku_id": sku["sku_id"],
                     "unit_code": "EA",
                 }
@@ -113,14 +114,46 @@ def test_external_priced_sales_order_draft_contract() -> None:
         assert created.status_code == 201, created.text
         assert replay.status_code == 200
         assert replay.json() == created.json()
-        assert created.json()["subtotal"] == "30.00"
+        assert created.json()["subtotal"] == "350.00"
         assert created.json()["discount_total"] == "0.03"
-        assert created.json()["tax_total"] == "3.60"
-        assert created.json()["grand_total"] == "33.57"
+        assert created.json()["tax_total"] == "42.00"
+        assert created.json()["grand_total"] == "391.97"
         assert created.json()["payment_timing_policy"] == "on_account"
+
+        warehouse_id = scope.json()["warehouses"][0]["warehouse_id"]
+        approval_command = {
+            "warehouse_id": warehouse_id,
+            "exception_reason": "Real-stack discount review",
+            "credit_override_reason": None,
+        }
+        approval_key = f"real-commercial-approval-{uuid4()}"
+        approved = client.post(
+            f"/v1/sales/orders/{command['sales_order_id']}/commercial-approval",
+            headers=auth(
+                commercial_token,
+                **{"Idempotency-Key": approval_key, "If-Match": "1"},
+            ),
+            json=approval_command,
+        )
+        approval_replay = client.post(
+            f"/v1/sales/orders/{command['sales_order_id']}/commercial-approval",
+            headers=auth(
+                commercial_token,
+                **{"Idempotency-Key": approval_key, "If-Match": "1"},
+            ),
+            json=approval_command,
+        )
+        assert approved.status_code == 201, approved.text
+        assert approval_replay.status_code == 200
+        assert approval_replay.json() == approved.json()
+        assert approved.json()["reserved_quantity_base"] == "30.000000"
+        assert approved.json()["backorder_quantity_base"] == "5.000000"
+        assert approved.json()["required_exceptions"] == []
 
         availability_after = client.get(
             "/v1/inventory/availability?query=REAL-COLA",
             headers=auth(token),
         )
-        assert availability_after.json() == inventory.json()
+        assert availability_after.status_code == 200
+        assert availability_after.json()["items"][0]["commercial_reserved"] == "30.000000"
+        assert availability_after.json()["items"][0]["warehouse_available"] == "0.000000"

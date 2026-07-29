@@ -16,6 +16,7 @@ export type InventoryDirectoryItem = {
   movingAverageUnitCost: string;
   onHand: string;
   reserved: string;
+  commercialReserved: string;
   serialNumbers: string[];
   skuCode: string;
   skuId: string;
@@ -23,6 +24,8 @@ export type InventoryDirectoryItem = {
   trackingPolicy: "untracked" | "lot" | "serial";
   warehouseCode: string;
   warehouseId: string;
+  warehouseOnHand: string;
+  warehouseAvailable: string;
 };
 
 export type InventoryDirectoryState =
@@ -90,6 +93,7 @@ export async function searchInventoryDirectory({
         movingAverageUnitCost: item.moving_average_unit_cost,
         onHand: item.on_hand,
         reserved: item.reserved,
+        commercialReserved: item.commercial_reserved,
         serialNumbers: item.serial_numbers,
         skuCode: item.sku_code,
         skuId: item.sku_id,
@@ -97,6 +101,8 @@ export async function searchInventoryDirectory({
         trackingPolicy: item.tracking_policy,
         warehouseCode: item.warehouse_code,
         warehouseId: item.warehouse_id,
+        warehouseOnHand: item.warehouse_on_hand,
+        warehouseAvailable: item.warehouse_available,
       })),
       kind: "ready",
       total: data.total,

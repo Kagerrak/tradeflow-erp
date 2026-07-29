@@ -398,6 +398,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sales/orders/{sales_order_id}/commercial-approval": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Sales Order */
+        post: operations["approve_sales_order_v1_sales_orders__sales_order_id__commercial_approval_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sales/orders/{sales_order_id}/commercial-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Review Commercial Approval */
+        get: operations["review_commercial_approval_v1_sales_orders__sales_order_id__commercial_review_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sales/orders/{sales_order_id}/non-material": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change Non Material Order Fields */
+        patch: operations["change_non_material_order_fields_v1_sales_orders__sales_order_id__non_material_patch"];
+        trace?: never;
+    };
     "/v1/sales/price-list-versions": {
         parameters: {
             query?: never;
@@ -409,6 +460,23 @@ export interface paths {
         put?: never;
         /** Create Price List Version */
         post: operations["create_price_list_version_v1_sales_price_list_versions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sales/projections/rebuild": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rebuild Commercial Projections */
+        post: operations["rebuild_commercial_projections_v1_sales_projections_rebuild_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -557,6 +625,8 @@ export interface components {
             base_currency: string;
             /** Base Stocking Unit */
             base_stocking_unit: string;
+            /** Commercial Reserved */
+            commercial_reserved: string;
             /**
              * Custody
              * @enum {string}
@@ -592,6 +662,8 @@ export interface components {
              * @enum {string}
              */
             tracking_policy: "untracked" | "lot" | "serial";
+            /** Warehouse Available */
+            warehouse_available: string;
             /** Warehouse Code */
             warehouse_code: string;
             /**
@@ -601,6 +673,8 @@ export interface components {
             warehouse_id: string;
             /** Warehouse Inventory Value */
             warehouse_inventory_value: string;
+            /** Warehouse On Hand */
+            warehouse_on_hand: string;
         };
         /** AvailabilityResponse */
         AvailabilityResponse: {
@@ -670,6 +744,205 @@ export interface components {
             version: number;
             /** Warehouses */
             warehouses: components["schemas"]["WarehouseResponse"][];
+        };
+        /** CommercialApprovalCommand */
+        CommercialApprovalCommand: {
+            /** Credit Override Reason */
+            credit_override_reason?: string | null;
+            /** Exception Reason */
+            exception_reason?: string | null;
+            /**
+             * Warehouse Id
+             * Format: uuid
+             */
+            warehouse_id: string;
+        };
+        /** CommercialApprovalResponse */
+        CommercialApprovalResponse: {
+            /** Approved By */
+            approved_by: string;
+            /** Backorder Quantity Base */
+            backorder_quantity_base: string;
+            /**
+             * Commercial Approval Id
+             * Format: uuid
+             */
+            commercial_approval_id: string;
+            credit: components["schemas"]["CreditCheckResponse"];
+            /** Maker Subject */
+            maker_subject: string;
+            /**
+             * Payment Timing Policy
+             * @enum {string}
+             */
+            payment_timing_policy: "prepaid" | "cash_on_delivery" | "on_account";
+            /** Required Exceptions */
+            required_exceptions: string[];
+            /** Reservations */
+            reservations: components["schemas"]["ReservationLineResponse"][];
+            /** Reserved Quantity Base */
+            reserved_quantity_base: string;
+            /**
+             * Sales Order Id
+             * Format: uuid
+             */
+            sales_order_id: string;
+            /**
+             * Sales Order Revision Id
+             * Format: uuid
+             */
+            sales_order_revision_id: string;
+            /**
+             * Status
+             * @constant
+             */
+            status: "approved";
+            /**
+             * Warehouse Id
+             * Format: uuid
+             */
+            warehouse_id: string;
+        };
+        /** CommercialReviewExceptionResponse */
+        CommercialReviewExceptionResponse: {
+            /** Amount */
+            amount: string;
+            /**
+             * Exception Type
+             * @enum {string}
+             */
+            exception_type: "discount" | "below_floor" | "credit_override";
+            /** Percentage */
+            percentage: string | null;
+        };
+        /** CommercialReviewLineResponse */
+        CommercialReviewLineResponse: {
+            /** Allocated Discount */
+            allocated_discount: string;
+            /** Backorder Quantity Base */
+            backorder_quantity_base: string;
+            /** Below Floor */
+            below_floor: boolean;
+            /** Calculation Snapshot */
+            calculation_snapshot: {
+                [key: string]: string;
+            };
+            /** Conversion Snapshot */
+            conversion_snapshot: {
+                [key: string]: string;
+            };
+            /** Effective Unit Price */
+            effective_unit_price: string;
+            /** Entered Quantity */
+            entered_quantity: string;
+            /** Entered Unit */
+            entered_unit: string;
+            /** Floor Unit Price */
+            floor_unit_price: string | null;
+            /**
+             * Line Id
+             * Format: uuid
+             */
+            line_id: string;
+            /** List Unit Price */
+            list_unit_price: string;
+            /** Manual Override Unit Price */
+            manual_override_unit_price: string | null;
+            /** Quantity Base */
+            quantity_base: string;
+            /** Reservable Quantity Base */
+            reservable_quantity_base: string;
+            /** Sku Code */
+            sku_code: string;
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Tax Snapshot */
+            tax_snapshot: {
+                [key: string]: string;
+            };
+            /** Warehouse On Hand Base */
+            warehouse_on_hand_base: string;
+            /** Warehouse Reserved Base */
+            warehouse_reserved_base: string;
+        };
+        /** CommercialReviewResponse */
+        CommercialReviewResponse: {
+            /** Approved Uninvoiced */
+            approved_uninvoiced: string;
+            /** Credit Hold */
+            credit_hold: boolean;
+            /** Credit Limit */
+            credit_limit: string | null;
+            /** Currency */
+            currency: string;
+            /** Customer Account Number */
+            customer_account_number: string;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /** Customer Name */
+            customer_name: string;
+            /** Customer Snapshot Current */
+            customer_snapshot_current: boolean;
+            /**
+             * Customer Status
+             * @enum {string}
+             */
+            customer_status: "active" | "inactive" | "prospect";
+            /** Discount Total */
+            discount_total: string;
+            /** Grand Total */
+            grand_total: string;
+            /** Lines */
+            lines: components["schemas"]["CommercialReviewLineResponse"][];
+            /** Maker Subject */
+            maker_subject: string;
+            /** Open Balance */
+            open_balance: string;
+            /** Payment Terms */
+            payment_terms: string;
+            /**
+             * Payment Timing Policy
+             * @enum {string}
+             */
+            payment_timing_policy: "prepaid" | "cash_on_delivery" | "on_account";
+            /** Projected Exposure */
+            projected_exposure: string;
+            /** Required Exceptions */
+            required_exceptions: components["schemas"]["CommercialReviewExceptionResponse"][];
+            /**
+             * Sales Order Id
+             * Format: uuid
+             */
+            sales_order_id: string;
+            /**
+             * Sales Order Revision Id
+             * Format: uuid
+             */
+            sales_order_revision_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "approved" | "held";
+            /** Subtotal */
+            subtotal: string;
+            /** Tax Total */
+            tax_total: string;
+            /** Version */
+            version: number;
+            /**
+             * Warehouse Id
+             * Format: uuid
+             */
+            warehouse_id: string;
         };
         /** CompanyInput */
         CompanyInput: {
@@ -987,6 +1260,23 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** CreditCheckResponse */
+        CreditCheckResponse: {
+            /** Approved Excess */
+            approved_excess: string;
+            /** Approved Uninvoiced Before */
+            approved_uninvoiced_before: string;
+            /** Credit Limit */
+            credit_limit: string | null;
+            /** Open Balance */
+            open_balance: string;
+            /** Order Value */
+            order_value: string;
+            /** Override Required */
+            override_required: boolean;
+            /** Projected Exposure */
+            projected_exposure: string;
+        };
         /** CustomerResponse */
         CustomerResponse: {
             /** Account Number */
@@ -1117,6 +1407,36 @@ export interface components {
              * Format: uuid
              */
             warehouse_id: string;
+        };
+        /** NonMaterialOrderChangeCommand */
+        NonMaterialOrderChangeCommand: {
+            /** Delivery Instructions */
+            delivery_instructions?: string | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /** NonMaterialOrderChangeResponse */
+        NonMaterialOrderChangeResponse: {
+            /** Commercial Approval Id */
+            commercial_approval_id: string | null;
+            /** Commercial Version */
+            commercial_version: number;
+            /** Delivery Instructions */
+            delivery_instructions: string | null;
+            /** Notes */
+            notes: string | null;
+            /**
+             * Sales Order Id
+             * Format: uuid
+             */
+            sales_order_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "approved" | "held";
+            /** Version */
+            version: number;
         };
         /** OpeningStockCommand */
         OpeningStockCommand: {
@@ -1423,13 +1743,6 @@ export interface components {
             /** Version */
             version: number;
         };
-        /** ProjectionRebuildResponse */
-        ProjectionRebuildResponse: {
-            /** Availability Rows */
-            availability_rows: number;
-            /** Valuation Rows */
-            valuation_rows: number;
-        };
         /** ReadyResponse */
         ReadyResponse: {
             /** Database */
@@ -1438,6 +1751,25 @@ export interface components {
             service: string;
             /** Status */
             status: string;
+        };
+        /** ReservationLineResponse */
+        ReservationLineResponse: {
+            /** Backorder Quantity Base */
+            backorder_quantity_base: string;
+            /**
+             * Line Id
+             * Format: uuid
+             */
+            line_id: string;
+            /** Ordered Quantity Base */
+            ordered_quantity_base: string;
+            /** Reserved Quantity Base */
+            reserved_quantity_base: string;
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
         };
         /** RoleTemplateInput */
         RoleTemplateInput: {
@@ -1536,9 +1868,9 @@ export interface components {
             sales_order_id: string;
             /**
              * Status
-             * @constant
+             * @enum {string}
              */
-            status: "draft";
+            status: "draft" | "approved" | "held";
             /** Subtotal */
             subtotal: string;
             /** Tax Total */
@@ -1684,9 +2016,9 @@ export interface components {
             sales_order_id: string;
             /**
              * Status
-             * @constant
+             * @enum {string}
              */
-            status: "draft";
+            status: "draft" | "approved" | "held";
             /** Version */
             version: number;
         };
@@ -1980,6 +2312,22 @@ export interface components {
              * Format: uuid
              */
             warehouse_id: string;
+        };
+        /** ProjectionRebuildResponse */
+        tradeflow_api__catalog_inventory__ProjectionRebuildResponse: {
+            /** Availability Rows */
+            availability_rows: number;
+            /** Valuation Rows */
+            valuation_rows: number;
+        };
+        /** ProjectionRebuildResponse */
+        tradeflow_api__commercial_approval__ProjectionRebuildResponse: {
+            /** Credit Customers */
+            credit_customers: number;
+            /** Line Commitments */
+            line_commitments: number;
+            /** Reservation Items */
+            reservation_items: number;
         };
     };
     responses: never;
@@ -2857,7 +3205,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ProjectionRebuildResponse"];
+                    "application/json": components["schemas"]["tradeflow_api__catalog_inventory__ProjectionRebuildResponse"];
                 };
             };
             /** @description Stable TradeFlow error envelope. */
@@ -3902,6 +4250,250 @@ export interface operations {
             };
         };
     };
+    approve_sales_order_v1_sales_orders__sales_order_id__commercial_approval_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": number;
+                "Idempotency-Key": string;
+            };
+            path: {
+                sales_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommercialApprovalCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommercialApprovalResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    review_commercial_approval_v1_sales_orders__sales_order_id__commercial_review_get: {
+        parameters: {
+            query: {
+                warehouse_id: string;
+            };
+            header?: never;
+            path: {
+                sales_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommercialReviewResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    change_non_material_order_fields_v1_sales_orders__sales_order_id__non_material_patch: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": number;
+                "Idempotency-Key": string;
+            };
+            path: {
+                sales_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NonMaterialOrderChangeCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NonMaterialOrderChangeResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     create_price_list_version_v1_sales_price_list_versions_post: {
         parameters: {
             query?: never;
@@ -3964,6 +4556,53 @@ export interface operations {
             };
             /** @description Stable TradeFlow error envelope. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    rebuild_commercial_projections_v1_sales_projections_rebuild_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["tradeflow_api__commercial_approval__ProjectionRebuildResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

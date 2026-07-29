@@ -28,6 +28,24 @@ For On Account orders, approval serializes the Customer Account's Credit
 Exposure check and requires a Credit Override when the Credit Limit is absent
 or exceeded.
 
+**Commercial Approval Request**: The maker's request to approve one immutable
+Sales Order revision against a selected fulfillment Warehouse. It cannot be
+silently carried to a later revision.
+
+**Commercial Review Evidence**: The read model presented to a checker before
+approval. It combines the exact priced revision and maker, current Customer
+status, terms, hold and Credit Exposure, required exception measurements, and
+Warehouse-specific reservable and Backorder quantities. It is advisory until
+the approval command repeats all controls under serialized database locks.
+
+**Commercial Exception Approval**: Immutable evidence that a different
+eligible User approved a specific below-floor, excess-discount, or credit
+exception within their Approval Authority. It records the measured exception,
+reason, approved revision, and authority limits used.
+
+**Approved Uninvoiced Exposure**: The approved On Account value for an
+uncancelled Sales Order that has not yet been replaced by its posted Invoice.
+
 **Order Hold**: A reversible block preventing reservation or fulfillment.
 
 **Payment Deadline**: The Branch-policy deadline by which a Prepaid Sales
@@ -86,3 +104,7 @@ threshold.
 Warehouse, quantity, price, discount, Tax Code, or Payment Timing Policy that
 requires Commercial Approval and its credit and reservation checks to run
 again.
+
+**Non-material Order Change**: A note or delivery instruction change that does
+not alter pricing, credit, tax, quantity, Warehouse, or payment timing and
+therefore does not invalidate Commercial Approval.

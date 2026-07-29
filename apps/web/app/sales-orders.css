@@ -170,6 +170,203 @@
   padding: 0.8rem 1.25rem;
 }
 
+.sales-approval {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 2rem;
+  padding: 1.5rem;
+  border-bottom: 1px solid #17201b;
+  background: #f1e7cf;
+}
+
+.sales-approval h3,
+.sales-approval-result h3 {
+  margin: 0.35rem 0;
+  font-family: var(--font-newsreader), serif;
+  font-size: 2rem;
+}
+
+.sales-approval-fields {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.sales-approval-fields button {
+  min-height: 46px;
+  border: 1px solid #17201b;
+  background: #e65c2f;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.sales-approval-fields button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.sales-approval-result {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2rem;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #17201b;
+  background: #d9eadb;
+}
+
+.sales-approval-result span,
+.sales-approval-result small,
+.sales-approval-result strong {
+  display: block;
+}
+
+.sales-approval-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 1px solid #17201b;
+}
+
+.sales-approval-list button {
+  display: grid;
+  gap: 0.35rem;
+  min-height: 130px;
+  padding: 1.25rem;
+  border: 0;
+  border-right: 1px solid #17201b;
+  background: #fffef8;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.sales-approval-list strong {
+  font-family: var(--font-newsreader), serif;
+  font-size: 1.6rem;
+}
+
+.sales-approval-result strong {
+  margin: 0.2rem 0;
+  font-size: 1.8rem;
+}
+
+.sales-evidence {
+  border-bottom: 1px solid #17201b;
+  background: #fffef8;
+}
+
+.sales-evidence-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 1.5rem;
+  border-bottom: 1px solid #17201b;
+}
+
+.sales-evidence-heading h3 {
+  margin: 0.35rem 0;
+  font-family: var(--font-newsreader), serif;
+  font-size: 2rem;
+}
+
+.sales-evidence-flags {
+  display: grid;
+  align-content: start;
+  gap: 0.35rem;
+  min-width: 180px;
+  text-align: right;
+}
+
+.sales-evidence-metrics,
+.sales-stock-evidence {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+}
+
+.sales-evidence-metrics {
+  border-bottom: 1px solid #17201b;
+}
+
+.sales-evidence-metrics div,
+.sales-stock-evidence div {
+  padding: 1rem;
+  border-right: 1px solid #17201b;
+}
+
+.sales-evidence dt {
+  color: #5d665f;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sales-evidence dd {
+  margin: 0.25rem 0 0;
+  font-weight: 700;
+}
+
+.sales-exceptions {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #17201b;
+  background: #f1e7cf;
+}
+
+.sales-exceptions h4,
+.sales-exceptions p {
+  margin: 0;
+}
+
+.sales-exceptions ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sales-exceptions li {
+  display: grid;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid #17201b;
+  background: #fffef8;
+}
+
+.sales-evidence-lines article {
+  border-bottom: 1px solid #17201b;
+}
+
+.sales-evidence-lines article:last-child {
+  border-bottom: 0;
+}
+
+.sales-evidence-line-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem 0.75rem;
+}
+
+.sales-evidence-line-title div {
+  display: grid;
+}
+
+.sales-evidence-lines article > dl:not(.sales-stock-evidence) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0 1.5rem 1.25rem;
+}
+
+.sales-stock-evidence {
+  border-top: 1px solid #17201b;
+  background: #e7f0e7;
+}
+
 .sales-message {
   padding: 3rem 1.5rem;
   text-align: center;
@@ -196,8 +393,22 @@
   .sales-title,
   .sales-form-grid,
   .sales-line,
-  .sales-total-strip {
+  .sales-total-strip,
+  .sales-approval,
+  .sales-approval-result,
+  .sales-approval-list,
+  .sales-evidence-metrics,
+  .sales-stock-evidence,
+  .sales-evidence-lines article > dl:not(.sales-stock-evidence) {
     grid-template-columns: 1fr;
+  }
+
+  .sales-evidence-heading {
+    display: grid;
+  }
+
+  .sales-evidence-flags {
+    text-align: left;
   }
 
   .sales-title {
