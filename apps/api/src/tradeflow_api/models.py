@@ -518,7 +518,8 @@ stock_movements = Table(
         nullable=True,
     ),
     CheckConstraint(
-        "movement_type IN ('opening_stock', 'pick', 'pick_reversal', 'dispatch')",
+        "movement_type IN ('opening_stock', 'pick', 'pick_reversal', 'dispatch', "
+        "'delivery_confirmation')",
         name="ck_stock_movements_type",
     ),
     CheckConstraint(
@@ -529,7 +530,9 @@ stock_movements = Table(
         "AND movement_leg IN "
         "('pick_reversal_staging_out', 'pick_reversal_available_in')) "
         "OR (movement_type = 'dispatch' "
-        "AND movement_leg IN ('dispatch_staging_out', 'dispatch_transit_in'))",
+        "AND movement_leg IN ('dispatch_staging_out', 'dispatch_transit_in')) "
+        "OR (movement_type = 'delivery_confirmation' "
+        "AND movement_leg = 'delivery_outbound')",
         name="ck_stock_movements_leg",
     ),
     CheckConstraint("quantity_base > 0", name="ck_stock_movements_quantity_positive"),
@@ -1587,19 +1590,22 @@ fulfillment_order_state = Table(
     Column("covered_amount", Numeric(24, 6), nullable=False, server_default="0"),
     Column("picked_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
     Column("dispatched_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("delivered_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
     Column("payment_hold", Boolean, nullable=False, server_default="false"),
     Column("version", Integer, nullable=False, server_default="1"),
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     CheckConstraint(
         "status IN ('reserved', 'payment_ready', 'pick_released', 'partially_picked', "
-        "'picked', 'partially_dispatched', 'dispatched', 'payment_hold', 'cancelled')",
+        "'picked', 'partially_dispatched', 'dispatched', 'delivered', "
+        "'payment_hold', 'cancelled')",
         name="ck_fulfillment_order_state_status",
     ),
     CheckConstraint(
         "reserved_quantity_base >= 0 AND backorder_quantity_base >= 0 "
         "AND covered_amount >= 0 AND picked_quantity_base >= 0 "
-        "AND dispatched_quantity_base >= 0 "
-        "AND dispatched_quantity_base <= picked_quantity_base",
+        "AND dispatched_quantity_base >= 0 AND delivered_quantity_base >= 0 "
+        "AND dispatched_quantity_base <= picked_quantity_base "
+        "AND delivered_quantity_base <= dispatched_quantity_base",
         name="ck_fulfillment_order_state_amounts",
     ),
     CheckConstraint("version > 0", name="ck_fulfillment_order_state_version"),
@@ -2205,7 +2211,7 @@ delivery_state = Table(
     Column("assigned_to", String(200), ForeignKey("users.subject"), nullable=False),
     Column("version", Integer, nullable=False, server_default="1"),
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
-    CheckConstraint("status IN ('dispatched')", name="ck_delivery_state_status"),
+    CheckConstraint("status IN ('dispatched', 'confirmed')", name="ck_delivery_state_status"),
     CheckConstraint("version > 0", name="ck_delivery_state_version"),
 )
 
@@ -2276,4 +2282,258 @@ delivery_lines = Table(
     ),
     CheckConstraint("quantity_base > 0", name="ck_delivery_lines_quantity"),
     UniqueConstraint("delivery_id", "pick_line_id", name="uq_delivery_line_pick"),
+)
+
+delivery_evidence = Table(
+    "delivery_evidence",
+    metadata,
+    Column("evidence_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "delivery_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_dispatches.delivery_id"),
+        nullable=False,
+    ),
+    Column("kind", String(30), nullable=False),
+    Column("object_key", String(500), nullable=False, unique=True),
+    Column("content_type", String(100), nullable=False),
+    Column("size_bytes", Integer, nullable=False),
+    Column("sha256", String(64), nullable=False),
+    Column("captured_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("device_captured_at", DateTime(timezone=True), nullable=False),
+    Column("status", String(30), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("verified_at", DateTime(timezone=True), nullable=True),
+    CheckConstraint("kind IN ('signature', 'photo')", name="ck_delivery_evidence_kind"),
+    CheckConstraint(
+        "status IN ('uploading', 'verified', 'rejected')", name="ck_delivery_evidence_status"
+    ),
+    UniqueConstraint("delivery_id", "evidence_id", name="uq_delivery_evidence_delivery"),
+)
+
+delivery_confirmations = Table(
+    "delivery_confirmations",
+    metadata,
+    Column("confirmation_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "delivery_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_dispatches.delivery_id"),
+        nullable=False,
+        unique=True,
+    ),
+    Column("recipient_name", String(300), nullable=False),
+    Column("device_captured_at", DateTime(timezone=True), nullable=False),
+    Column("notes", String(2000), nullable=True),
+    Column("confirmed_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("delivery_version", Integer, nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False),
+    Column("confirmed_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint("confirmed_by", "idempotency_key", name="uq_delivery_confirmation_actor_key"),
+)
+
+delivery_confirmation_lines = Table(
+    "delivery_confirmation_lines",
+    metadata,
+    Column("confirmation_line_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "confirmation_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_confirmations.confirmation_id"),
+        nullable=False,
+    ),
+    Column(
+        "delivery_line_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_lines.delivery_line_id"),
+        nullable=False,
+        unique=True,
+    ),
+    Column("line_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("sku_id", PostgresUUID(as_uuid=True), ForeignKey("skus.sku_id"), nullable=False),
+    Column("accepted_quantity_base", Numeric(18, 6), nullable=False),
+    Column("unit_cost", Numeric(18, 6), nullable=False),
+    Column("value_delta", Numeric(24, 6), nullable=False),
+    Column(
+        "outbound_movement_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("stock_movements.movement_id"),
+        nullable=False,
+        unique=True,
+    ),
+    UniqueConstraint(
+        "confirmation_id",
+        "delivery_line_id",
+        name="uq_delivery_confirmation_delivery_line",
+    ),
+)
+
+delivery_confirmation_evidence = Table(
+    "delivery_confirmation_evidence",
+    metadata,
+    Column(
+        "confirmation_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_confirmations.confirmation_id"),
+        primary_key=True,
+    ),
+    Column(
+        "evidence_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_evidence.evidence_id"),
+        primary_key=True,
+    ),
+)
+
+document_series = Table(
+    "document_series",
+    metadata,
+    Column("document_series_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "branch_id", PostgresUUID(as_uuid=True), ForeignKey("branches.branch_id"), nullable=False
+    ),
+    Column("document_type", String(40), nullable=False),
+    Column("prefix", String(30), nullable=False),
+    Column("next_number", Integer, nullable=False, server_default="1"),
+    UniqueConstraint("branch_id", "document_type", name="uq_document_series_branch_type"),
+)
+
+delivery_receipts = Table(
+    "delivery_receipts",
+    metadata,
+    Column("delivery_receipt_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "confirmation_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_confirmations.confirmation_id"),
+        nullable=False,
+        unique=True,
+    ),
+    Column(
+        "document_series_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("document_series.document_series_id"),
+        nullable=False,
+    ),
+    Column(
+        "branch_id", PostgresUUID(as_uuid=True), ForeignKey("branches.branch_id"), nullable=False
+    ),
+    Column("series_number", Integer, nullable=False),
+    Column("number", String(80), nullable=False, unique=True),
+    Column("snapshot", JSONB, nullable=False),
+    Column("document_status", String(30), nullable=False, server_default="pending_document"),
+    Column("document_object_key", String(500), nullable=True),
+    Column("issued_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint(
+        "document_series_id", "series_number", name="uq_delivery_receipt_series_number"
+    ),
+)
+
+outbox_events = Table(
+    "outbox_events",
+    metadata,
+    Column("outbox_event_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column("aggregate_type", String(50), nullable=False),
+    Column("aggregate_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("event_type", String(100), nullable=False),
+    Column("payload", JSONB, nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("occurred_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint(
+        "aggregate_type", "aggregate_id", "event_type", name="uq_outbox_aggregate_event"
+    ),
+)
+
+outbox_processing_state = Table(
+    "outbox_processing_state",
+    metadata,
+    Column(
+        "outbox_event_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("outbox_events.outbox_event_id"),
+        primary_key=True,
+    ),
+    Column("status", String(30), nullable=False, server_default="pending"),
+    Column("attempts", Integer, nullable=False, server_default="0"),
+    Column("available_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("last_error", String(2000), nullable=True),
+    Column("processed_at", DateTime(timezone=True), nullable=True),
+)
+
+outbox_handler_receipts = Table(
+    "outbox_handler_receipts",
+    metadata,
+    Column("outbox_handler_receipt_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "outbox_event_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("outbox_events.outbox_event_id"),
+        nullable=False,
+    ),
+    Column("handler_name", String(100), nullable=False),
+    Column("result_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("processed_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint("outbox_event_id", "handler_name", name="uq_outbox_handler_receipt"),
+)
+
+draft_invoices = Table(
+    "draft_invoices",
+    metadata,
+    Column("draft_invoice_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "delivery_confirmation_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_confirmations.confirmation_id"),
+        nullable=False,
+        unique=True,
+    ),
+    Column(
+        "source_event_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("outbox_events.outbox_event_id"),
+        nullable=False,
+        unique=True,
+    ),
+    Column("status", String(20), nullable=False),
+    Column("sales_order_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("sales_order_revision_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column(
+        "customer_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("customer_accounts.customer_id"),
+        nullable=False,
+    ),
+    Column(
+        "branch_id", PostgresUUID(as_uuid=True), ForeignKey("branches.branch_id"), nullable=False
+    ),
+    Column("currency", String(3), nullable=False),
+    Column("subtotal", Numeric(24, 6), nullable=False),
+    Column("discount_total", Numeric(24, 6), nullable=False),
+    Column("tax_total", Numeric(24, 6), nullable=False),
+    Column("grand_total", Numeric(24, 6), nullable=False),
+    Column("source_snapshot", JSONB, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+)
+
+draft_invoice_lines = Table(
+    "draft_invoice_lines",
+    metadata,
+    Column("draft_invoice_line_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "draft_invoice_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("draft_invoices.draft_invoice_id"),
+        nullable=False,
+    ),
+    Column("line_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("sku_id", PostgresUUID(as_uuid=True), ForeignKey("skus.sku_id"), nullable=False),
+    Column("accepted_quantity_base", Numeric(18, 6), nullable=False),
+    Column("unit_price", Numeric(18, 6), nullable=False),
+    Column("subtotal", Numeric(24, 6), nullable=False),
+    Column("discount_amount", Numeric(24, 6), nullable=False),
+    Column("tax_amount", Numeric(24, 6), nullable=False),
+    Column("line_total", Numeric(24, 6), nullable=False),
+    Column("calculation_snapshot", JSONB, nullable=False),
+    UniqueConstraint("draft_invoice_id", "line_id", name="uq_draft_invoice_line"),
 )

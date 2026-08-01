@@ -173,7 +173,10 @@ async def bootstrap_payment_clearance(
                 {
                     "code": "DELIVERY_STAFF",
                     "name": "Delivery Staff",
-                    "capabilities": ["fulfillment:delivery-read"],
+                    "capabilities": [
+                        "fulfillment:delivery-read",
+                        "fulfillment:delivery-confirm",
+                    ],
                 },
                 {
                     "code": "OPS_ADMIN",

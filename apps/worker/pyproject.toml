@@ -9,6 +9,7 @@ dependencies = [
   "pydantic-settings>=2.10.1",
   "redis[hiredis]>=5.2.1,<6",
   "structlog>=25.4.0",
+  "tradeflow-api",
 ]
 
 [build-system]
@@ -17,3 +18,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/tradeflow_worker"]
+
+[tool.uv.sources]
+tradeflow-api = { workspace = true }

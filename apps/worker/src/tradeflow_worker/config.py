@@ -15,6 +15,7 @@ class WorkerSettings(BaseSettings):
 
     environment: Literal["development", "testing", "preview", "production"] = "development"
     redis_url: str = "redis://localhost:6380/0"
+    database_url: str = "postgresql+asyncpg://tradeflow:tradeflow@localhost:5433/tradeflow"
     telemetry_enabled: bool = True
 
 

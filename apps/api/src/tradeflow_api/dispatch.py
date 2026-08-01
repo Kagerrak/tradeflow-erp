@@ -97,7 +97,7 @@ class AssignedDeliveryLineResponse(BaseModel):
 class AssignedDeliveryResponse(BaseModel):
     delivery_id: UUID
     fulfillment_order_id: UUID
-    status: Literal["dispatched"]
+    status: Literal["dispatched", "confirmed"]
     version: int
     assigned_to: str
     recipient_name: str

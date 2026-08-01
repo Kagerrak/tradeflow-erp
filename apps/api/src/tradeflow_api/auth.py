@@ -392,6 +392,12 @@ async def require_delivery_reader(
     return require_capability(user, "fulfillment:delivery-read")
 
 
+async def require_delivery_confirmer(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "fulfillment:delivery-confirm")
+
+
 async def require_reservation_retrier(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:

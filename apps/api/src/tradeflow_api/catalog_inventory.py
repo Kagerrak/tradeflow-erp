@@ -29,6 +29,7 @@ from tradeflow_api.errors import AppError, error_responses
 from tradeflow_api.models import (
     barcode_mappings,
     companies,
+    delivery_confirmation_lines,
     delivery_lines,
     inventory_availability,
     inventory_reserved_by_sku_warehouse,
@@ -1159,6 +1160,37 @@ async def rebuild_projections(
                         await session.execute(
                             select(pick_lines).where(
                                 pick_lines.c.pick_line_id == delivery_line["pick_line_id"]
+                            )
+                        )
+                    )
+                    .mappings()
+                    .one()
+                )
+        if movement_line is None:
+            confirmed_delivery_line = (
+                (
+                    await session.execute(
+                        select(delivery_lines.c.pick_line_id)
+                        .join(
+                            delivery_confirmation_lines,
+                            delivery_confirmation_lines.c.delivery_line_id
+                            == delivery_lines.c.delivery_line_id,
+                        )
+                        .where(
+                            delivery_confirmation_lines.c.outbound_movement_id
+                            == movement["movement_id"]
+                        )
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if confirmed_delivery_line is not None:
+                movement_line = (
+                    (
+                        await session.execute(
+                            select(pick_lines).where(
+                                pick_lines.c.pick_line_id == confirmed_delivery_line["pick_line_id"]
                             )
                         )
                     )

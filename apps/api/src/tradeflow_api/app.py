@@ -26,8 +26,10 @@ from tradeflow_api.database import (
     create_session_factory,
     migration_heads,
 )
+from tradeflow_api.delivery_confirmation import router as delivery_confirmation_router
 from tradeflow_api.dispatch import router as dispatch_router
 from tradeflow_api.errors import AppError, error_response, error_responses
+from tradeflow_api.object_storage import S3ObjectStorage
 from tradeflow_api.observability import (
     CorrelationMiddleware,
     configure_observability,
@@ -87,10 +89,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.token_verifier = verifier
     app.state.session_factory = create_session_factory(engine)
+    app.state.object_storage = S3ObjectStorage(resolved_settings)
     app.add_middleware(CorrelationMiddleware)
     app.include_router(catalog_inventory_router)
     app.include_router(commercial_approval_router)
     app.include_router(dispatch_router)
+    app.include_router(delivery_confirmation_router)
     app.include_router(payment_fulfillment_router)
     if resolved_settings.picking_enabled:
         app.include_router(picking_router)

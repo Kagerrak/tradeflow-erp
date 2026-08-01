@@ -26,7 +26,7 @@ export type AssignedDelivery = {
   lines: DeliveryLine[];
   paymentTimingPolicy: "cash_on_delivery" | "on_account" | "prepaid";
   recipientName: string;
-  status: "dispatched";
+  status: "confirmed" | "dispatched";
   version: number;
 };
 
