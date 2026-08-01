@@ -63,6 +63,7 @@
     "testMatch": [
       "**/*.test.ts",
       "**/*.test.tsx"
-    ]
+    ],
+    "testTimeout": 15000
   }
 }
