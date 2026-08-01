@@ -157,6 +157,7 @@ async def bootstrap_payment_clearance(
                     "code": "WAREHOUSE_SUPERVISOR",
                     "name": "Warehouse Supervisor",
                     "capabilities": [
+                        "fulfillment:dispatch",
                         "fulfillment:pick",
                         "fulfillment:pick-read",
                         "fulfillment:pick-reverse",
@@ -168,6 +169,16 @@ async def bootstrap_payment_clearance(
                         "inventory:rebuild",
                         "inventory:reservation-retry",
                     ],
+                },
+                {
+                    "code": "DELIVERY_STAFF",
+                    "name": "Delivery Staff",
+                    "capabilities": ["fulfillment:delivery-read"],
+                },
+                {
+                    "code": "OPS_ADMIN",
+                    "name": "Operations Administrator",
+                    "capabilities": ["organization:admin"],
                 },
                 {
                     "code": "DEADLINE",
@@ -233,6 +244,28 @@ async def bootstrap_payment_clearance(
                     "role_template_codes": ["WAREHOUSE_PICKER"],
                     "branch_codes": ["MNL"],
                     "warehouse_codes": ["MNL-01"],
+                },
+                {
+                    "subject": "delivery-mnl",
+                    "display_name": "Manila Delivery Staff",
+                    "role_template_codes": ["DELIVERY_STAFF"],
+                    "branch_codes": ["MNL"],
+                    "warehouse_codes": [],
+                },
+                {
+                    "subject": "delivery-backup-mnl",
+                    "display_name": "Backup Manila Delivery Staff",
+                    "role_template_codes": ["DELIVERY_STAFF"],
+                    "branch_codes": ["MNL"],
+                    "warehouse_codes": [],
+                },
+                {
+                    "subject": "ops-admin",
+                    "display_name": "Scoped Operations Administrator",
+                    "is_operations_administrator": True,
+                    "role_template_codes": ["OPS_ADMIN"],
+                    "branch_codes": ["MNL", "CEB"],
+                    "warehouse_codes": ["MNL-01", "CEB-01"],
                 },
                 {
                     "subject": "warehouse-cross-scope",

@@ -218,6 +218,7 @@ describe("Warehouse Picking client", () => {
               {
                 actor_subject: "warehouse-clerk",
                 correlation_id: "pick-post",
+                dispatched: false,
                 event_type: "posted",
                 lines: [],
                 pick_id: pickId,

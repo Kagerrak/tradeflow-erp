@@ -7,7 +7,7 @@ export type InventoryDirectoryItem = {
   available: string;
   baseCurrency: string;
   baseStockingUnit: string;
-  custody: "available" | "quarantine" | "dispatch_staging";
+  custody: "available" | "quarantine" | "dispatch_staging" | "in_transit";
   expirationControl: boolean;
   expirationDate: string | null;
   warehouseInventoryValue: string;

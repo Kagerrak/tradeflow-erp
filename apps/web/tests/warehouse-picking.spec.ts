@@ -342,6 +342,7 @@ test("shows completed custody and posts a linked reasoned reversal", async ({
           {
             actorSubject: "warehouse-clerk",
             correlationId: "pick-post",
+            dispatched: false,
             eventType: "posted",
             lines: [],
             pickId,

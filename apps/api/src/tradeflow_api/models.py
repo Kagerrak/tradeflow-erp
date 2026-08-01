@@ -474,7 +474,7 @@ warehouse_stock_locations = Table(
     Column("version", Integer, nullable=False, server_default="1"),
     Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
     CheckConstraint(
-        "custody IN ('available', 'quarantine', 'dispatch_staging')",
+        "custody IN ('available', 'quarantine', 'dispatch_staging', 'in_transit')",
         name="ck_warehouse_stock_locations_custody",
     ),
     UniqueConstraint("warehouse_id", "code", name="uq_warehouse_stock_location_code"),
@@ -518,7 +518,7 @@ stock_movements = Table(
         nullable=True,
     ),
     CheckConstraint(
-        "movement_type IN ('opening_stock', 'pick', 'pick_reversal')",
+        "movement_type IN ('opening_stock', 'pick', 'pick_reversal', 'dispatch')",
         name="ck_stock_movements_type",
     ),
     CheckConstraint(
@@ -527,7 +527,9 @@ stock_movements = Table(
         "AND movement_leg IN ('pick_available_out', 'pick_staging_in')) "
         "OR (movement_type = 'pick_reversal' "
         "AND movement_leg IN "
-        "('pick_reversal_staging_out', 'pick_reversal_available_in'))",
+        "('pick_reversal_staging_out', 'pick_reversal_available_in')) "
+        "OR (movement_type = 'dispatch' "
+        "AND movement_leg IN ('dispatch_staging_out', 'dispatch_transit_in'))",
         name="ck_stock_movements_leg",
     ),
     CheckConstraint("quantity_base > 0", name="ck_stock_movements_quantity_positive"),
@@ -1584,17 +1586,20 @@ fulfillment_order_state = Table(
     Column("backorder_quantity_base", Numeric(18, 6), nullable=False),
     Column("covered_amount", Numeric(24, 6), nullable=False, server_default="0"),
     Column("picked_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("dispatched_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
     Column("payment_hold", Boolean, nullable=False, server_default="false"),
     Column("version", Integer, nullable=False, server_default="1"),
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     CheckConstraint(
         "status IN ('reserved', 'payment_ready', 'pick_released', 'partially_picked', "
-        "'picked', 'payment_hold', 'cancelled')",
+        "'picked', 'partially_dispatched', 'dispatched', 'payment_hold', 'cancelled')",
         name="ck_fulfillment_order_state_status",
     ),
     CheckConstraint(
         "reserved_quantity_base >= 0 AND backorder_quantity_base >= 0 "
-        "AND covered_amount >= 0 AND picked_quantity_base >= 0",
+        "AND covered_amount >= 0 AND picked_quantity_base >= 0 "
+        "AND dispatched_quantity_base >= 0 "
+        "AND dispatched_quantity_base <= picked_quantity_base",
         name="ck_fulfillment_order_state_amounts",
     ),
     CheckConstraint("version > 0", name="ck_fulfillment_order_state_version"),
@@ -2132,4 +2137,143 @@ fulfillment_line_pick_state = Table(
         "version > 0",
         name="ck_fulfillment_line_pick_state_version",
     ),
+)
+
+delivery_dispatches = Table(
+    "delivery_dispatches",
+    metadata,
+    Column("delivery_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "fulfillment_order_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("fulfillment_orders.fulfillment_order_id"),
+        nullable=False,
+    ),
+    Column("sales_order_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("sales_order_revision_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column(
+        "customer_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("customer_accounts.customer_id"),
+        nullable=False,
+    ),
+    Column(
+        "branch_id", PostgresUUID(as_uuid=True), ForeignKey("branches.branch_id"), nullable=False
+    ),
+    Column(
+        "warehouse_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouses.warehouse_id"),
+        nullable=False,
+    ),
+    Column(
+        "delivery_address_version_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("customer_address_versions.address_version_id"),
+        nullable=False,
+    ),
+    Column("delivery_address_snapshot", JSONB, nullable=False),
+    Column("recipient_name_snapshot", String(300), nullable=False),
+    Column("payment_timing_policy", String(30), nullable=False),
+    Column("evidence_requirements", JSONB, nullable=False),
+    Column("initial_assignee_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("dispatched_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False),
+    Column("dispatched_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "payment_timing_policy IN ('prepaid', 'cash_on_delivery', 'on_account')",
+        name="ck_delivery_dispatches_payment_timing",
+    ),
+    UniqueConstraint(
+        "dispatched_by",
+        "idempotency_key",
+        name="uq_delivery_dispatch_actor_idempotency",
+    ),
+)
+
+delivery_state = Table(
+    "delivery_state",
+    metadata,
+    Column(
+        "delivery_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_dispatches.delivery_id"),
+        primary_key=True,
+    ),
+    Column("status", String(30), nullable=False),
+    Column("assigned_to", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("version", Integer, nullable=False, server_default="1"),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("status IN ('dispatched')", name="ck_delivery_state_status"),
+    CheckConstraint("version > 0", name="ck_delivery_state_version"),
+)
+
+delivery_assignment_events = Table(
+    "delivery_assignment_events",
+    metadata,
+    Column("delivery_assignment_event_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "delivery_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_dispatches.delivery_id"),
+        nullable=False,
+    ),
+    Column("previous_assignee_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("assigned_to", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("delivery_version", Integer, nullable=False),
+    Column("reason", String(500), nullable=False),
+    Column("assigned_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "previous_assignee_subject <> assigned_to",
+        name="ck_delivery_assignment_events_change",
+    ),
+    CheckConstraint("delivery_version > 1", name="ck_delivery_assignment_events_version"),
+    UniqueConstraint(
+        "assigned_by",
+        "idempotency_key",
+        name="uq_delivery_assignment_actor_idempotency",
+    ),
+)
+
+delivery_lines = Table(
+    "delivery_lines",
+    metadata,
+    Column("delivery_line_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "delivery_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_dispatches.delivery_id"),
+        nullable=False,
+    ),
+    Column(
+        "pick_line_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("pick_lines.pick_line_id"),
+        nullable=False,
+        unique=True,
+    ),
+    Column("line_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("sku_id", PostgresUUID(as_uuid=True), ForeignKey("skus.sku_id"), nullable=False),
+    Column("quantity_base", Numeric(18, 6), nullable=False),
+    Column("movement_group_id", PostgresUUID(as_uuid=True), nullable=False, unique=True),
+    Column(
+        "staging_movement_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("stock_movements.movement_id"),
+        nullable=False,
+        unique=True,
+    ),
+    Column(
+        "transit_movement_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("stock_movements.movement_id"),
+        nullable=False,
+        unique=True,
+    ),
+    CheckConstraint("quantity_base > 0", name="ck_delivery_lines_quantity"),
+    UniqueConstraint("delivery_id", "pick_line_id", name="uq_delivery_line_pick"),
 )

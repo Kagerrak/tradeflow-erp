@@ -29,6 +29,7 @@ from tradeflow_api.errors import AppError, error_responses
 from tradeflow_api.models import (
     barcode_mappings,
     companies,
+    delivery_lines,
     inventory_availability,
     inventory_reserved_by_sku_warehouse,
     inventory_valuation,
@@ -170,7 +171,7 @@ class LocationResponse(BaseModel):
     warehouse_id: UUID
     code: str
     name: str
-    custody: Literal["available", "quarantine", "dispatch_staging"]
+    custody: Literal["available", "quarantine", "dispatch_staging", "in_transit"]
     version: int
 
 
@@ -210,7 +211,7 @@ class AvailabilityItem(BaseModel):
     warehouse_id: UUID
     warehouse_code: str
     location_code: str
-    custody: Literal["available", "quarantine", "dispatch_staging"]
+    custody: Literal["available", "quarantine", "dispatch_staging", "in_transit"]
     base_stocking_unit: str
     tracking_policy: Literal["untracked", "lot", "serial"]
     expiration_control: bool
@@ -1137,6 +1138,33 @@ async def rebuild_projections(
             .mappings()
             .one_or_none()
         )
+        if movement_line is None:
+            delivery_line = (
+                (
+                    await session.execute(
+                        select(delivery_lines.c.pick_line_id).where(
+                            or_(
+                                delivery_lines.c.staging_movement_id == movement["movement_id"],
+                                delivery_lines.c.transit_movement_id == movement["movement_id"],
+                            )
+                        )
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if delivery_line is not None:
+                movement_line = (
+                    (
+                        await session.execute(
+                            select(pick_lines).where(
+                                pick_lines.c.pick_line_id == delivery_line["pick_line_id"]
+                            )
+                        )
+                    )
+                    .mappings()
+                    .one()
+                )
         assignments = (
             (
                 await session.execute(
@@ -1232,11 +1260,15 @@ async def rebuild_projections(
             "opening_in",
             "pick_staging_in",
             "pick_reversal_available_in",
+            "dispatch_transit_in",
         }
         signed_quantity = movement["quantity_base"] if incoming else -movement["quantity_base"]
         if serials and movement["movement_leg"] != "opening_in":
             serial_numbers = sorted(serial["serial_number"] for serial in serials)
-            if incoming and movement["movement_leg"] == "pick_staging_in":
+            if incoming and movement["movement_leg"] in {
+                "pick_staging_in",
+                "dispatch_transit_in",
+            }:
                 for serial in serials:
                     await session.execute(
                         pg_insert(inventory_availability).values(

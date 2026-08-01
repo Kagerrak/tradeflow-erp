@@ -141,6 +141,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/deliveries/assigned": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Assigned Deliveries */
+        get: operations["list_assigned_deliveries_v1_deliveries_assigned_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/deliveries/{delivery_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Assigned Delivery */
+        get: operations["get_assigned_delivery_v1_deliveries__delivery_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/deliveries/{delivery_id}/assignment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Assign Delivery */
+        post: operations["assign_delivery_v1_deliveries__delivery_id__assignment_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/finance/payment-receipts": {
         parameters: {
             query?: never;
@@ -255,6 +306,23 @@ export interface paths {
         get: operations["list_fulfillment_orders_v1_fulfillment_orders_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/fulfillment/orders/{fulfillment_order_id}/dispatch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dispatch Fulfillment */
+        post: operations["dispatch_fulfillment_v1_fulfillment_orders__fulfillment_order_id__dispatch_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -857,6 +925,84 @@ export interface components {
             /** Maximum Percentage */
             maximum_percentage?: string | null;
         };
+        /** AssignDeliveryCommand */
+        AssignDeliveryCommand: {
+            /** Assigned To */
+            assigned_to: string;
+            /** Expected Delivery Version */
+            expected_delivery_version: number;
+            /** Reason */
+            reason: string;
+        };
+        /** AssignedDeliveryLineResponse */
+        AssignedDeliveryLineResponse: {
+            /**
+             * Line Id
+             * Format: uuid
+             */
+            line_id: string;
+            /** Lot Selections */
+            lot_selections: components["schemas"]["LotSelectionResponse"][];
+            /** Quantity Base */
+            quantity_base: string;
+            /** Serial Numbers */
+            serial_numbers: string[];
+            /** Sku Code */
+            sku_code: string;
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+            /** Sku Name */
+            sku_name: string;
+        };
+        /** AssignedDeliveryListResponse */
+        AssignedDeliveryListResponse: {
+            /** Items */
+            items: components["schemas"]["AssignedDeliveryResponse"][];
+            /** Total */
+            total: number;
+        };
+        /** AssignedDeliveryResponse */
+        AssignedDeliveryResponse: {
+            /** Assigned To */
+            assigned_to: string;
+            /** Collection Required */
+            collection_required: boolean;
+            /** Delivery Address */
+            delivery_address: {
+                [key: string]: unknown;
+            };
+            /**
+             * Delivery Id
+             * Format: uuid
+             */
+            delivery_id: string;
+            /** Evidence Requirements */
+            evidence_requirements: string[];
+            /**
+             * Fulfillment Order Id
+             * Format: uuid
+             */
+            fulfillment_order_id: string;
+            /** Lines */
+            lines: components["schemas"]["AssignedDeliveryLineResponse"][];
+            /**
+             * Payment Timing Policy
+             * @enum {string}
+             */
+            payment_timing_policy: "prepaid" | "cash_on_delivery" | "on_account";
+            /** Recipient Name */
+            recipient_name: string;
+            /**
+             * Status
+             * @constant
+             */
+            status: "dispatched";
+            /** Version */
+            version: number;
+        };
         /** AvailabilityItem */
         AvailabilityItem: {
             /** Available */
@@ -871,7 +1017,7 @@ export interface components {
              * Custody
              * @enum {string}
              */
-            custody: "available" | "quarantine" | "dispatch_staging";
+            custody: "available" | "quarantine" | "dispatch_staging" | "in_transit";
             /** Expiration Control */
             expiration_control: boolean;
             /** Expiration Date */
@@ -1689,6 +1835,89 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** DeliveryAssignmentResponse */
+        DeliveryAssignmentResponse: {
+            /** Assigned To */
+            assigned_to: string;
+            /**
+             * Delivery Id
+             * Format: uuid
+             */
+            delivery_id: string;
+            /**
+             * Status
+             * @constant
+             */
+            status: "dispatched";
+            /** Version */
+            version: number;
+        };
+        /** DispatchCommand */
+        DispatchCommand: {
+            /** Assigned To */
+            assigned_to: string;
+            /**
+             * Delivery Id
+             * Format: uuid
+             */
+            delivery_id: string;
+            /** Expected Fulfillment Version */
+            expected_fulfillment_version: number;
+            /** Pick Ids */
+            pick_ids: string[];
+        };
+        /** DispatchLineResponse */
+        DispatchLineResponse: {
+            /**
+             * Line Id
+             * Format: uuid
+             */
+            line_id: string;
+            /** Lot Selections */
+            lot_selections: components["schemas"]["LotSelectionResponse"][];
+            /** Quantity Base */
+            quantity_base: string;
+            /** Serial Numbers */
+            serial_numbers: string[];
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+            /** Staging Movement Ids */
+            staging_movement_ids: string[];
+            /** Transit Movement Ids */
+            transit_movement_ids: string[];
+        };
+        /** DispatchResponse */
+        DispatchResponse: {
+            /** Assigned To */
+            assigned_to: string;
+            /**
+             * Delivery Id
+             * Format: uuid
+             */
+            delivery_id: string;
+            /**
+             * Fulfillment Order Id
+             * Format: uuid
+             */
+            fulfillment_order_id: string;
+            /** Lines */
+            lines: components["schemas"]["DispatchLineResponse"][];
+            /**
+             * Payment Timing Policy
+             * @enum {string}
+             */
+            payment_timing_policy: "prepaid" | "cash_on_delivery" | "on_account";
+            /**
+             * Status
+             * @constant
+             */
+            status: "dispatched";
+            /** Version */
+            version: number;
+        };
         /** ErrorDetail */
         ErrorDetail: {
             /** Code */
@@ -1795,7 +2024,7 @@ export interface components {
              * Custody
              * @enum {string}
              */
-            custody: "available" | "quarantine" | "dispatch_staging";
+            custody: "available" | "quarantine" | "dispatch_staging" | "in_transit";
             /**
              * Location Id
              * Format: uuid
@@ -1810,6 +2039,15 @@ export interface components {
              * Format: uuid
              */
             warehouse_id: string;
+        };
+        /** LotSelectionResponse */
+        LotSelectionResponse: {
+            /** Expiration Date */
+            expiration_date: string;
+            /** Lot Code */
+            lot_code: string;
+            /** Quantity Base */
+            quantity_base: string;
         };
         /** NonMaterialOrderChangeCommand */
         NonMaterialOrderChangeCommand: {
@@ -2188,6 +2426,8 @@ export interface components {
             actor_subject: string;
             /** Correlation Id */
             correlation_id: string;
+            /** Dispatched */
+            dispatched: boolean;
             /**
              * Event Type
              * @enum {string}
@@ -3887,6 +4127,211 @@ export interface operations {
             };
         };
     };
+    list_assigned_deliveries_v1_deliveries_assigned_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignedDeliveryListResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_assigned_delivery_v1_deliveries__delivery_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                delivery_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignedDeliveryResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    assign_delivery_v1_deliveries__delivery_id__assignment_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                delivery_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignDeliveryCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryAssignmentResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     list_payment_receipts_v1_finance_payment_receipts_get: {
         parameters: {
             query?: {
@@ -4520,6 +4965,97 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    dispatch_fulfillment_v1_fulfillment_orders__fulfillment_order_id__dispatch_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                fulfillment_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DispatchCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DispatchResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
             /** @description Stable TradeFlow error envelope. */

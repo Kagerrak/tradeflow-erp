@@ -116,8 +116,10 @@ export type FulfillmentPickingStatus =
   | "payment_hold"
   | "payment_ready"
   | "partially_picked"
+  | "partially_dispatched"
   | "pick_released"
   | "picked"
+  | "dispatched"
   | "reserved";
 
 export type FefoCandidate = {
@@ -213,6 +215,7 @@ export type PickReversal = {
 export type PickHistoryItem = {
   actorSubject: string;
   correlationId: string;
+  dispatched: boolean;
   eventType: "posted" | "reversed";
   lines: PickLine[];
   pickId: string;
@@ -435,6 +438,7 @@ function mapHistoryItem(value: PickHistoryItemWire): PickHistoryItem {
   return {
     actorSubject: value.actor_subject,
     correlationId: value.correlation_id,
+    dispatched: value.dispatched,
     eventType: value.event_type,
     lines: value.lines.map(mapPickLine),
     pickId: value.pick_id,

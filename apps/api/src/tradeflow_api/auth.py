@@ -380,6 +380,18 @@ async def require_pick_reverser(
     return require_capability(user, "fulfillment:pick-reverse")
 
 
+async def require_dispatcher(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "fulfillment:dispatch")
+
+
+async def require_delivery_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "fulfillment:delivery-read")
+
+
 async def require_reservation_retrier(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:

@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Header, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import func, insert, or_, select, text, update
+from sqlalchemy import exists, func, insert, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,6 +27,7 @@ from tradeflow_api.errors import AppError, error_responses
 from tradeflow_api.models import (
     barcode_mappings,
     companies,
+    delivery_lines,
     fulfillment_line_pick_state,
     fulfillment_order_lines,
     fulfillment_order_state,
@@ -192,6 +193,7 @@ class PickHistoryItemResponse(BaseModel):
     correlation_id: str
     posted_at: datetime
     quantity_base: Decimal
+    dispatched: bool
     lines: list[PickHistoryLineResponse]
 
 
@@ -670,6 +672,16 @@ async def list_picks(
     )
     items: list[PickHistoryItemResponse] = []
     for posting in postings:
+        dispatched = bool(
+            await session.scalar(
+                select(
+                    exists().where(
+                        pick_lines.c.pick_id == posting["pick_id"],
+                        delivery_lines.c.pick_line_id == pick_lines.c.pick_line_id,
+                    )
+                )
+            )
+        )
         history_lines: list[PickHistoryLineResponse] = []
         line_rows = (
             (
@@ -748,6 +760,7 @@ async def list_picks(
                     (line.quantity_base for line in history_lines),
                     ZERO,
                 ),
+                dispatched=dispatched,
                 lines=history_lines,
             )
         )

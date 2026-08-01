@@ -280,6 +280,186 @@
         "title": "ApprovalAuthorityInput",
         "type": "object"
       },
+      "AssignDeliveryCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "assigned_to": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Assigned To",
+            "type": "string"
+          },
+          "expected_delivery_version": {
+            "exclusiveMinimum": 0.0,
+            "title": "Expected Delivery Version",
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_delivery_version",
+          "assigned_to",
+          "reason"
+        ],
+        "title": "AssignDeliveryCommand",
+        "type": "object"
+      },
+      "AssignedDeliveryLineResponse": {
+        "properties": {
+          "line_id": {
+            "format": "uuid",
+            "title": "Line Id",
+            "type": "string"
+          },
+          "lot_selections": {
+            "items": {
+              "$ref": "#/components/schemas/LotSelectionResponse"
+            },
+            "title": "Lot Selections",
+            "type": "array"
+          },
+          "quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity Base",
+            "type": "string"
+          },
+          "serial_numbers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Serial Numbers",
+            "type": "array"
+          },
+          "sku_code": {
+            "title": "Sku Code",
+            "type": "string"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "sku_name": {
+            "title": "Sku Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line_id",
+          "sku_id",
+          "sku_code",
+          "sku_name",
+          "quantity_base",
+          "lot_selections",
+          "serial_numbers"
+        ],
+        "title": "AssignedDeliveryLineResponse",
+        "type": "object"
+      },
+      "AssignedDeliveryListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AssignedDeliveryResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AssignedDeliveryListResponse",
+        "type": "object"
+      },
+      "AssignedDeliveryResponse": {
+        "properties": {
+          "assigned_to": {
+            "title": "Assigned To",
+            "type": "string"
+          },
+          "collection_required": {
+            "title": "Collection Required",
+            "type": "boolean"
+          },
+          "delivery_address": {
+            "additionalProperties": true,
+            "title": "Delivery Address",
+            "type": "object"
+          },
+          "delivery_id": {
+            "format": "uuid",
+            "title": "Delivery Id",
+            "type": "string"
+          },
+          "evidence_requirements": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Requirements",
+            "type": "array"
+          },
+          "fulfillment_order_id": {
+            "format": "uuid",
+            "title": "Fulfillment Order Id",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/AssignedDeliveryLineResponse"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "payment_timing_policy": {
+            "enum": [
+              "prepaid",
+              "cash_on_delivery",
+              "on_account"
+            ],
+            "title": "Payment Timing Policy",
+            "type": "string"
+          },
+          "recipient_name": {
+            "title": "Recipient Name",
+            "type": "string"
+          },
+          "status": {
+            "const": "dispatched",
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "delivery_id",
+          "fulfillment_order_id",
+          "status",
+          "version",
+          "assigned_to",
+          "recipient_name",
+          "delivery_address",
+          "payment_timing_policy",
+          "collection_required",
+          "evidence_requirements",
+          "lines"
+        ],
+        "title": "AssignedDeliveryResponse",
+        "type": "object"
+      },
       "AvailabilityItem": {
         "properties": {
           "available": {
@@ -304,7 +484,8 @@
             "enum": [
               "available",
               "quarantine",
-              "dispatch_staging"
+              "dispatch_staging",
+              "in_transit"
             ],
             "title": "Custody",
             "type": "string"
@@ -2395,6 +2576,188 @@
         "title": "CustomerSearchResponse",
         "type": "object"
       },
+      "DeliveryAssignmentResponse": {
+        "properties": {
+          "assigned_to": {
+            "title": "Assigned To",
+            "type": "string"
+          },
+          "delivery_id": {
+            "format": "uuid",
+            "title": "Delivery Id",
+            "type": "string"
+          },
+          "status": {
+            "const": "dispatched",
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "delivery_id",
+          "status",
+          "assigned_to",
+          "version"
+        ],
+        "title": "DeliveryAssignmentResponse",
+        "type": "object"
+      },
+      "DispatchCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "assigned_to": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Assigned To",
+            "type": "string"
+          },
+          "delivery_id": {
+            "format": "uuid",
+            "title": "Delivery Id",
+            "type": "string"
+          },
+          "expected_fulfillment_version": {
+            "exclusiveMinimum": 0.0,
+            "title": "Expected Fulfillment Version",
+            "type": "integer"
+          },
+          "pick_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Pick Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "delivery_id",
+          "expected_fulfillment_version",
+          "assigned_to",
+          "pick_ids"
+        ],
+        "title": "DispatchCommand",
+        "type": "object"
+      },
+      "DispatchLineResponse": {
+        "properties": {
+          "line_id": {
+            "format": "uuid",
+            "title": "Line Id",
+            "type": "string"
+          },
+          "lot_selections": {
+            "items": {
+              "$ref": "#/components/schemas/LotSelectionResponse"
+            },
+            "title": "Lot Selections",
+            "type": "array"
+          },
+          "quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity Base",
+            "type": "string"
+          },
+          "serial_numbers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Serial Numbers",
+            "type": "array"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "staging_movement_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Staging Movement Ids",
+            "type": "array"
+          },
+          "transit_movement_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Transit Movement Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "line_id",
+          "sku_id",
+          "quantity_base",
+          "lot_selections",
+          "serial_numbers",
+          "staging_movement_ids",
+          "transit_movement_ids"
+        ],
+        "title": "DispatchLineResponse",
+        "type": "object"
+      },
+      "DispatchResponse": {
+        "properties": {
+          "assigned_to": {
+            "title": "Assigned To",
+            "type": "string"
+          },
+          "delivery_id": {
+            "format": "uuid",
+            "title": "Delivery Id",
+            "type": "string"
+          },
+          "fulfillment_order_id": {
+            "format": "uuid",
+            "title": "Fulfillment Order Id",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/DispatchLineResponse"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "payment_timing_policy": {
+            "enum": [
+              "prepaid",
+              "cash_on_delivery",
+              "on_account"
+            ],
+            "title": "Payment Timing Policy",
+            "type": "string"
+          },
+          "status": {
+            "const": "dispatched",
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "delivery_id",
+          "fulfillment_order_id",
+          "status",
+          "assigned_to",
+          "payment_timing_policy",
+          "version",
+          "lines"
+        ],
+        "title": "DispatchResponse",
+        "type": "object"
+      },
       "ErrorDetail": {
         "properties": {
           "code": {
@@ -2647,7 +3010,8 @@
             "enum": [
               "available",
               "quarantine",
-              "dispatch_staging"
+              "dispatch_staging",
+              "in_transit"
             ],
             "title": "Custody",
             "type": "string"
@@ -2680,6 +3044,30 @@
           "version"
         ],
         "title": "LocationResponse",
+        "type": "object"
+      },
+      "LotSelectionResponse": {
+        "properties": {
+          "expiration_date": {
+            "title": "Expiration Date",
+            "type": "string"
+          },
+          "lot_code": {
+            "title": "Lot Code",
+            "type": "string"
+          },
+          "quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity Base",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lot_code",
+          "expiration_date",
+          "quantity_base"
+        ],
+        "title": "LotSelectionResponse",
         "type": "object"
       },
       "NonMaterialOrderChangeCommand": {
@@ -3657,6 +4045,10 @@
             "title": "Correlation Id",
             "type": "string"
           },
+          "dispatched": {
+            "title": "Dispatched",
+            "type": "boolean"
+          },
           "event_type": {
             "enum": [
               "posted",
@@ -3720,6 +4112,7 @@
           "correlation_id",
           "posted_at",
           "quantity_base",
+          "dispatched",
           "lines"
         ],
         "title": "PickHistoryItemResponse",
@@ -7209,6 +7602,286 @@
         ]
       }
     },
+    "/v1/deliveries/assigned": {
+      "get": {
+        "operationId": "list_assigned_deliveries_v1_deliveries_assigned_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignedDeliveryListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Assigned Deliveries",
+        "tags": [
+          "fulfillment dispatch"
+        ]
+      }
+    },
+    "/v1/deliveries/{delivery_id}": {
+      "get": {
+        "operationId": "get_assigned_delivery_v1_deliveries__delivery_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "delivery_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Delivery Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignedDeliveryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Assigned Delivery",
+        "tags": [
+          "fulfillment dispatch"
+        ]
+      }
+    },
+    "/v1/deliveries/{delivery_id}/assignment": {
+      "post": {
+        "operationId": "assign_delivery_v1_deliveries__delivery_id__assignment_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "delivery_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Delivery Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignDeliveryCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryAssignmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Assign Delivery",
+        "tags": [
+          "fulfillment dispatch"
+        ]
+      }
+    },
     "/v1/finance/payment-receipts": {
       "get": {
         "operationId": "list_payment_receipts_v1_finance_payment_receipts_get",
@@ -8173,6 +8846,142 @@
         "tags": [
           "finance",
           "fulfillment"
+        ]
+      }
+    },
+    "/v1/fulfillment/orders/{fulfillment_order_id}/dispatch": {
+      "post": {
+        "operationId": "dispatch_fulfillment_v1_fulfillment_orders__fulfillment_order_id__dispatch_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fulfillment_order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Fulfillment Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DispatchCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DispatchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Dispatch Fulfillment",
+        "tags": [
+          "fulfillment dispatch"
         ]
       }
     },
