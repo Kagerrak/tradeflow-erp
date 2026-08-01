@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen } from "@testing-library/react-native";
 
 import { createMemoryAssignedDeliveryCache } from "../offline/assigned-delivery-cache";
 import { AssignedDeliveryList } from "./assigned-delivery-list";
@@ -62,12 +62,14 @@ it("hydrates an authorized Delivery snapshot for offline read-only work", async 
   ).toBeOnTheScreen();
   await online.unmount();
 
+  const onConfirm = jest.fn();
   await render(
     <AssignedDeliveryList
       accessToken="token"
       baseUrl="https://api.test"
       cache={cache}
       isOnline={async () => false}
+      onConfirm={onConfirm}
       subject="delivery-mnl"
     />,
   );
@@ -77,7 +79,11 @@ it("hydrates an authorized Delivery snapshot for offline read-only work", async 
     }),
   ).toBeOnTheScreen();
   expect(screen.getByText("SERIAL SN-002")).toBeOnTheScreen();
-  expect(screen.getByText(/posting stays disabled/i)).toBeOnTheScreen();
+  expect(screen.getByText(/Proof can be captured offline/i)).toBeOnTheScreen();
+  fireEvent.press(screen.getByText("CAPTURE ACCEPTANCE"));
+  expect(onConfirm).toHaveBeenCalledWith(
+    expect.objectContaining({ deliveryId: delivery.delivery_id }),
+  );
 });
 
 it("renders a server-side stale authorization rejection", async () => {

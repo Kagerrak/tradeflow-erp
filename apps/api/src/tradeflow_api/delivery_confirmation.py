@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from hashlib import sha256
@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Header, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import func, insert, select, text, update
+from sqlalchemy import case, func, insert, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tradeflow_api.auth import AuthorizedUser, require_delivery_confirmer
@@ -20,15 +20,18 @@ from tradeflow_api.errors import AppError, error_responses
 from tradeflow_api.models import (
     branches,
     companies,
+    customer_accounts,
     delivery_confirmation_evidence,
     delivery_confirmation_lines,
     delivery_confirmations,
     delivery_dispatches,
     delivery_evidence,
     delivery_lines,
+    delivery_receipt_documents,
     delivery_receipts,
     delivery_state,
     document_series,
+    document_series_number_audit,
     fulfillment_order_state,
     inventory_availability,
     inventory_valuation,
@@ -36,14 +39,17 @@ from tradeflow_api.models import (
     outbox_processing_state,
     pick_identity_assignments,
     pick_lines,
+    sales_order_line_revisions,
+    skus,
     stock_movements,
     warehouse_stock_locations,
 )
-from tradeflow_api.object_storage import ObjectStorage, get_object_storage
+from tradeflow_api.object_storage import ObjectStorage, UploadedPart, get_object_storage
 
 router = APIRouter(tags=["delivery confirmation"])
 ZERO = Decimal("0")
 SIX_PLACES = Decimal("0.000001")
+UPLOAD_PART_SIZE = 5 * 1024 * 1024
 
 
 class CommandModel(BaseModel):
@@ -99,12 +105,34 @@ class EvidenceUploadIntent(CommandModel):
     device_captured_at: datetime
 
 
+class EvidenceUploadPartResponse(BaseModel):
+    part_number: int
+    start_byte: int
+    end_byte: int
+    upload_url: str
+    upload_headers: dict[str, str]
+
+
 class EvidenceUploadResponse(BaseModel):
     evidence_id: UUID
     status: Literal["uploading", "verified"]
-    upload_url: str | None
-    upload_headers: dict[str, str]
+    upload_id: str | None
+    part_size: int | None
+    parts: list[EvidenceUploadPartResponse]
     expires_at: datetime | None
+
+
+class SignedAccessResponse(BaseModel):
+    access_url: str
+    expires_at: datetime
+
+
+class DeliveryReceiptDetailResponse(BaseModel):
+    delivery_receipt_id: UUID
+    delivery_id: UUID
+    number: str
+    snapshot: dict[str, object]
+    status: Literal["pending_document", "ready", "unavailable"]
 
 
 async def _authorize_assigned_delivery(
@@ -175,6 +203,7 @@ async def create_evidence_upload(
                 and existing["content_type"] == command.content_type
                 and existing["size_bytes"] == command.size_bytes
                 and existing["sha256"] == command.sha256
+                and existing["device_captured_at"] == command.device_captured_at
             )
             if not same:
                 raise AppError(
@@ -187,12 +216,51 @@ async def create_evidence_upload(
                 return EvidenceUploadResponse(
                     evidence_id=command.evidence_id,
                     status="verified",
-                    upload_url=None,
-                    upload_headers={},
+                    upload_id=None,
+                    part_size=None,
+                    parts=[],
                     expires_at=None,
                 )
             response.status_code = 200
-        else:
+        try:
+            await storage.ensure_bucket()
+            upload_id = (
+                cast(str, existing["upload_id"])
+                if existing is not None
+                else await storage.create_multipart_upload(
+                    content_type=command.content_type,
+                    object_key=object_key,
+                    sha256=command.sha256,
+                )
+            )
+            uploaded_parts = await storage.list_uploaded_parts(
+                object_key=object_key,
+                upload_id=upload_id,
+            )
+        except Exception as error:
+            if existing is not None and await _stored_evidence_matches(
+                storage, cast(Mapping[str, Any], existing)
+            ):
+                await session.execute(
+                    update(delivery_evidence)
+                    .where(delivery_evidence.c.evidence_id == command.evidence_id)
+                    .values(status="verified", verified_at=func.now())
+                )
+                response.status_code = 200
+                return EvidenceUploadResponse(
+                    evidence_id=command.evidence_id,
+                    status="verified",
+                    upload_id=None,
+                    part_size=None,
+                    parts=[],
+                    expires_at=None,
+                )
+            raise AppError(
+                503,
+                "evidence_storage_unavailable",
+                "Evidence storage could not prepare the private resumable upload.",
+            ) from error
+        if existing is None:
             await session.execute(
                 insert(delivery_evidence).values(
                     evidence_id=command.evidence_id,
@@ -202,32 +270,35 @@ async def create_evidence_upload(
                     content_type=command.content_type,
                     size_bytes=command.size_bytes,
                     sha256=command.sha256,
+                    upload_id=upload_id,
                     captured_by=actor.subject,
                     device_captured_at=command.device_captured_at,
                     status="uploading",
                 )
             )
-        try:
-            await storage.ensure_bucket()
-        except Exception as error:
-            raise AppError(
-                503,
-                "evidence_storage_unavailable",
-                "Evidence storage could not prepare the private proof bucket.",
-            ) from error
+        completed_numbers = {part.number for part in uploaded_parts}
+        part_count = (command.size_bytes + UPLOAD_PART_SIZE - 1) // UPLOAD_PART_SIZE
         return EvidenceUploadResponse(
             evidence_id=command.evidence_id,
             status="uploading",
-            upload_url=storage.signed_put_url(
-                content_type=command.content_type,
-                object_key=object_key,
-                sha256=command.sha256,
-            ),
-            upload_headers={
-                "Content-Type": command.content_type,
-                "x-amz-meta-sha256": command.sha256,
-            },
-            expires_at=datetime.now(UTC) + timedelta(minutes=15),
+            upload_id=upload_id,
+            part_size=UPLOAD_PART_SIZE,
+            parts=[
+                EvidenceUploadPartResponse(
+                    part_number=part_number,
+                    start_byte=(part_number - 1) * UPLOAD_PART_SIZE,
+                    end_byte=min(part_number * UPLOAD_PART_SIZE, command.size_bytes),
+                    upload_url=storage.signed_upload_part_url(
+                        object_key=object_key,
+                        part_number=part_number,
+                        upload_id=upload_id,
+                    ),
+                    upload_headers={},
+                )
+                for part_number in range(1, part_count + 1)
+                if part_number not in completed_numbers
+            ],
+            expires_at=datetime.now(UTC) + timedelta(seconds=storage.url_expiry_seconds),
         )
 
 
@@ -270,18 +341,26 @@ async def complete_evidence_upload(
             raise AppError(404, "delivery_evidence_not_found", "Evidence does not exist.")
         if evidence["status"] != "verified":
             try:
-                stored = await storage.head(evidence["object_key"])
+                if not await _stored_evidence_matches(storage, cast(Mapping[str, Any], evidence)):
+                    parts = await storage.list_uploaded_parts(
+                        object_key=evidence["object_key"],
+                        upload_id=evidence["upload_id"],
+                    )
+                    _validate_uploaded_parts(parts, evidence["size_bytes"])
+                    await storage.complete_multipart_upload(
+                        object_key=evidence["object_key"],
+                        parts=parts,
+                        upload_id=evidence["upload_id"],
+                    )
+            except AppError:
+                raise
             except Exception as error:
                 raise AppError(
                     503,
                     "evidence_storage_unavailable",
                     "Evidence storage could not verify the uploaded object.",
                 ) from error
-            if (
-                stored.content_type != evidence["content_type"]
-                or stored.size_bytes != evidence["size_bytes"]
-                or stored.sha256 != evidence["sha256"]
-            ):
+            if not await _stored_evidence_matches(storage, cast(Mapping[str, Any], evidence)):
                 raise AppError(
                     409,
                     "delivery_evidence_integrity_conflict",
@@ -295,10 +374,172 @@ async def complete_evidence_upload(
         return EvidenceUploadResponse(
             evidence_id=evidence_id,
             status="verified",
-            upload_url=None,
-            upload_headers={},
+            upload_id=None,
+            part_size=None,
+            parts=[],
             expires_at=None,
         )
+
+
+async def _stored_evidence_matches(storage: ObjectStorage, evidence: Mapping[str, Any]) -> bool:
+    try:
+        stored = await storage.head(evidence["object_key"])
+        computed = await storage.computed_sha256(evidence["object_key"])
+    except Exception:
+        return False
+    return bool(
+        stored.content_type == evidence["content_type"]
+        and stored.size_bytes == evidence["size_bytes"]
+        and stored.sha256 == evidence["sha256"]
+        and computed == evidence["sha256"]
+    )
+
+
+def _validate_uploaded_parts(parts: list[UploadedPart], size_bytes: int) -> None:
+    expected_count = (size_bytes + UPLOAD_PART_SIZE - 1) // UPLOAD_PART_SIZE
+    by_number = {part.number: part for part in parts}
+    if set(by_number) != set(range(1, expected_count + 1)):
+        raise AppError(
+            409,
+            "delivery_evidence_upload_incomplete",
+            "Evidence upload parts are incomplete; resume before finalizing.",
+        )
+    for number, part in by_number.items():
+        expected_size = min(UPLOAD_PART_SIZE, size_bytes - (number - 1) * UPLOAD_PART_SIZE)
+        if part.size_bytes != expected_size:
+            raise AppError(
+                409,
+                "delivery_evidence_upload_incomplete",
+                "Evidence upload part size changed; resume the affected part.",
+            )
+
+
+@router.post(
+    "/v1/deliveries/{delivery_id}/evidence/{evidence_id}/access",
+    response_model=SignedAccessResponse,
+    responses=error_responses(401, 403, 404, 409, 503),
+)
+async def access_delivery_evidence(
+    delivery_id: UUID,
+    evidence_id: UUID,
+    actor: Annotated[AuthorizedUser, Depends(require_delivery_confirmer)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    storage: Annotated[ObjectStorage, Depends(get_object_storage)],
+) -> SignedAccessResponse:
+    await _authorize_assigned_delivery(
+        session,
+        delivery_id=delivery_id,
+        actor=actor,
+    )
+    object_key = await session.scalar(
+        select(delivery_evidence.c.object_key).where(
+            delivery_evidence.c.evidence_id == evidence_id,
+            delivery_evidence.c.delivery_id == delivery_id,
+            delivery_evidence.c.status == "verified",
+        )
+    )
+    if object_key is None:
+        raise AppError(
+            404,
+            "delivery_evidence_not_found",
+            "Verified Delivery evidence does not exist.",
+        )
+    return SignedAccessResponse(
+        access_url=storage.signed_get_url(object_key=object_key),
+        expires_at=datetime.now(UTC) + timedelta(seconds=storage.url_expiry_seconds),
+    )
+
+
+async def _authorized_receipt(
+    session: AsyncSession,
+    *,
+    delivery_receipt_id: UUID,
+    actor: AuthorizedUser,
+) -> Mapping[str, Any]:
+    receipt = (
+        (
+            await session.execute(
+                select(
+                    delivery_receipts,
+                    delivery_receipt_documents.c.status.label("document_status"),
+                    delivery_receipt_documents.c.object_key,
+                    delivery_confirmations.c.delivery_id,
+                )
+                .join(
+                    delivery_receipt_documents,
+                    delivery_receipts.c.delivery_receipt_id
+                    == delivery_receipt_documents.c.delivery_receipt_id,
+                )
+                .join(
+                    delivery_confirmations,
+                    delivery_receipts.c.confirmation_id == delivery_confirmations.c.confirmation_id,
+                )
+                .where(delivery_receipts.c.delivery_receipt_id == delivery_receipt_id)
+            )
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if receipt is None:
+        raise AppError(404, "delivery_receipt_not_found", "Delivery Receipt does not exist.")
+    await _authorize_assigned_delivery(
+        session,
+        delivery_id=receipt["delivery_id"],
+        actor=actor,
+    )
+    return cast(Mapping[str, Any], receipt)
+
+
+@router.get(
+    "/v1/delivery-receipts/{delivery_receipt_id}",
+    response_model=DeliveryReceiptDetailResponse,
+    responses=error_responses(401, 403, 404, 500),
+)
+async def get_delivery_receipt(
+    delivery_receipt_id: UUID,
+    actor: Annotated[AuthorizedUser, Depends(require_delivery_confirmer)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> DeliveryReceiptDetailResponse:
+    receipt = await _authorized_receipt(
+        session,
+        delivery_receipt_id=delivery_receipt_id,
+        actor=actor,
+    )
+    return DeliveryReceiptDetailResponse(
+        delivery_receipt_id=delivery_receipt_id,
+        delivery_id=receipt["delivery_id"],
+        number=receipt["number"],
+        snapshot=dict(receipt["snapshot"]),
+        status=receipt["document_status"],
+    )
+
+
+@router.post(
+    "/v1/delivery-receipts/{delivery_receipt_id}/access",
+    response_model=SignedAccessResponse,
+    responses=error_responses(401, 403, 404, 409, 503),
+)
+async def access_delivery_receipt(
+    delivery_receipt_id: UUID,
+    actor: Annotated[AuthorizedUser, Depends(require_delivery_confirmer)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    storage: Annotated[ObjectStorage, Depends(get_object_storage)],
+) -> SignedAccessResponse:
+    receipt = await _authorized_receipt(
+        session,
+        delivery_receipt_id=delivery_receipt_id,
+        actor=actor,
+    )
+    if receipt["document_status"] != "ready":
+        raise AppError(
+            409,
+            "delivery_receipt_unavailable",
+            "The Delivery Receipt document is not available yet.",
+        )
+    return SignedAccessResponse(
+        access_url=storage.signed_get_url(object_key=receipt["object_key"]),
+        expires_at=datetime.now(UTC) + timedelta(seconds=storage.url_expiry_seconds),
+    )
 
 
 def _request_hash(command: ConfirmDeliveryCommand, delivery_id: UUID, actor: str) -> str:
@@ -326,12 +567,18 @@ async def _delivery(
                     delivery_state.c.assigned_to,
                     delivery_state.c.version.label("delivery_version"),
                     branches.c.code.label("branch_code"),
+                    customer_accounts.c.account_number.label("customer_account_number"),
+                    customer_accounts.c.legal_name.label("customer_legal_name"),
                 )
                 .join(
                     delivery_state,
                     delivery_dispatches.c.delivery_id == delivery_state.c.delivery_id,
                 )
                 .join(branches, delivery_dispatches.c.branch_id == branches.c.branch_id)
+                .join(
+                    customer_accounts,
+                    delivery_dispatches.c.customer_id == customer_accounts.c.customer_id,
+                )
                 .where(delivery_dispatches.c.delivery_id == delivery_id)
                 .with_for_update()
             )
@@ -393,6 +640,31 @@ async def _decrement_transit(
             )
         ).mappings()
     )
+    tracking_policy = delivery_line["tracking_policy"]
+    assigned_policies = {assignment["tracking_policy"] for assignment in assignments}
+    assigned_quantity = sum(
+        (cast(Decimal, assignment["quantity_base"]) for assignment in assignments),
+        ZERO,
+    )
+    valid_tracking = (
+        (tracking_policy == "untracked" and not assignments)
+        or (
+            tracking_policy == "lot"
+            and assigned_policies == {"lot"}
+            and assigned_quantity == delivery_line["quantity_base"]
+        )
+        or (
+            tracking_policy == "serial"
+            and assigned_policies == {"serial"}
+            and assigned_quantity == delivery_line["quantity_base"]
+        )
+    )
+    if not valid_tracking:
+        raise AppError(
+            409,
+            "delivery_tracking_policy_conflict",
+            "Current SKU Tracking Policy no longer matches the dispatched identities.",
+        )
     positions: list[tuple[str, Decimal]]
     if not assignments:
         positions = [("", cast(Decimal, delivery_line["quantity_base"]))]
@@ -452,6 +724,32 @@ async def _decrement_transit(
                 else current["serial_numbers"],
             )
         )
+
+
+def _receipt_line_snapshot(
+    lines: Sequence[Any],
+    line_id: UUID,
+    sku_id: UUID,
+    accepted_quantity: Decimal,
+) -> dict[str, object]:
+    source = next(line for line in lines if line["line_id"] == line_id and line["sku_id"] == sku_id)
+    conversion_snapshot = dict(source["source_conversion_snapshot"])
+    accepted_quantity_entered = (
+        accepted_quantity / Decimal(conversion_snapshot["base_quantity_per_unit"])
+    ).quantize(SIX_PLACES)
+    return {
+        "line_id": str(line_id),
+        "sales_order_line_revision_id": str(source["sales_order_line_revision_id"]),
+        "sku_id": str(sku_id),
+        "sku_code": source["sku_code"],
+        "sku_name": source["sku_name"],
+        "entered_unit": source["source_entered_unit"],
+        "conversion_snapshot": conversion_snapshot,
+        "accepted_quantity_entered": str(accepted_quantity_entered),
+        "accepted_quantity_base": str(accepted_quantity),
+        "approved_unit_price": str(source["effective_unit_price"]),
+        "calculation_snapshot": dict(source["source_calculation_snapshot"]),
+    }
 
 
 @router.post(
@@ -522,8 +820,32 @@ async def confirm_delivery(
         lines = list(
             (
                 await session.execute(
-                    select(delivery_lines, pick_lines.c.entered_unit)
+                    select(
+                        delivery_lines,
+                        pick_lines.c.entered_unit.label("movement_entered_unit"),
+                        sales_order_line_revisions.c.sales_order_line_revision_id,
+                        sales_order_line_revisions.c.sku_code,
+                        sales_order_line_revisions.c.sku_name,
+                        sales_order_line_revisions.c.entered_unit.label("source_entered_unit"),
+                        sales_order_line_revisions.c.conversion_snapshot.label(
+                            "source_conversion_snapshot"
+                        ),
+                        sales_order_line_revisions.c.effective_unit_price,
+                        sales_order_line_revisions.c.calculation_snapshot.label(
+                            "source_calculation_snapshot"
+                        ),
+                        skus.c.tracking_policy,
+                    )
                     .join(pick_lines, delivery_lines.c.pick_line_id == pick_lines.c.pick_line_id)
+                    .join(
+                        sales_order_line_revisions,
+                        (
+                            sales_order_line_revisions.c.sales_order_revision_id
+                            == delivery["sales_order_revision_id"]
+                        )
+                        & (sales_order_line_revisions.c.line_id == delivery_lines.c.line_id),
+                    )
+                    .join(skus, delivery_lines.c.sku_id == skus.c.sku_id)
                     .where(delivery_lines.c.delivery_id == delivery_id)
                     .order_by(delivery_lines.c.line_id, delivery_lines.c.delivery_line_id)
                     .with_for_update()
@@ -611,7 +933,7 @@ async def confirm_delivery(
                     value_delta=value_delta,
                     base_currency=base_currency,
                     source_reference=f"DELIVERY-CONFIRMATION:{command.confirmation_id}",
-                    entered_unit=line["entered_unit"],
+                    entered_unit=line["movement_entered_unit"],
                     conversion_snapshot={"source": "delivery_confirmation", "factor": "1.000000"},
                     actor_subject=actor.subject,
                     correlation_id=request.state.correlation_id,
@@ -682,27 +1004,19 @@ async def confirm_delivery(
             .one_or_none()
         )
         if series is None:
-            series_id = uuid4()
-            series_number = 1
-            prefix = f"DR-{delivery['branch_code']}"
-            await session.execute(
-                insert(document_series).values(
-                    document_series_id=series_id,
-                    branch_id=delivery["branch_id"],
-                    document_type="delivery_receipt",
-                    prefix=prefix,
-                    next_number=2,
-                )
+            raise AppError(
+                409,
+                "delivery_receipt_series_required",
+                "A Branch Delivery Receipt Document Series must be configured before confirmation.",
             )
-        else:
-            series_id = series["document_series_id"]
-            series_number = series["next_number"]
-            prefix = series["prefix"]
-            await session.execute(
-                update(document_series)
-                .where(document_series.c.document_series_id == series_id)
-                .values(next_number=document_series.c.next_number + 1)
-            )
+        series_id = series["document_series_id"]
+        series_number = series["next_number"]
+        prefix = series["prefix"]
+        await session.execute(
+            update(document_series)
+            .where(document_series.c.document_series_id == series_id)
+            .values(next_number=document_series.c.next_number + 1)
+        )
         receipt_id = uuid4()
         receipt_number = f"{prefix}-{series_number:08d}"
         receipt_snapshot = {
@@ -710,15 +1024,13 @@ async def confirm_delivery(
             "confirmation_id": str(command.confirmation_id),
             "sales_order_id": str(delivery["sales_order_id"]),
             "customer_id": str(delivery["customer_id"]),
+            "customer_account_number": delivery["customer_account_number"],
+            "customer_legal_name": delivery["customer_legal_name"],
             "recipient_name": command.recipient_name,
             "delivery_address": dict(delivery["delivery_address_snapshot"]),
             "evidence_ids": [str(value) for value in command.evidence_ids],
             "lines": [
-                {
-                    "line_id": str(line_id),
-                    "sku_id": str(sku_id),
-                    "accepted_quantity_base": str(data["quantity"]),
-                }
+                _receipt_line_snapshot(lines, line_id, sku_id, data["quantity"])
                 for (line_id, sku_id), data in sorted(
                     response_lines.items(), key=lambda item: str(item[0][0])
                 )
@@ -733,7 +1045,22 @@ async def confirm_delivery(
                 series_number=series_number,
                 number=receipt_number,
                 snapshot=receipt_snapshot,
-                document_status="pending_document",
+            )
+        )
+        await session.execute(
+            insert(delivery_receipt_documents).values(
+                delivery_receipt_id=receipt_id,
+                status="pending_document",
+                object_key=f"delivery-receipts/{receipt_id}.pdf",
+            )
+        )
+        await session.execute(
+            insert(document_series_number_audit).values(
+                document_series_number_audit_id=uuid4(),
+                document_series_id=series_id,
+                series_number=series_number,
+                status="issued",
+                delivery_receipt_id=receipt_id,
             )
         )
         event_id = uuid4()
@@ -764,7 +1091,14 @@ async def confirm_delivery(
                 fulfillment_order_state.c.fulfillment_order_id == delivery["fulfillment_order_id"]
             )
             .values(
-                status="delivered",
+                status=case(
+                    (
+                        fulfillment_order_state.c.delivered_quantity_base + total
+                        >= fulfillment_order_state.c.reserved_quantity_base,
+                        "delivered",
+                    ),
+                    else_="partially_delivered",
+                ),
                 delivered_quantity_base=fulfillment_order_state.c.delivered_quantity_base + total,
                 version=fulfillment_order_state.c.version + 1,
                 updated_at=func.now(),

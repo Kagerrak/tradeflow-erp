@@ -126,3 +126,83 @@ it("resumes after upload and retries a lost response with the same identities", 
   });
   expect(await store.listPending()).toEqual([]);
 });
+
+it("uploads only missing multipart bytes after an interrupted evidence transfer", async () => {
+  const store = createMemoryDeliveryConfirmationStore();
+  const largeCapture: DeliveryConfirmationCapture = {
+    ...capture,
+    evidence: [
+      {
+        ...capture.evidence[0]!,
+        sizeBytes: 5 * 1024 * 1024 + 9,
+      },
+    ],
+  };
+  await store.saveAndEnqueue(largeCapture, "2026-08-01T13:01:00Z");
+  const uploadedSizes: number[] = [];
+  const result = await syncDeliveryConfirmations({
+    accessToken: "token",
+    baseUrl: "https://api.test",
+    createCorrelationId: () => "multipart-resume",
+    fetch: async (request) => {
+      if (request.url.includes("signed.test")) {
+        uploadedSizes.push((await request.arrayBuffer()).byteLength);
+        return new Response(null, { status: 200 });
+      }
+      if (request.url.endsWith("/evidence/uploads")) {
+        return new Response(
+          JSON.stringify({
+            evidence_id: evidenceId,
+            expires_at: "2026-08-01T14:00:00Z",
+            part_size: 5 * 1024 * 1024,
+            parts: [
+              {
+                end_byte: 5 * 1024 * 1024 + 9,
+                part_number: 2,
+                start_byte: 5 * 1024 * 1024,
+                upload_headers: {},
+                upload_url: "https://signed.test/part-2",
+              },
+            ],
+            status: "uploading",
+            upload_id: "stable-upload",
+          }),
+          { headers: { "Content-Type": "application/json" }, status: 201 },
+        );
+      }
+      if (request.url.endsWith("/complete")) {
+        return new Response(
+          JSON.stringify({
+            evidence_id: evidenceId,
+            expires_at: null,
+            part_size: null,
+            parts: [],
+            status: "verified",
+            upload_id: null,
+          }),
+          { headers: { "Content-Type": "application/json" }, status: 200 },
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          confirmation_id: confirmationId,
+          delivery_id: deliveryId,
+          delivery_receipt: {
+            delivery_receipt_id: "d98873ae-7cf1-48b6-b2e5-129d23bd9f81",
+            number: "DR-MNL-00000001",
+            status: "pending_document",
+          },
+          lines: [],
+          outbox_event_id: "af9cf881-e5af-48b0-95e8-04534241b330",
+          status: "confirmed",
+          version: 2,
+        }),
+        { headers: { "Content-Type": "application/json" }, status: 200 },
+      );
+    },
+    readEvidence: async () => new ArrayBuffer(5 * 1024 * 1024 + 9),
+    store,
+  });
+  expect(result).toEqual({ count: 1, kind: "synced" });
+  expect(uploadedSizes).toEqual([9]);
+});

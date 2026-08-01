@@ -1596,7 +1596,7 @@ fulfillment_order_state = Table(
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     CheckConstraint(
         "status IN ('reserved', 'payment_ready', 'pick_released', 'partially_picked', "
-        "'picked', 'partially_dispatched', 'dispatched', 'delivered', "
+        "'picked', 'partially_dispatched', 'dispatched', 'partially_delivered', 'delivered', "
         "'payment_hold', 'cancelled')",
         name="ck_fulfillment_order_state_status",
     ),
@@ -2299,6 +2299,7 @@ delivery_evidence = Table(
     Column("content_type", String(100), nullable=False),
     Column("size_bytes", Integer, nullable=False),
     Column("sha256", String(64), nullable=False),
+    Column("upload_id", String(500), nullable=True),
     Column("captured_by", String(200), ForeignKey("users.subject"), nullable=False),
     Column("device_captured_at", DateTime(timezone=True), nullable=False),
     Column("status", String(30), nullable=False),
@@ -2422,12 +2423,50 @@ delivery_receipts = Table(
     Column("series_number", Integer, nullable=False),
     Column("number", String(80), nullable=False, unique=True),
     Column("snapshot", JSONB, nullable=False),
-    Column("document_status", String(30), nullable=False, server_default="pending_document"),
-    Column("document_object_key", String(500), nullable=True),
     Column("issued_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     UniqueConstraint(
         "document_series_id", "series_number", name="uq_delivery_receipt_series_number"
     ),
+)
+
+delivery_receipt_documents = Table(
+    "delivery_receipt_documents",
+    metadata,
+    Column(
+        "delivery_receipt_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_receipts.delivery_receipt_id"),
+        primary_key=True,
+    ),
+    Column("status", String(30), nullable=False, server_default="pending_document"),
+    Column("object_key", String(500), nullable=False, unique=True),
+    Column("checksum_sha256", String(64), nullable=True),
+    Column("size_bytes", Integer, nullable=True),
+    Column("rendered_at", DateTime(timezone=True), nullable=True),
+    Column("last_error", String(2000), nullable=True),
+)
+
+document_series_number_audit = Table(
+    "document_series_number_audit",
+    metadata,
+    Column("document_series_number_audit_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "document_series_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("document_series.document_series_id"),
+        nullable=False,
+    ),
+    Column("series_number", Integer, nullable=False),
+    Column("status", String(20), nullable=False),
+    Column(
+        "delivery_receipt_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_receipts.delivery_receipt_id"),
+        nullable=True,
+    ),
+    Column("reason", String(500), nullable=True),
+    Column("recorded_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint("document_series_id", "series_number", name="uq_document_series_number_audit"),
 )
 
 outbox_events = Table(

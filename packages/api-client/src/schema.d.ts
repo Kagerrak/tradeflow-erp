@@ -226,6 +226,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/deliveries/{delivery_id}/evidence/{evidence_id}/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Access Delivery Evidence */
+        post: operations["access_delivery_evidence_v1_deliveries__delivery_id__evidence__evidence_id__access_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/deliveries/{delivery_id}/evidence/{evidence_id}/complete": {
         parameters: {
             query?: never;
@@ -237,6 +254,40 @@ export interface paths {
         put?: never;
         /** Complete Evidence Upload */
         post: operations["complete_evidence_upload_v1_deliveries__delivery_id__evidence__evidence_id__complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/delivery-receipts/{delivery_receipt_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Delivery Receipt */
+        get: operations["get_delivery_receipt_v1_delivery_receipts__delivery_receipt_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/delivery-receipts/{delivery_receipt_id}/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Access Delivery Receipt */
+        post: operations["access_delivery_receipt_v1_delivery_receipts__delivery_receipt_id__access_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1988,6 +2039,30 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** DeliveryReceiptDetailResponse */
+        DeliveryReceiptDetailResponse: {
+            /**
+             * Delivery Id
+             * Format: uuid
+             */
+            delivery_id: string;
+            /**
+             * Delivery Receipt Id
+             * Format: uuid
+             */
+            delivery_receipt_id: string;
+            /** Number */
+            number: string;
+            /** Snapshot */
+            snapshot: {
+                [key: string]: unknown;
+            };
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending_document" | "ready" | "unavailable";
+        };
         /** DeliveryReceiptResponse */
         DeliveryReceiptResponse: {
             /**
@@ -2113,6 +2188,21 @@ export interface components {
             /** Size Bytes */
             size_bytes: number;
         };
+        /** EvidenceUploadPartResponse */
+        EvidenceUploadPartResponse: {
+            /** End Byte */
+            end_byte: number;
+            /** Part Number */
+            part_number: number;
+            /** Start Byte */
+            start_byte: number;
+            /** Upload Headers */
+            upload_headers: {
+                [key: string]: string;
+            };
+            /** Upload Url */
+            upload_url: string;
+        };
         /** EvidenceUploadResponse */
         EvidenceUploadResponse: {
             /**
@@ -2122,17 +2212,17 @@ export interface components {
             evidence_id: string;
             /** Expires At */
             expires_at: string | null;
+            /** Part Size */
+            part_size: number | null;
+            /** Parts */
+            parts: components["schemas"]["EvidenceUploadPartResponse"][];
             /**
              * Status
              * @enum {string}
              */
             status: "uploading" | "verified";
-            /** Upload Headers */
-            upload_headers: {
-                [key: string]: string;
-            };
-            /** Upload Url */
-            upload_url: string | null;
+            /** Upload Id */
+            upload_id: string | null;
         };
         /** FefoCandidateResponse */
         FefoCandidateResponse: {
@@ -3447,6 +3537,16 @@ export interface components {
             /** Subject */
             subject: string;
         };
+        /** SignedAccessResponse */
+        SignedAccessResponse: {
+            /** Access Url */
+            access_url: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
         /** SkuResponse */
         SkuResponse: {
             /** Barcodes */
@@ -4711,6 +4811,92 @@ export interface operations {
             };
         };
     };
+    access_delivery_evidence_v1_deliveries__delivery_id__evidence__evidence_id__access_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                delivery_id: string;
+                evidence_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignedAccessResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     complete_evidence_upload_v1_deliveries__delivery_id__evidence__evidence_id__complete_post: {
         parameters: {
             query?: never;
@@ -4775,6 +4961,158 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_delivery_receipt_v1_delivery_receipts__delivery_receipt_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                delivery_receipt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryReceiptDetailResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    access_delivery_receipt_v1_delivery_receipts__delivery_receipt_id__access_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                delivery_receipt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignedAccessResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description Stable TradeFlow error envelope. */

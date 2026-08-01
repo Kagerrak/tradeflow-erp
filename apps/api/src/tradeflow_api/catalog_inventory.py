@@ -1364,33 +1364,40 @@ async def rebuild_projections(
                         )
                     )
             else:
-                positions = (
-                    (
-                        await session.execute(
-                            select(inventory_availability).where(
-                                inventory_availability.c.sku_id == movement["sku_id"],
-                                inventory_availability.c.warehouse_id == movement["warehouse_id"],
-                                inventory_availability.c.location_id == movement["location_id"],
+                positions: list[dict[str, Any]] = [
+                    dict(row)
+                    for row in (
+                        (
+                            await session.execute(
+                                select(inventory_availability).where(
+                                    inventory_availability.c.sku_id == movement["sku_id"],
+                                    inventory_availability.c.warehouse_id
+                                    == movement["warehouse_id"],
+                                    inventory_availability.c.location_id == movement["location_id"],
+                                )
                             )
                         )
+                        .mappings()
+                        .all()
                     )
-                    .mappings()
-                    .all()
-                )
+                ]
                 for serial_number in serial_numbers:
-                    position = cast(
-                        Mapping[str, Any] | None,
-                        next(
-                            (row for row in positions if serial_number in row["serial_numbers"]),
-                            None,
+                    position_index = next(
+                        (
+                            index
+                            for index, row in enumerate(positions)
+                            if serial_number in row["serial_numbers"]
                         ),
+                        None,
                     )
-                    if position is None:
+                    if position_index is None:
                         raise AppError(
                             409,
                             "inventory_projection_rebuild_conflict",
                             "Serial movement history cannot be reconciled.",
                         )
+                    position = positions[position_index]
+                    remaining_serials = sorted(set(position["serial_numbers"]) - {serial_number})
                     await session.execute(
                         update(inventory_availability)
                         .where(
@@ -1401,14 +1408,13 @@ async def rebuild_projections(
                         )
                         .values(
                             on_hand=inventory_availability.c.on_hand - Decimal("1"),
-                            serial_numbers=sorted(
-                                set(position["serial_numbers"]) - {serial_number}
-                            ),
+                            serial_numbers=remaining_serials,
                         )
                     )
-                    position = {
+                    positions[position_index] = {
                         **position,
-                        "serial_numbers": sorted(set(position["serial_numbers"]) - {serial_number}),
+                        "on_hand": position["on_hand"] - Decimal("1"),
+                        "serial_numbers": remaining_serials,
                     }
         else:
             serial_expiration = serials[0]["expiration_date"] if serials else None

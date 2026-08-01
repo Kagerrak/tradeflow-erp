@@ -116,6 +116,12 @@ export function createSqliteDeliveryConfirmationStore(
     async initialize() {
       await database.execAsync(schema);
     },
+    async listCaptures() {
+      const rows = await database.getAllAsync<CaptureRow>(
+        "SELECT * FROM delivery_confirmation_captures ORDER BY updated_at DESC",
+      );
+      return rows.map(mapCapture);
+    },
     async listPending() {
       const rows = await database.getAllAsync<OutboxRow>(
         "SELECT * FROM delivery_confirmation_outbox ORDER BY sequence",

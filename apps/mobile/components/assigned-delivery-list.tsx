@@ -25,6 +25,7 @@ export type AssignedDeliveryListProps = {
   createId?: () => string;
   fetch?: (request: Request) => Promise<Response>;
   isOnline?: () => Promise<boolean>;
+  onConfirm?: (delivery: AssignedDelivery) => void;
   subject: string;
 };
 
@@ -40,6 +41,7 @@ export function AssignedDeliveryList({
       network.isConnected === true && network.isInternetReachable !== false
     );
   },
+  onConfirm,
   subject,
 }: AssignedDeliveryListProps) {
   const [state, setState] = useState<ViewState>({ kind: "loading" });
@@ -135,13 +137,19 @@ export function AssignedDeliveryList({
                 Cached task — authorization refresh required
               </Text>
               <Text style={styles.cacheText}>
-                Read-only snapshot from {state.savedAt}. Delivery posting stays
-                disabled until the server confirms this assignment again.
+                Authorized snapshot from {state.savedAt}. Proof can be captured
+                offline; posting waits for the server to recheck this
+                assignment.
               </Text>
             </View>
           )}
           {state.deliveries.map((delivery) => (
-            <DeliveryCard delivery={delivery} key={delivery.deliveryId} />
+            <DeliveryCard
+              canConfirm
+              delivery={delivery}
+              key={delivery.deliveryId}
+              {...(onConfirm === undefined ? {} : { onConfirm })}
+            />
           ))}
         </>
       )}
@@ -175,7 +183,15 @@ function State({
   );
 }
 
-function DeliveryCard({ delivery }: { delivery: AssignedDelivery }) {
+function DeliveryCard({
+  canConfirm,
+  delivery,
+  onConfirm,
+}: {
+  canConfirm: boolean;
+  delivery: AssignedDelivery;
+  onConfirm?: (delivery: AssignedDelivery) => void;
+}) {
   const address = delivery.deliveryAddress;
   const addressLine = [
     address["line_1"],
@@ -218,6 +234,20 @@ function DeliveryCard({ delivery }: { delivery: AssignedDelivery }) {
       <Text style={styles.evidence}>
         Evidence: {delivery.evidenceRequirements.join(" · ")}
       </Text>
+      {delivery.status === "dispatched" && onConfirm !== undefined && (
+        <Pressable
+          accessibilityRole="button"
+          disabled={!canConfirm}
+          onPress={() => onConfirm(delivery)}
+          style={styles.confirm}
+        >
+          <Text style={styles.confirmText}>
+            {canConfirm
+              ? "CAPTURE ACCEPTANCE"
+              : "REFRESH AUTHORIZATION TO CONFIRM"}
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -249,6 +279,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     marginBottom: 28,
     paddingTop: 16,
+  },
+  confirm: { backgroundColor: colors.ink, marginTop: 16, padding: 14 },
+  confirmText: {
+    color: colors.paper,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1,
   },
   evidence: {
     color: colors.inkMuted,

@@ -46,6 +46,7 @@ export type DeliveryConfirmationOutboxItem = DeliveryConfirmationCapture & {
 
 export type DeliveryConfirmationStore = {
   initialize(): Promise<void>;
+  listCaptures(): Promise<LocalDeliveryConfirmation[]>;
   listPending(): Promise<DeliveryConfirmationOutboxItem[]>;
   load(confirmationId: string): Promise<LocalDeliveryConfirmation | null>;
   markAttempted(sequence: number, attemptedAt: string): Promise<void>;
@@ -98,6 +99,11 @@ export function createMemoryDeliveryConfirmationStore(
 ): DeliveryConfirmationStore {
   return {
     async initialize() {},
+    async listCaptures() {
+      return [...backing.captures.values()]
+        .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+        .map(clone);
+    },
     async listPending() {
       return [...backing.outbox.values()]
         .sort((left, right) => left.sequence - right.sequence)

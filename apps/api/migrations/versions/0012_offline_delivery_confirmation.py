@@ -43,7 +43,8 @@ def upgrade() -> None:
         ALTER TABLE fulfillment_order_state
           ADD CONSTRAINT ck_fulfillment_order_state_status CHECK (
             status IN ('reserved','payment_ready','pick_released','partially_picked',
-                       'picked','partially_dispatched','dispatched','delivered',
+                       'picked','partially_dispatched','dispatched',
+                       'partially_delivered','delivered',
                        'payment_hold','cancelled')
           );
         ALTER TABLE fulfillment_order_state
@@ -69,6 +70,7 @@ def upgrade() -> None:
           content_type varchar(100) NOT NULL,
           size_bytes integer NOT NULL,
           sha256 varchar(64) NOT NULL,
+          upload_id varchar(500),
           captured_by varchar(200) NOT NULL REFERENCES users(subject),
           device_captured_at timestamptz NOT NULL,
           status varchar(30) NOT NULL,
@@ -82,6 +84,9 @@ def upgrade() -> None:
           CONSTRAINT ck_delivery_evidence_sha CHECK (sha256 ~ '^[0-9a-f]{64}$'),
           CONSTRAINT ck_delivery_evidence_status CHECK (
             status IN ('uploading','verified','rejected')
+          ),
+          CONSTRAINT ck_delivery_evidence_upload CHECK (
+            status <> 'uploading' OR upload_id IS NOT NULL
           ),
           CONSTRAINT uq_delivery_evidence_delivery UNIQUE (delivery_id,evidence_id)
         );
@@ -144,15 +149,49 @@ def upgrade() -> None:
           series_number integer NOT NULL,
           number varchar(80) NOT NULL UNIQUE,
           snapshot jsonb NOT NULL,
-          document_status varchar(30) NOT NULL DEFAULT 'pending_document',
-          document_object_key varchar(500),
           issued_at timestamptz NOT NULL DEFAULT now(),
           CONSTRAINT ck_delivery_receipt_number CHECK (series_number > 0),
-          CONSTRAINT ck_delivery_receipt_document_status CHECK (
-            document_status IN ('pending_document','ready','unavailable')
-          ),
           CONSTRAINT uq_delivery_receipt_series_number
             UNIQUE (document_series_id,series_number)
+        );
+
+        CREATE TABLE delivery_receipt_documents (
+          delivery_receipt_id uuid PRIMARY KEY
+            REFERENCES delivery_receipts(delivery_receipt_id),
+          status varchar(30) NOT NULL DEFAULT 'pending_document',
+          object_key varchar(500) NOT NULL UNIQUE,
+          checksum_sha256 varchar(64),
+          size_bytes integer,
+          rendered_at timestamptz,
+          last_error varchar(2000),
+          CONSTRAINT ck_delivery_receipt_document_status CHECK (
+            status IN ('pending_document','ready','unavailable')
+          ),
+          CONSTRAINT ck_delivery_receipt_document_ready CHECK (
+            (status = 'ready' AND checksum_sha256 IS NOT NULL
+              AND size_bytes > 0 AND rendered_at IS NOT NULL)
+            OR status <> 'ready'
+          )
+        );
+
+        CREATE TABLE document_series_number_audit (
+          document_series_number_audit_id uuid PRIMARY KEY,
+          document_series_id uuid NOT NULL REFERENCES document_series(document_series_id),
+          series_number integer NOT NULL,
+          status varchar(20) NOT NULL,
+          delivery_receipt_id uuid REFERENCES delivery_receipts(delivery_receipt_id),
+          reason varchar(500),
+          recorded_at timestamptz NOT NULL DEFAULT now(),
+          CONSTRAINT uq_document_series_number_audit
+            UNIQUE (document_series_id,series_number),
+          CONSTRAINT ck_document_series_number_audit_number CHECK (series_number > 0),
+          CONSTRAINT ck_document_series_number_audit_status CHECK (
+            status IN ('issued','voided','skipped')
+          ),
+          CONSTRAINT ck_document_series_number_audit_reason CHECK (
+            (status = 'issued' AND delivery_receipt_id IS NOT NULL)
+            OR (status IN ('voided','skipped') AND reason IS NOT NULL)
+          )
         );
 
         CREATE TABLE outbox_events (
@@ -248,6 +287,8 @@ def upgrade() -> None:
         "delivery_confirmations",
         "delivery_confirmation_lines",
         "delivery_confirmation_evidence",
+        "delivery_receipts",
+        "document_series_number_audit",
         "draft_invoices",
         "draft_invoice_lines",
         "outbox_handler_receipts",
@@ -260,6 +301,31 @@ def upgrade() -> None:
             FOR EACH ROW EXECUTE FUNCTION prevent_confirmation_ledger_mutation()
             """
         )
+    op.execute(
+        """
+        CREATE FUNCTION protect_document_series() RETURNS trigger AS $$
+        BEGIN
+          IF TG_OP = 'DELETE' THEN
+            RAISE EXCEPTION 'Document Series cannot be deleted';
+          END IF;
+          IF NEW.branch_id <> OLD.branch_id
+             OR NEW.document_type <> OLD.document_type
+             OR NEW.prefix <> OLD.prefix
+             OR NEW.next_number <> OLD.next_number + 1 THEN
+            RAISE EXCEPTION 'Document Series identity is immutable and sequence is monotonic';
+          END IF;
+          RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER trg_document_series_protected
+        BEFORE UPDATE OR DELETE ON document_series
+        FOR EACH ROW EXECUTE FUNCTION protect_document_series()
+        """
+    )
 
 
 def downgrade() -> None:
@@ -272,10 +338,14 @@ def downgrade() -> None:
         END $$
         """
     )
+    op.execute("DROP TRIGGER IF EXISTS trg_document_series_protected ON document_series")
+    op.execute("DROP FUNCTION IF EXISTS protect_document_series")
     for table_name in (
         "outbox_handler_receipts",
         "draft_invoice_lines",
         "draft_invoices",
+        "delivery_receipts",
+        "document_series_number_audit",
         "outbox_events",
         "delivery_confirmation_evidence",
         "delivery_confirmation_lines",
@@ -288,6 +358,8 @@ def downgrade() -> None:
     op.execute("DROP TABLE outbox_handler_receipts")
     op.execute("DROP TABLE outbox_processing_state")
     op.execute("DROP TABLE outbox_events")
+    op.execute("DROP TABLE document_series_number_audit")
+    op.execute("DROP TABLE delivery_receipt_documents")
     op.execute("DROP TABLE delivery_receipts")
     op.execute("DROP TABLE document_series")
     op.execute("DROP TABLE delivery_confirmation_evidence")

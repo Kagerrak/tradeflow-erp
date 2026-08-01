@@ -2796,6 +2796,47 @@
         "title": "DeliveryConfirmationResponse",
         "type": "object"
       },
+      "DeliveryReceiptDetailResponse": {
+        "properties": {
+          "delivery_id": {
+            "format": "uuid",
+            "title": "Delivery Id",
+            "type": "string"
+          },
+          "delivery_receipt_id": {
+            "format": "uuid",
+            "title": "Delivery Receipt Id",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "snapshot": {
+            "additionalProperties": true,
+            "title": "Snapshot",
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "pending_document",
+              "ready",
+              "unavailable"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "delivery_receipt_id",
+          "delivery_id",
+          "number",
+          "snapshot",
+          "status"
+        ],
+        "title": "DeliveryReceiptDetailResponse",
+        "type": "object"
+      },
       "DeliveryReceiptResponse": {
         "properties": {
           "delivery_receipt_id": {
@@ -3077,6 +3118,42 @@
         "title": "EvidenceUploadIntent",
         "type": "object"
       },
+      "EvidenceUploadPartResponse": {
+        "properties": {
+          "end_byte": {
+            "title": "End Byte",
+            "type": "integer"
+          },
+          "part_number": {
+            "title": "Part Number",
+            "type": "integer"
+          },
+          "start_byte": {
+            "title": "Start Byte",
+            "type": "integer"
+          },
+          "upload_headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Upload Headers",
+            "type": "object"
+          },
+          "upload_url": {
+            "title": "Upload Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "part_number",
+          "start_byte",
+          "end_byte",
+          "upload_url",
+          "upload_headers"
+        ],
+        "title": "EvidenceUploadPartResponse",
+        "type": "object"
+      },
       "EvidenceUploadResponse": {
         "properties": {
           "evidence_id": {
@@ -3096,6 +3173,24 @@
             ],
             "title": "Expires At"
           },
+          "part_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Part Size"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceUploadPartResponse"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
           "status": {
             "enum": [
               "uploading",
@@ -3104,14 +3199,7 @@
             "title": "Status",
             "type": "string"
           },
-          "upload_headers": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Upload Headers",
-            "type": "object"
-          },
-          "upload_url": {
+          "upload_id": {
             "anyOf": [
               {
                 "type": "string"
@@ -3120,14 +3208,15 @@
                 "type": "null"
               }
             ],
-            "title": "Upload Url"
+            "title": "Upload Id"
           }
         },
         "required": [
           "evidence_id",
           "status",
-          "upload_url",
-          "upload_headers",
+          "upload_id",
+          "part_size",
+          "parts",
           "expires_at"
         ],
         "title": "EvidenceUploadResponse",
@@ -6336,6 +6425,25 @@
         "title": "SessionUserResponse",
         "type": "object"
       },
+      "SignedAccessResponse": {
+        "properties": {
+          "access_url": {
+            "title": "Access Url",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_url",
+          "expires_at"
+        ],
+        "title": "SignedAccessResponse",
+        "type": "object"
+      },
       "SkuResponse": {
         "properties": {
           "barcodes": {
@@ -8464,6 +8572,124 @@
         ]
       }
     },
+    "/v1/deliveries/{delivery_id}/evidence/{evidence_id}/access": {
+      "post": {
+        "operationId": "access_delivery_evidence_v1_deliveries__delivery_id__evidence__evidence_id__access_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "delivery_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Delivery Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "evidence_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Evidence Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedAccessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Access Delivery Evidence",
+        "tags": [
+          "delivery confirmation"
+        ]
+      }
+    },
     "/v1/deliveries/{delivery_id}/evidence/{evidence_id}/complete": {
       "post": {
         "operationId": "complete_evidence_upload_v1_deliveries__delivery_id__evidence__evidence_id__complete_post",
@@ -8577,6 +8803,202 @@
           }
         ],
         "summary": "Complete Evidence Upload",
+        "tags": [
+          "delivery confirmation"
+        ]
+      }
+    },
+    "/v1/delivery-receipts/{delivery_receipt_id}": {
+      "get": {
+        "operationId": "get_delivery_receipt_v1_delivery_receipts__delivery_receipt_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "delivery_receipt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Delivery Receipt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryReceiptDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Delivery Receipt",
+        "tags": [
+          "delivery confirmation"
+        ]
+      }
+    },
+    "/v1/delivery-receipts/{delivery_receipt_id}/access": {
+      "post": {
+        "operationId": "access_delivery_receipt_v1_delivery_receipts__delivery_receipt_id__access_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "delivery_receipt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Delivery Receipt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedAccessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Access Delivery Receipt",
         "tags": [
           "delivery confirmation"
         ]
