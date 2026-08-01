@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from hashlib import sha256
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal, cast
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
@@ -32,6 +33,8 @@ from tradeflow_api.models import (
     inventory_reserved_by_sku_warehouse,
     inventory_valuation,
     lot_identities,
+    pick_identity_assignments,
+    pick_lines,
     products,
     skus,
     stock_lot_allocations,
@@ -167,7 +170,7 @@ class LocationResponse(BaseModel):
     warehouse_id: UUID
     code: str
     name: str
-    custody: Literal["available", "quarantine"]
+    custody: Literal["available", "quarantine", "dispatch_staging"]
     version: int
 
 
@@ -207,7 +210,7 @@ class AvailabilityItem(BaseModel):
     warehouse_id: UUID
     warehouse_code: str
     location_code: str
-    custody: Literal["available", "quarantine"]
+    custody: Literal["available", "quarantine", "dispatch_staging"]
     base_stocking_unit: str
     tracking_policy: Literal["untracked", "lot", "serial"]
     expiration_control: bool
@@ -804,6 +807,8 @@ async def post_opening_stock(
                 actor_subject=actor.subject,
                 correlation_id=request.state.correlation_id,
                 idempotency_key=idempotency_key,
+                movement_group_id=movement_id,
+                movement_leg="opening_in",
             )
         )
         identity_key = (
@@ -995,7 +1000,7 @@ async def search_availability(
             )
             .where(
                 inventory_availability.c.warehouse_id.in_(actor.warehouse_ids),
-                warehouse_stock_locations.c.custody == "available",
+                warehouse_stock_locations.c.custody.in_(("available", "dispatch_staging")),
                 warehouse_stock_locations.c.is_active.is_(True),
                 or_(
                     inventory_availability.c.expiration_date.is_(None),
@@ -1010,6 +1015,37 @@ async def search_availability(
     ).mappings()
     warehouse_on_hand = {
         (row["sku_id"], row["warehouse_id"]): row["on_hand"] for row in warehouse_on_hand_rows
+    }
+    warehouse_available_rows = (
+        await session.execute(
+            select(
+                inventory_availability.c.sku_id,
+                inventory_availability.c.warehouse_id,
+                func.sum(inventory_availability.c.on_hand).label("on_hand"),
+            )
+            .select_from(
+                inventory_availability.join(
+                    warehouse_stock_locations,
+                    inventory_availability.c.location_id == warehouse_stock_locations.c.location_id,
+                )
+            )
+            .where(
+                inventory_availability.c.warehouse_id.in_(actor.warehouse_ids),
+                warehouse_stock_locations.c.custody == "available",
+                warehouse_stock_locations.c.is_active.is_(True),
+                or_(
+                    inventory_availability.c.expiration_date.is_(None),
+                    inventory_availability.c.expiration_date >= date.today(),
+                ),
+            )
+            .group_by(
+                inventory_availability.c.sku_id,
+                inventory_availability.c.warehouse_id,
+            )
+        )
+    ).mappings()
+    warehouse_available_on_hand = {
+        (row["sku_id"], row["warehouse_id"]): row["on_hand"] for row in warehouse_available_rows
     }
     commercial_reservation_rows = (
         await session.execute(
@@ -1026,7 +1062,8 @@ async def search_availability(
     for row in rows:
         warehouse_key = (row["sku_id"], row["warehouse_id"])
         order_reserved = commercial_reserved.get(warehouse_key, Decimal("0"))
-        eligible_on_hand = warehouse_on_hand.get(warehouse_key, Decimal("0"))
+        total_warehouse_on_hand = warehouse_on_hand.get(warehouse_key, Decimal("0"))
+        eligible_on_hand = warehouse_available_on_hand.get(warehouse_key, Decimal("0"))
         items.append(
             AvailabilityItem(
                 sku_id=row["sku_id"],
@@ -1049,7 +1086,7 @@ async def search_availability(
                 if row["custody"] == "available"
                 else Decimal("0"),
                 commercial_reserved=order_reserved,
-                warehouse_on_hand=eligible_on_hand,
+                warehouse_on_hand=total_warehouse_on_hand,
                 warehouse_available=max(eligible_on_hand - order_reserved, Decimal("0")),
                 warehouse_inventory_value=row["warehouse_inventory_value"],
                 moving_average_unit_cost=row["moving_average_unit_cost"],
@@ -1086,7 +1123,52 @@ async def rebuild_projections(
         .all()
     )
     for movement in movements:
-        lot = (
+        movement_line = (
+            (
+                await session.execute(
+                    select(pick_lines).where(
+                        or_(
+                            pick_lines.c.source_movement_id == movement["movement_id"],
+                            pick_lines.c.staging_movement_id == movement["movement_id"],
+                        )
+                    )
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+        assignments = (
+            (
+                await session.execute(
+                    select(
+                        pick_identity_assignments,
+                        lot_identities.c.lot_code,
+                        lot_identities.c.expiration_date.label("lot_expiration_date"),
+                        stock_serial_allocations.c.serial_number,
+                        stock_serial_allocations.c.expiration_date.label("serial_expiration_date"),
+                    )
+                    .outerjoin(
+                        lot_identities,
+                        pick_identity_assignments.c.lot_identity_id
+                        == lot_identities.c.lot_identity_id,
+                    )
+                    .outerjoin(
+                        stock_serial_allocations,
+                        pick_identity_assignments.c.serial_allocation_id
+                        == stock_serial_allocations.c.serial_allocation_id,
+                    )
+                    .where(
+                        pick_identity_assignments.c.pick_line_id == movement_line["pick_line_id"]
+                    )
+                )
+            )
+            .mappings()
+            .all()
+            if movement_line is not None
+            else []
+        )
+        lot = cast(
+            Mapping[str, Any] | None,
             (
                 await session.execute(
                     select(
@@ -1104,9 +1186,24 @@ async def rebuild_projections(
                 )
             )
             .mappings()
-            .one_or_none()
+            .one_or_none(),
         )
-        serials = (
+        if lot is None:
+            lot_assignment = next(
+                (
+                    assignment
+                    for assignment in assignments
+                    if assignment["tracking_policy"] == "lot"
+                ),
+                None,
+            )
+            if lot_assignment is not None:
+                lot = {
+                    "lot_code": lot_assignment["lot_code"],
+                    "expiration_date": lot_assignment["lot_expiration_date"],
+                }
+        serials = cast(
+            list[Mapping[str, Any]],
             (
                 await session.execute(
                     select(
@@ -1120,43 +1217,171 @@ async def rebuild_projections(
             .mappings()
             .all()
             if lot is None
-            else []
+            else [],
         )
-        serial_expiration = serials[0]["expiration_date"] if serials else None
-        identity_key = (
-            f"lot:{lot['lot_code']}"
-            if lot
-            else f"serial:{movement['movement_id']}"
-            if serials
-            else ""
-        )
-        expiration = lot["expiration_date"] if lot else serial_expiration
-        await session.execute(
-            pg_insert(inventory_availability)
-            .values(
-                sku_id=movement["sku_id"],
-                warehouse_id=movement["warehouse_id"],
-                location_id=movement["location_id"],
-                identity_key=identity_key,
-                lot_code=lot["lot_code"] if lot else None,
-                serial_numbers=[serial["serial_number"] for serial in serials],
-                expiration_date=expiration,
-                on_hand=movement["quantity_base"],
-                reserved=Decimal("0"),
+        if not serials:
+            serials = [
+                {
+                    "serial_number": assignment["serial_number"],
+                    "expiration_date": assignment["serial_expiration_date"],
+                }
+                for assignment in assignments
+                if assignment["tracking_policy"] == "serial"
+            ]
+        incoming = movement["movement_leg"] in {
+            "opening_in",
+            "pick_staging_in",
+            "pick_reversal_available_in",
+        }
+        signed_quantity = movement["quantity_base"] if incoming else -movement["quantity_base"]
+        if serials and movement["movement_leg"] != "opening_in":
+            serial_numbers = sorted(serial["serial_number"] for serial in serials)
+            if incoming and movement["movement_leg"] == "pick_staging_in":
+                for serial in serials:
+                    await session.execute(
+                        pg_insert(inventory_availability).values(
+                            sku_id=movement["sku_id"],
+                            warehouse_id=movement["warehouse_id"],
+                            location_id=movement["location_id"],
+                            identity_key=f"serial:{serial['serial_number']}",
+                            lot_code=None,
+                            serial_numbers=[serial["serial_number"]],
+                            expiration_date=serial["expiration_date"],
+                            on_hand=Decimal("1"),
+                            reserved=Decimal("0"),
+                        )
+                    )
+            elif incoming:
+                source_positions = (
+                    (
+                        await session.execute(
+                            select(inventory_availability)
+                            .where(
+                                inventory_availability.c.sku_id == movement["sku_id"],
+                                inventory_availability.c.warehouse_id == movement["warehouse_id"],
+                                inventory_availability.c.location_id == movement["location_id"],
+                            )
+                            .order_by(inventory_availability.c.identity_key)
+                            .limit(1)
+                        )
+                    )
+                    .mappings()
+                    .one_or_none()
+                )
+                if source_positions is None:
+                    await session.execute(
+                        insert(inventory_availability).values(
+                            sku_id=movement["sku_id"],
+                            warehouse_id=movement["warehouse_id"],
+                            location_id=movement["location_id"],
+                            identity_key=f"serial:{movement['movement_group_id']}",
+                            lot_code=None,
+                            serial_numbers=serial_numbers,
+                            expiration_date=serials[0]["expiration_date"],
+                            on_hand=movement["quantity_base"],
+                            reserved=Decimal("0"),
+                        )
+                    )
+                else:
+                    await session.execute(
+                        update(inventory_availability)
+                        .where(
+                            inventory_availability.c.sku_id == movement["sku_id"],
+                            inventory_availability.c.warehouse_id == movement["warehouse_id"],
+                            inventory_availability.c.location_id == movement["location_id"],
+                            inventory_availability.c.identity_key
+                            == source_positions["identity_key"],
+                        )
+                        .values(
+                            on_hand=inventory_availability.c.on_hand + movement["quantity_base"],
+                            serial_numbers=sorted(
+                                set(source_positions["serial_numbers"]) | set(serial_numbers)
+                            ),
+                        )
+                    )
+            else:
+                positions = (
+                    (
+                        await session.execute(
+                            select(inventory_availability).where(
+                                inventory_availability.c.sku_id == movement["sku_id"],
+                                inventory_availability.c.warehouse_id == movement["warehouse_id"],
+                                inventory_availability.c.location_id == movement["location_id"],
+                            )
+                        )
+                    )
+                    .mappings()
+                    .all()
+                )
+                for serial_number in serial_numbers:
+                    position = cast(
+                        Mapping[str, Any] | None,
+                        next(
+                            (row for row in positions if serial_number in row["serial_numbers"]),
+                            None,
+                        ),
+                    )
+                    if position is None:
+                        raise AppError(
+                            409,
+                            "inventory_projection_rebuild_conflict",
+                            "Serial movement history cannot be reconciled.",
+                        )
+                    await session.execute(
+                        update(inventory_availability)
+                        .where(
+                            inventory_availability.c.sku_id == movement["sku_id"],
+                            inventory_availability.c.warehouse_id == movement["warehouse_id"],
+                            inventory_availability.c.location_id == movement["location_id"],
+                            inventory_availability.c.identity_key == position["identity_key"],
+                        )
+                        .values(
+                            on_hand=inventory_availability.c.on_hand - Decimal("1"),
+                            serial_numbers=sorted(
+                                set(position["serial_numbers"]) - {serial_number}
+                            ),
+                        )
+                    )
+                    position = {
+                        **position,
+                        "serial_numbers": sorted(set(position["serial_numbers"]) - {serial_number}),
+                    }
+        else:
+            serial_expiration = serials[0]["expiration_date"] if serials else None
+            identity_key = (
+                f"lot:{lot['lot_code']}"
+                if lot
+                else f"serial:{movement['movement_id']}"
+                if serials
+                else ""
             )
-            .on_conflict_do_update(
-                index_elements=[
-                    "sku_id",
-                    "warehouse_id",
-                    "location_id",
-                    "identity_key",
-                ],
-                set_={
-                    "on_hand": inventory_availability.c.on_hand + movement["quantity_base"],
-                    "expiration_date": expiration,
-                },
+            expiration = lot["expiration_date"] if lot else serial_expiration
+            await session.execute(
+                pg_insert(inventory_availability)
+                .values(
+                    sku_id=movement["sku_id"],
+                    warehouse_id=movement["warehouse_id"],
+                    location_id=movement["location_id"],
+                    identity_key=identity_key,
+                    lot_code=lot["lot_code"] if lot else None,
+                    serial_numbers=[serial["serial_number"] for serial in serials],
+                    expiration_date=expiration,
+                    on_hand=signed_quantity,
+                    reserved=Decimal("0"),
+                )
+                .on_conflict_do_update(
+                    index_elements=[
+                        "sku_id",
+                        "warehouse_id",
+                        "location_id",
+                        "identity_key",
+                    ],
+                    set_={
+                        "on_hand": inventory_availability.c.on_hand + signed_quantity,
+                        "expiration_date": expiration,
+                    },
+                )
             )
-        )
         current = (
             (
                 await session.execute(
@@ -1169,11 +1394,15 @@ async def rebuild_projections(
             .mappings()
             .one_or_none()
         )
-        quantity = movement["quantity_base"] + (
-            current["quantity_on_hand"] if current else Decimal("0")
-        )
+        quantity = signed_quantity + (current["quantity_on_hand"] if current else Decimal("0"))
         value = movement["value_delta"] + (current["inventory_value"] if current else Decimal("0"))
-        average = (value / quantity).quantize(SIX_PLACES, ROUND_HALF_UP)
+        average = (
+            (value / quantity).quantize(SIX_PLACES, ROUND_HALF_UP)
+            if quantity != Decimal("0")
+            else current["moving_average_unit_cost"]
+            if current
+            else Decimal("0")
+        )
         await session.execute(
             pg_insert(inventory_valuation)
             .values(

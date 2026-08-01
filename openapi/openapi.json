@@ -303,7 +303,8 @@
           "custody": {
             "enum": [
               "available",
-              "quarantine"
+              "quarantine",
+              "dispatch_staging"
             ],
             "title": "Custody",
             "type": "string"
@@ -482,6 +483,118 @@
           "barcode"
         ],
         "title": "BarcodeInput",
+        "type": "object"
+      },
+      "BarcodeResolutionResponse": {
+        "properties": {
+          "barcode": {
+            "title": "Barcode",
+            "type": "string"
+          },
+          "barcode_mapping_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barcode Mapping Id"
+          },
+          "base_quantity_per_unit": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Base Quantity Per Unit",
+            "type": "string"
+          },
+          "expiration_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expiration Date"
+          },
+          "lot_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Code"
+          },
+          "mapping_type": {
+            "enum": [
+              "catalog",
+              "lot_identity",
+              "serial_identity"
+            ],
+            "title": "Mapping Type",
+            "type": "string"
+          },
+          "serial_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serial Number"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "unit_code": {
+            "title": "Unit Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "barcode",
+          "barcode_mapping_id",
+          "mapping_type",
+          "sku_id",
+          "unit_code",
+          "base_quantity_per_unit",
+          "lot_code",
+          "serial_number",
+          "expiration_date"
+        ],
+        "title": "BarcodeResolutionResponse",
+        "type": "object"
+      },
+      "BarcodeResolveCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "barcode": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Barcode",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "warehouse_id",
+          "barcode"
+        ],
+        "title": "BarcodeResolveCommand",
         "type": "object"
       },
       "BarcodeResponse": {
@@ -2329,6 +2442,36 @@
         "title": "ErrorEnvelope",
         "type": "object"
       },
+      "FefoCandidateResponse": {
+        "properties": {
+          "available_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Available Quantity Base",
+            "type": "string"
+          },
+          "expiration_date": {
+            "format": "date",
+            "title": "Expiration Date",
+            "type": "string"
+          },
+          "lot_code": {
+            "title": "Lot Code",
+            "type": "string"
+          },
+          "recommended": {
+            "title": "Recommended",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "lot_code",
+          "expiration_date",
+          "available_quantity_base",
+          "recommended"
+        ],
+        "title": "FefoCandidateResponse",
+        "type": "object"
+      },
       "FulfillmentOrderListResponse": {
         "properties": {
           "items": {
@@ -2397,6 +2540,15 @@
             "title": "Payment Required",
             "type": "string"
           },
+          "payment_timing_policy": {
+            "enum": [
+              "prepaid",
+              "cash_on_delivery",
+              "on_account"
+            ],
+            "title": "Payment Timing Policy",
+            "type": "string"
+          },
           "reservation_generation": {
             "title": "Reservation Generation",
             "type": "integer"
@@ -2414,12 +2566,19 @@
           "status": {
             "title": "Status",
             "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
           }
         },
         "required": [
           "fulfillment_order_id",
           "sales_order_id",
+          "warehouse_id",
           "reservation_generation",
+          "payment_timing_policy",
           "status",
           "currency",
           "order_value",
@@ -2487,7 +2646,8 @@
           "custody": {
             "enum": [
               "available",
-              "quarantine"
+              "quarantine",
+              "dispatch_staging"
             ],
             "title": "Custody",
             "type": "string"
@@ -3487,6 +3647,278 @@
         "title": "PaymentVerificationCommand",
         "type": "object"
       },
+      "PickHistoryItemResponse": {
+        "properties": {
+          "actor_subject": {
+            "title": "Actor Subject",
+            "type": "string"
+          },
+          "correlation_id": {
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "event_type": {
+            "enum": [
+              "posted",
+              "reversed"
+            ],
+            "title": "Event Type",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PickHistoryLineResponse"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "pick_id": {
+            "format": "uuid",
+            "title": "Pick Id",
+            "type": "string"
+          },
+          "posted_at": {
+            "format": "date-time",
+            "title": "Posted At",
+            "type": "string"
+          },
+          "quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity Base",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "reversal_of_pick_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reversal Of Pick Id"
+          }
+        },
+        "required": [
+          "pick_id",
+          "event_type",
+          "reversal_of_pick_id",
+          "reason",
+          "actor_subject",
+          "correlation_id",
+          "posted_at",
+          "quantity_base",
+          "lines"
+        ],
+        "title": "PickHistoryItemResponse",
+        "type": "object"
+      },
+      "PickHistoryLineResponse": {
+        "properties": {
+          "conversion_snapshot": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Conversion Snapshot",
+            "type": "object"
+          },
+          "line_id": {
+            "format": "uuid",
+            "title": "Line Id",
+            "type": "string"
+          },
+          "lot_selections": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Lot Selections",
+            "type": "array"
+          },
+          "quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity Base",
+            "type": "string"
+          },
+          "serial_selections": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Serial Selections",
+            "type": "array"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "source_movement_id": {
+            "format": "uuid",
+            "title": "Source Movement Id",
+            "type": "string"
+          },
+          "staging_movement_id": {
+            "format": "uuid",
+            "title": "Staging Movement Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line_id",
+          "sku_id",
+          "quantity_base",
+          "conversion_snapshot",
+          "source_movement_id",
+          "staging_movement_id",
+          "lot_selections",
+          "serial_selections"
+        ],
+        "title": "PickHistoryLineResponse",
+        "type": "object"
+      },
+      "PickHistoryListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PickHistoryItemResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "PickHistoryListResponse",
+        "type": "object"
+      },
+      "PickLineInput": {
+        "additionalProperties": false,
+        "properties": {
+          "line_id": {
+            "format": "uuid",
+            "title": "Line Id",
+            "type": "string"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "selections": {
+            "items": {
+              "$ref": "#/components/schemas/PickSelectionInput"
+            },
+            "title": "Selections",
+            "type": "array"
+          },
+          "unit_code": {
+            "pattern": "^[A-Z][A-Z0-9_-]{0,29}$",
+            "title": "Unit Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line_id",
+          "quantity",
+          "unit_code",
+          "selections"
+        ],
+        "title": "PickLineInput",
+        "type": "object"
+      },
+      "PickLineResponse": {
+        "properties": {
+          "conversion_snapshot": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Conversion Snapshot",
+            "type": "object"
+          },
+          "line_id": {
+            "format": "uuid",
+            "title": "Line Id",
+            "type": "string"
+          },
+          "lot_selections": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Lot Selections",
+            "type": "array"
+          },
+          "quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity Base",
+            "type": "string"
+          },
+          "serial_selections": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Serial Selections",
+            "type": "array"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "source_movement_id": {
+            "format": "uuid",
+            "title": "Source Movement Id",
+            "type": "string"
+          },
+          "staging_movement_id": {
+            "format": "uuid",
+            "title": "Staging Movement Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line_id",
+          "sku_id",
+          "quantity_base",
+          "conversion_snapshot",
+          "source_movement_id",
+          "staging_movement_id",
+          "lot_selections",
+          "serial_selections"
+        ],
+        "title": "PickLineResponse",
+        "type": "object"
+      },
       "PickReleaseCommand": {
         "additionalProperties": false,
         "properties": {
@@ -3547,6 +3979,329 @@
         "title": "PickReleaseResponse",
         "type": "object"
       },
+      "PickResponse": {
+        "properties": {
+          "fulfillment_order_id": {
+            "format": "uuid",
+            "title": "Fulfillment Order Id",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PickLineResponse"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "pick_id": {
+            "format": "uuid",
+            "title": "Pick Id",
+            "type": "string"
+          },
+          "picked_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Picked Quantity Base",
+            "type": "string"
+          },
+          "remaining_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Remaining Quantity Base",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "partially_picked",
+              "picked"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pick_id",
+          "fulfillment_order_id",
+          "status",
+          "picked_quantity_base",
+          "remaining_quantity_base",
+          "version",
+          "lines"
+        ],
+        "title": "PickResponse",
+        "type": "object"
+      },
+      "PickReversalResponse": {
+        "properties": {
+          "fulfillment_order_id": {
+            "format": "uuid",
+            "title": "Fulfillment Order Id",
+            "type": "string"
+          },
+          "original_pick_id": {
+            "format": "uuid",
+            "title": "Original Pick Id",
+            "type": "string"
+          },
+          "reversal_pick_id": {
+            "format": "uuid",
+            "title": "Reversal Pick Id",
+            "type": "string"
+          },
+          "reversed_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Reversed Quantity Base",
+            "type": "string"
+          },
+          "source_movement_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Source Movement Ids",
+            "type": "array"
+          },
+          "staging_movement_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Staging Movement Ids",
+            "type": "array"
+          },
+          "status": {
+            "const": "reversed",
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "reversal_pick_id",
+          "original_pick_id",
+          "fulfillment_order_id",
+          "status",
+          "reversed_quantity_base",
+          "version",
+          "source_movement_ids",
+          "staging_movement_ids"
+        ],
+        "title": "PickReversalResponse",
+        "type": "object"
+      },
+      "PickSelectionInput": {
+        "additionalProperties": false,
+        "properties": {
+          "barcode": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barcode"
+          },
+          "fefo_override_reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fefo Override Reason"
+          },
+          "lot_code": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Code"
+          },
+          "manual_reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manual Reason"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "serial_number": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serial Number"
+          }
+        },
+        "title": "PickSelectionInput",
+        "type": "object"
+      },
+      "PickingContextLineResponse": {
+        "properties": {
+          "base_stocking_unit": {
+            "title": "Base Stocking Unit",
+            "type": "string"
+          },
+          "expiration_control": {
+            "title": "Expiration Control",
+            "type": "boolean"
+          },
+          "fefo_candidates": {
+            "items": {
+              "$ref": "#/components/schemas/FefoCandidateResponse"
+            },
+            "title": "Fefo Candidates",
+            "type": "array"
+          },
+          "line_id": {
+            "format": "uuid",
+            "title": "Line Id",
+            "type": "string"
+          },
+          "picked_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Picked Quantity Base",
+            "type": "string"
+          },
+          "released_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Released Quantity Base",
+            "type": "string"
+          },
+          "remaining_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Remaining Quantity Base",
+            "type": "string"
+          },
+          "reversed_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Reversed Quantity Base",
+            "type": "string"
+          },
+          "sku_code": {
+            "title": "Sku Code",
+            "type": "string"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "sku_name": {
+            "title": "Sku Name",
+            "type": "string"
+          },
+          "tracking_policy": {
+            "enum": [
+              "untracked",
+              "lot",
+              "serial"
+            ],
+            "title": "Tracking Policy",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line_id",
+          "sku_id",
+          "sku_code",
+          "sku_name",
+          "base_stocking_unit",
+          "tracking_policy",
+          "expiration_control",
+          "released_quantity_base",
+          "picked_quantity_base",
+          "reversed_quantity_base",
+          "remaining_quantity_base",
+          "fefo_candidates"
+        ],
+        "title": "PickingContextLineResponse",
+        "type": "object"
+      },
+      "PickingContextResponse": {
+        "properties": {
+          "fulfillment_order_id": {
+            "format": "uuid",
+            "title": "Fulfillment Order Id",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PickingContextLineResponse"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fulfillment_order_id",
+          "version",
+          "status",
+          "warehouse_id",
+          "lines"
+        ],
+        "title": "PickingContextResponse",
+        "type": "object"
+      },
       "PingCommand": {
         "properties": {
           "message": {
@@ -3578,6 +4333,36 @@
           "message"
         ],
         "title": "PingResponse",
+        "type": "object"
+      },
+      "PostPickCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_fulfillment_version": {
+            "exclusiveMinimum": 0.0,
+            "title": "Expected Fulfillment Version",
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PickLineInput"
+            },
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "pick_id": {
+            "format": "uuid",
+            "title": "Pick Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pick_id",
+          "expected_fulfillment_version",
+          "lines"
+        ],
+        "title": "PostPickCommand",
         "type": "object"
       },
       "PriceListLineInput": {
@@ -4026,6 +4811,34 @@
           "backorder_quantity_base"
         ],
         "title": "ReservationRetryResponse",
+        "type": "object"
+      },
+      "ReversePickCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_fulfillment_version": {
+            "exclusiveMinimum": 0.0,
+            "title": "Expected Fulfillment Version",
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "reversal_pick_id": {
+            "format": "uuid",
+            "title": "Reversal Pick Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reversal_pick_id",
+          "expected_fulfillment_version",
+          "reason"
+        ],
+        "title": "ReversePickCommand",
         "type": "object"
       },
       "RoleTemplateInput": {
@@ -7274,11 +8087,18 @@
           {
             "in": "query",
             "name": "sales_order_id",
-            "required": true,
+            "required": false,
             "schema": {
-              "format": "uuid",
-              "title": "Sales Order Id",
-              "type": "string"
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sales Order Id"
             }
           }
         ],
@@ -7493,6 +8313,316 @@
         ]
       }
     },
+    "/v1/fulfillment/orders/{fulfillment_order_id}/picking-context": {
+      "get": {
+        "operationId": "get_picking_context_v1_fulfillment_orders__fulfillment_order_id__picking_context_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fulfillment_order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Fulfillment Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PickingContextResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Picking Context",
+        "tags": [
+          "fulfillment picking"
+        ]
+      }
+    },
+    "/v1/fulfillment/orders/{fulfillment_order_id}/picks": {
+      "get": {
+        "operationId": "list_picks_v1_fulfillment_orders__fulfillment_order_id__picks_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fulfillment_order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Fulfillment Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PickHistoryListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Picks",
+        "tags": [
+          "fulfillment picking"
+        ]
+      },
+      "post": {
+        "operationId": "post_pick_v1_fulfillment_orders__fulfillment_order_id__picks_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fulfillment_order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Fulfillment Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostPickCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PickResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Post Pick",
+        "tags": [
+          "fulfillment picking"
+        ]
+      }
+    },
     "/v1/fulfillment/payment-deadlines/process": {
       "post": {
         "operationId": "process_payment_deadline_v1_fulfillment_payment_deadlines_process_post",
@@ -7620,6 +8750,142 @@
         ]
       }
     },
+    "/v1/fulfillment/picks/{pick_id}/reversal": {
+      "post": {
+        "operationId": "reverse_pick_v1_fulfillment_picks__pick_id__reversal_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pick_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pick Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReversePickCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PickReversalResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reverse Pick",
+        "tags": [
+          "fulfillment picking"
+        ]
+      }
+    },
     "/v1/inventory/availability": {
       "get": {
         "operationId": "search_availability_v1_inventory_availability_get",
@@ -7708,6 +8974,102 @@
         "summary": "Search Availability",
         "tags": [
           "catalog and inventory"
+        ]
+      }
+    },
+    "/v1/inventory/barcodes/resolve": {
+      "post": {
+        "operationId": "resolve_barcode_v1_inventory_barcodes_resolve_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BarcodeResolveCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BarcodeResolutionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Resolve Barcode",
+        "tags": [
+          "fulfillment picking"
         ]
       }
     },

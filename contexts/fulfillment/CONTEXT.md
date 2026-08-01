@@ -14,16 +14,35 @@ Order's reserved quantities under the Sales Order's immutable Calculation
 Snapshot. It excludes Backorder Demand and is not recalculated from current
 prices.
 
+**Released Quantity**: Reserved quantity authorized by Pick Release for one
+Fulfillment Order line. It never exceeds that line's active Reserved Quantity.
+
 **Pick Release**: Authorization for warehouse staff to begin picking a
-Fulfillment Order. A Prepaid Fulfillment Order requires active Prepayment
-Coverage Designations whose total equals or exceeds that exact Reservation
-Generation's Reserved Value; partial coverage does not authorize partial Pick
-Release.
+Fulfillment Order's Released Quantity. It does not assign physical identities.
+A Prepaid Fulfillment Order requires active Prepayment Coverage Designations
+whose total equals or exceeds that exact Reservation Generation's Reserved
+Value; partial coverage does not authorize partial Pick Release.
 
 **Pick**: The act of identifying and moving reserved goods for dispatch.
 Picking assigns required Lot Identities or Serial Identities.
 Expiration-controlled stock defaults to FEFO; selecting another eligible lot
 requires an authorized reason.
+
+**Pick Assignment**: Association of exact Base Stocking Unit quantity with
+every Lot Identity or Serial Identity required by Tracking Policy before a Pick
+posts. Each Serial Identity satisfies exactly one Base Stocking Unit.
+
+**Partial Pick**: A posted Pick smaller than Released Quantity. Posted quantity
+is in Dispatch Staging while the remainder stays released and reserved; it is
+not silently backordered or completed.
+
+**Pick Conflict**: Server rejection because released or reserved quantity,
+identity eligibility, or authoritative Pick state changed after selection. It
+requires refresh and explicit reconciliation, never automatic merging.
+
+**Pick Reversal**: An authorized, reasoned immutable transfer linked to an
+undispatched Pick that returns its exact quantity and identities from Dispatch
+Staging. It does not edit the original Pick.
 
 **Dispatch**: The release of picked goods to a delivery run or carrier,
 transferring quantity from Dispatch Staging to In Transit.

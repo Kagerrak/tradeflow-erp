@@ -362,6 +362,24 @@ async def require_pick_releaser(
     return require_capability(user, "fulfillment:pick-release")
 
 
+async def require_picker(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "fulfillment:pick")
+
+
+async def require_pick_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "fulfillment:pick-read")
+
+
+async def require_pick_reverser(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "fulfillment:pick-reverse")
+
+
 async def require_reservation_retrier(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:

@@ -4,6 +4,7 @@ import {
   platformStateContent,
   type PlatformSessionState,
 } from "@tradeflow/platform-session";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 type ShellState = PlatformSessionState | { kind: "loading" };
@@ -17,11 +18,11 @@ const workflowSteps = [
 ] as const;
 
 const navigation = [
-  ["Control desk", "01"],
-  ["Orders", "02"],
-  ["Fulfillment", "03"],
-  ["Inventory", "04"],
-  ["Customers", "05"],
+  ["Control desk", "01", "/"],
+  ["Orders", "02", "/sales-orders/new"],
+  ["Fulfillment", "03", "/picking"],
+  ["Inventory", "04", "/inventory"],
+  ["Customers", "05", "/customers"],
 ] as const;
 
 async function fetchPlatformSession(): Promise<PlatformSessionState> {
@@ -79,14 +80,15 @@ export function TradeFlowShell() {
         <Brand />
         <nav className="rail-nav">
           <p className="rail-label">Workspace</p>
-          {navigation.map(([label, number], index) => (
-            <span
+          {navigation.map(([label, number, href], index) => (
+            <Link
               className={index === 0 ? "nav-item nav-item-active" : "nav-item"}
+              href={href}
               key={label}
             >
               <span aria-hidden="true">{number}</span>
               {label}
-            </span>
+            </Link>
           ))}
         </nav>
         <div className="rail-foot">

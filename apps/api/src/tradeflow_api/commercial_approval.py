@@ -1461,7 +1461,9 @@ async def rebuild_commercial_projections(
                     func.sum(
                         case(
                             (
-                                inventory_reservation_events.c.event_type == "reserved",
+                                inventory_reservation_events.c.event_type.in_(
+                                    ("reserved", "restored")
+                                ),
                                 inventory_reservation_events.c.quantity_base,
                             ),
                             else_=-inventory_reservation_events.c.quantity_base,
@@ -1498,7 +1500,9 @@ async def rebuild_commercial_projections(
                         func.sum(
                             case(
                                 (
-                                    inventory_reservation_events.c.event_type == "reserved",
+                                    inventory_reservation_events.c.event_type.in_(
+                                        ("reserved", "restored")
+                                    ),
                                     inventory_reservation_events.c.quantity_base,
                                 ),
                                 else_=-inventory_reservation_events.c.quantity_base,
@@ -1506,6 +1510,22 @@ async def rebuild_commercial_projections(
                         ),
                         ZERO,
                     ).label("reserved_quantity_base"),
+                    func.coalesce(
+                        func.sum(
+                            case(
+                                (
+                                    inventory_reservation_events.c.event_type == "consumed",
+                                    inventory_reservation_events.c.quantity_base,
+                                ),
+                                (
+                                    inventory_reservation_events.c.event_type == "restored",
+                                    -inventory_reservation_events.c.quantity_base,
+                                ),
+                                else_=ZERO,
+                            )
+                        ),
+                        ZERO,
+                    ).label("picked_quantity_base"),
                 )
                 .select_from(
                     commercial_approvals.join(
@@ -1555,8 +1575,11 @@ async def rebuild_commercial_projections(
                     warehouse_id=row["warehouse_id"],
                     ordered_quantity_base=row["ordered_quantity_base"],
                     reserved_quantity_base=row["reserved_quantity_base"],
+                    picked_quantity_base=row["picked_quantity_base"],
                     backorder_quantity_base=(
-                        row["ordered_quantity_base"] - row["reserved_quantity_base"]
+                        row["ordered_quantity_base"]
+                        - row["reserved_quantity_base"]
+                        - row["picked_quantity_base"]
                     ),
                 )
             )

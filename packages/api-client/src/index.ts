@@ -11,7 +11,7 @@ export type TradeFlowClientOptions = {
   fetch?: (request: Request) => Promise<Response>;
 };
 
-function createTraceparent(correlationId: string): string {
+export function createTraceparent(correlationId: string): string {
   const traceId = correlationId.replaceAll("-", "");
   return `00-${traceId}-${traceId.slice(0, 16)}-01`;
 }

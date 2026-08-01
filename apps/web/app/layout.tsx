@@ -3,6 +3,7 @@ import "@fontsource-variable/newsreader";
 import "./customer.css";
 import "./inventory.css";
 import "./payment-clearance.css";
+import "./picking.css";
 import "./sales-orders.css";
 import "./theme.css";
 

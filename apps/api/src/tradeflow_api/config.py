@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     auth_audience: str = "tradeflow-api"
     auth_jwks_url: str | None = None
     auth_test_secret: str | None = Field(default=None, min_length=32, repr=False)
+    picking_enabled: bool = True
     telemetry_enabled: bool = True
     otlp_endpoint: str | None = None
 

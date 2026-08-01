@@ -101,6 +101,7 @@ async def bootstrap_payment_clearance(
                         "sales:pricing-write",
                         "sales:commercial-approve",
                         "sales:discount-enter",
+                        "sales:projection-rebuild",
                     ],
                 },
                 {
@@ -133,8 +134,38 @@ async def bootstrap_payment_clearance(
                     "code": "WAREHOUSE",
                     "name": "Warehouse Controller",
                     "capabilities": [
+                        "fulfillment:pick",
+                        "fulfillment:pick-read",
+                        "fulfillment:pick-reverse",
                         "fulfillment:pick-release",
                         "inventory:read",
+                        "inventory:post",
+                        "inventory:rebuild",
+                        "inventory:reservation-retry",
+                    ],
+                },
+                {
+                    "code": "WAREHOUSE_PICKER",
+                    "name": "Warehouse Picker",
+                    "capabilities": [
+                        "fulfillment:pick",
+                        "fulfillment:pick-read",
+                        "inventory:read",
+                    ],
+                },
+                {
+                    "code": "WAREHOUSE_SUPERVISOR",
+                    "name": "Warehouse Supervisor",
+                    "capabilities": [
+                        "fulfillment:pick",
+                        "fulfillment:pick-read",
+                        "fulfillment:pick-reverse",
+                        "fulfillment:pick-release",
+                        "fulfillment:pick-manual",
+                        "fulfillment:fefo-override",
+                        "inventory:read",
+                        "inventory:post",
+                        "inventory:rebuild",
                         "inventory:reservation-retry",
                     ],
                 },
@@ -190,6 +221,27 @@ async def bootstrap_payment_clearance(
                     "warehouse_codes": ["MNL-01"],
                 },
                 {
+                    "subject": "warehouse-supervisor-mnl",
+                    "display_name": "Manila Warehouse Supervisor",
+                    "role_template_codes": ["WAREHOUSE_SUPERVISOR"],
+                    "branch_codes": ["MNL"],
+                    "warehouse_codes": ["MNL-01"],
+                },
+                {
+                    "subject": "warehouse-picker-mnl",
+                    "display_name": "Manila Warehouse Picker",
+                    "role_template_codes": ["WAREHOUSE_PICKER"],
+                    "branch_codes": ["MNL"],
+                    "warehouse_codes": ["MNL-01"],
+                },
+                {
+                    "subject": "warehouse-cross-scope",
+                    "display_name": "Cross-Scope Warehouse Picker",
+                    "role_template_codes": ["WAREHOUSE_PICKER"],
+                    "branch_codes": ["CEB"],
+                    "warehouse_codes": ["MNL-01"],
+                },
+                {
                     "subject": "deadline-mnl",
                     "display_name": "Manila Payment Deadline Processor",
                     "role_template_codes": ["DEADLINE"],
@@ -221,6 +273,8 @@ async def create_customer(
     client: AsyncClient,
     settings: Settings,
     branch_id: str,
+    *,
+    payment_timing_policy: str = "prepaid",
 ) -> dict[str, object]:
     response = await client.post(
         "/v1/customers",
@@ -234,9 +288,11 @@ async def create_customer(
             "branch_id": branch_id,
             "legal_name": "Prepaid Retail Customer",
             "status": "active",
-            "payment_terms": "DUE_ON_RECEIPT",
-            "payment_timing_policy": "prepaid",
-            "credit_limit": None,
+            "payment_terms": (
+                "NET30" if payment_timing_policy == "on_account" else "DUE_ON_RECEIPT"
+            ),
+            "payment_timing_policy": payment_timing_policy,
+            "credit_limit": ("10000.00" if payment_timing_policy == "on_account" else None),
             "credit_hold": False,
             "contacts": [
                 {
@@ -401,12 +457,19 @@ async def approved_prepaid_order(
     client: AsyncClient,
     settings: Settings,
     postgres_url: str,
+    *,
+    payment_timing_policy: str = "prepaid",
 ) -> dict[str, object]:
     organization = await bootstrap_payment_clearance(client, settings)
     branch = organization["branches"][0]
     branch_id = branch["branch_id"]
     warehouse_id = branch["warehouses"][0]["warehouse_id"]
-    customer = await create_customer(client, settings, branch_id)
+    customer = await create_customer(
+        client,
+        settings,
+        branch_id,
+        payment_timing_policy=payment_timing_policy,
+    )
     sku = await create_sku(client, settings)
     tax = await create_tax_code(client, settings)
     price_list = await create_price_list(
@@ -487,7 +550,8 @@ async def approved_prepaid_order(
     assert len(fulfillment_orders) == 1
     assert fulfillment_orders[0]["reserved_quantity_base"] == "2.000000"
     assert fulfillment_orders[0]["backorder_quantity_base"] == "1.000000"
-    assert fulfillment_orders[0]["payment_required"] == "224.00"
+    expected_payment = "224.00" if payment_timing_policy == "prepaid" else "0.00"
+    assert fulfillment_orders[0]["payment_required"] == expected_payment
     return {
         "branch_id": branch_id,
         "command": command,
@@ -829,6 +893,41 @@ async def test_pick_release_prices_only_reserved_quantity_and_requires_exact_pay
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("payment_timing_policy", ["cash_on_delivery", "on_account"])
+async def test_approved_non_prepaid_commitments_release_without_prepayment(
+    payment_client: AsyncClient,
+    payment_settings: Settings,
+    postgres_url: str,
+    payment_timing_policy: str,
+) -> None:
+    fixture = await approved_prepaid_order(
+        payment_client,
+        payment_settings,
+        postgres_url,
+        payment_timing_policy=payment_timing_policy,
+    )
+    fulfillment_order = fixture["fulfillment_order"]
+    assert fulfillment_order["payment_timing_policy"] == payment_timing_policy
+    assert fulfillment_order["warehouse_id"] == fixture["warehouse_id"]
+    assert fulfillment_order["payment_required"] == "0.00"
+
+    released = await payment_client.post(
+        f"/v1/fulfillment/orders/{fulfillment_order['fulfillment_order_id']}/pick-release",
+        headers=auth(
+            payment_settings,
+            "warehouse-mnl",
+            **{"Idempotency-Key": f"{payment_timing_policy}-pick-release"},
+        ),
+        json={"reason": "Approved commitment is ready for warehouse picking"},
+    )
+    assert released.status_code == 201, released.text
+    assert released.json()["status"] == "released"
+    assert released.json()["quantity_base"] == "2.000000"
+    assert released.json()["payment_required"] == "0.00"
+    assert released.json()["cleared_payment"] == "0.00"
+
+
+@pytest.mark.asyncio
 async def test_unpaid_deadline_replays_releases_to_hold_and_requires_reservation_retry(
     payment_client: AsyncClient,
     payment_settings: Settings,
@@ -918,6 +1017,12 @@ async def test_unpaid_deadline_replays_releases_to_hold_and_requires_reservation
         params={"sales_order_id": fixture["sales_order_id"]},
     )
     assert refreshed.status_code == 200, refreshed.text
+    assert refreshed.json()["total"] == 2
+    assert {item["reservation_generation"] for item in refreshed.json()["items"]} == {
+        1,
+        2,
+    }
+    assert {item["warehouse_id"] for item in refreshed.json()["items"]} == {fixture["warehouse_id"]}
     active = [item for item in refreshed.json()["items"] if item["status"] == "payment_ready"]
     assert len(active) == 1
     released = await payment_client.post(

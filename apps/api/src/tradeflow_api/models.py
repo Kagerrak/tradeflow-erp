@@ -474,7 +474,7 @@ warehouse_stock_locations = Table(
     Column("version", Integer, nullable=False, server_default="1"),
     Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
     CheckConstraint(
-        "custody IN ('available', 'quarantine')",
+        "custody IN ('available', 'quarantine', 'dispatch_staging')",
         name="ck_warehouse_stock_locations_custody",
     ),
     UniqueConstraint("warehouse_id", "code", name="uq_warehouse_stock_location_code"),
@@ -509,9 +509,40 @@ stock_movements = Table(
     Column("correlation_id", String(100), nullable=False),
     Column("idempotency_key", String(200), nullable=False, unique=True),
     Column("posted_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
-    CheckConstraint("movement_type = 'opening_stock'", name="ck_stock_movements_type"),
+    Column("movement_group_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("movement_leg", String(40), nullable=False),
+    Column(
+        "reversal_of_movement_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("stock_movements.movement_id"),
+        nullable=True,
+    ),
+    CheckConstraint(
+        "movement_type IN ('opening_stock', 'pick', 'pick_reversal')",
+        name="ck_stock_movements_type",
+    ),
+    CheckConstraint(
+        "(movement_type = 'opening_stock' AND movement_leg = 'opening_in') "
+        "OR (movement_type = 'pick' "
+        "AND movement_leg IN ('pick_available_out', 'pick_staging_in')) "
+        "OR (movement_type = 'pick_reversal' "
+        "AND movement_leg IN "
+        "('pick_reversal_staging_out', 'pick_reversal_available_in'))",
+        name="ck_stock_movements_leg",
+    ),
     CheckConstraint("quantity_base > 0", name="ck_stock_movements_quantity_positive"),
     CheckConstraint("unit_cost >= 0", name="ck_stock_movements_cost_nonnegative"),
+    UniqueConstraint(
+        "movement_group_id",
+        "movement_leg",
+        name="uq_stock_movement_group_leg",
+    ),
+)
+Index(
+    "uq_stock_movement_reversal",
+    stock_movements.c.reversal_of_movement_id,
+    unique=True,
+    postgresql_where=stock_movements.c.reversal_of_movement_id.is_not(None),
 )
 
 lot_identities = Table(
@@ -1203,7 +1234,7 @@ inventory_reservation_events = Table(
     Column("idempotency_key", String(200), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     CheckConstraint(
-        "event_type IN ('reserved', 'released')",
+        "event_type IN ('reserved', 'released', 'consumed', 'restored')",
         name="ck_inventory_reservation_events_type",
     ),
     CheckConstraint(
@@ -1312,11 +1343,13 @@ sales_order_line_commitments = Table(
     ),
     Column("ordered_quantity_base", Numeric(18, 6), nullable=False),
     Column("reserved_quantity_base", Numeric(18, 6), nullable=False),
+    Column("picked_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
     Column("backorder_quantity_base", Numeric(18, 6), nullable=False),
     CheckConstraint(
         "ordered_quantity_base > 0 AND reserved_quantity_base >= 0 "
-        "AND backorder_quantity_base >= 0 "
-        "AND reserved_quantity_base + backorder_quantity_base = ordered_quantity_base",
+        "AND picked_quantity_base >= 0 AND backorder_quantity_base >= 0 "
+        "AND reserved_quantity_base + picked_quantity_base + backorder_quantity_base "
+        "= ordered_quantity_base",
         name="ck_sales_order_line_commitments_quantities",
     ),
     ForeignKeyConstraint(
@@ -1463,6 +1496,7 @@ fulfillment_orders = Table(
     ),
     UniqueConstraint(
         "sales_order_id",
+        "warehouse_id",
         "reservation_generation",
         name="uq_fulfillment_order_generation",
     ),
@@ -1549,15 +1583,18 @@ fulfillment_order_state = Table(
     Column("reserved_quantity_base", Numeric(18, 6), nullable=False),
     Column("backorder_quantity_base", Numeric(18, 6), nullable=False),
     Column("covered_amount", Numeric(24, 6), nullable=False, server_default="0"),
+    Column("picked_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
     Column("payment_hold", Boolean, nullable=False, server_default="false"),
     Column("version", Integer, nullable=False, server_default="1"),
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     CheckConstraint(
-        "status IN ('reserved', 'payment_ready', 'pick_released', 'payment_hold', 'cancelled')",
+        "status IN ('reserved', 'payment_ready', 'pick_released', 'partially_picked', "
+        "'picked', 'payment_hold', 'cancelled')",
         name="ck_fulfillment_order_state_status",
     ),
     CheckConstraint(
-        "reserved_quantity_base >= 0 AND backorder_quantity_base >= 0 AND covered_amount >= 0",
+        "reserved_quantity_base >= 0 AND backorder_quantity_base >= 0 "
+        "AND covered_amount >= 0 AND picked_quantity_base >= 0",
         name="ck_fulfillment_order_state_amounts",
     ),
     CheckConstraint("version > 0", name="ck_fulfillment_order_state_version"),
@@ -1882,5 +1919,217 @@ payment_refunds = Table(
     CheckConstraint(
         "requested_by <> approved_by",
         name="ck_payment_refunds_maker_checker",
+    ),
+)
+
+pick_postings = Table(
+    "pick_postings",
+    metadata,
+    Column("pick_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "fulfillment_order_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("fulfillment_orders.fulfillment_order_id"),
+        nullable=False,
+    ),
+    Column(
+        "pick_release_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("pick_releases.pick_release_id"),
+        nullable=False,
+    ),
+    Column(
+        "warehouse_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouses.warehouse_id"),
+        nullable=False,
+    ),
+    Column("event_type", String(20), nullable=False),
+    Column(
+        "reversal_of_pick_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("pick_postings.pick_id"),
+        nullable=True,
+    ),
+    Column("reason", String(500), nullable=True),
+    Column("actor_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    Column("posted_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "event_type IN ('posted', 'reversed')",
+        name="ck_pick_postings_event_type",
+    ),
+    CheckConstraint(
+        "(event_type = 'posted' AND reversal_of_pick_id IS NULL) "
+        "OR (event_type = 'reversed' AND reversal_of_pick_id IS NOT NULL)",
+        name="ck_pick_postings_reversal_shape",
+    ),
+)
+Index(
+    "uq_pick_posting_reversal",
+    pick_postings.c.reversal_of_pick_id,
+    unique=True,
+    postgresql_where=pick_postings.c.reversal_of_pick_id.is_not(None),
+)
+
+pick_lines = Table(
+    "pick_lines",
+    metadata,
+    Column("pick_line_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "pick_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("pick_postings.pick_id"),
+        nullable=False,
+    ),
+    Column("fulfillment_order_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("line_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("sku_id", PostgresUUID(as_uuid=True), ForeignKey("skus.sku_id"), nullable=False),
+    Column(
+        "warehouse_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouses.warehouse_id"),
+        nullable=False,
+    ),
+    Column(
+        "source_location_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouse_stock_locations.location_id"),
+        nullable=False,
+    ),
+    Column(
+        "staging_location_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouse_stock_locations.location_id"),
+        nullable=False,
+    ),
+    Column("quantity_base", Numeric(18, 6), nullable=False),
+    Column("entered_quantity", Numeric(18, 6), nullable=False),
+    Column("entered_unit", String(30), nullable=False),
+    Column("conversion_snapshot", JSONB, nullable=False),
+    Column("capture_mode", String(20), nullable=False),
+    Column(
+        "barcode_mapping_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("barcode_mappings.barcode_mapping_id"),
+        nullable=True,
+    ),
+    Column("manual_reason", String(500), nullable=True),
+    Column("fefo_override_reason", String(500), nullable=True),
+    Column("movement_group_id", PostgresUUID(as_uuid=True), nullable=False, unique=True),
+    Column(
+        "source_movement_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("stock_movements.movement_id"),
+        nullable=False,
+        unique=True,
+    ),
+    Column(
+        "staging_movement_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("stock_movements.movement_id"),
+        nullable=False,
+        unique=True,
+    ),
+    CheckConstraint(
+        "quantity_base > 0 AND entered_quantity > 0",
+        name="ck_pick_lines_quantity",
+    ),
+    CheckConstraint(
+        "capture_mode IN ('automatic', 'barcode', 'manual')",
+        name="ck_pick_lines_capture_mode",
+    ),
+    CheckConstraint(
+        "source_location_id <> staging_location_id",
+        name="ck_pick_lines_locations",
+    ),
+    ForeignKeyConstraint(
+        ["fulfillment_order_id", "line_id"],
+        ["fulfillment_order_lines.fulfillment_order_id", "fulfillment_order_lines.line_id"],
+        name="fk_pick_lines_fulfillment_line",
+    ),
+)
+
+pick_identity_assignments = Table(
+    "pick_identity_assignments",
+    metadata,
+    Column("pick_identity_assignment_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "pick_line_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("pick_lines.pick_line_id"),
+        nullable=False,
+    ),
+    Column("tracking_policy", String(20), nullable=False),
+    Column(
+        "lot_identity_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("lot_identities.lot_identity_id"),
+        nullable=True,
+    ),
+    Column(
+        "serial_allocation_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("stock_serial_allocations.serial_allocation_id"),
+        nullable=True,
+    ),
+    Column("captured_barcode", String(100), nullable=True),
+    Column("quantity_base", Numeric(18, 6), nullable=False),
+    CheckConstraint(
+        "tracking_policy IN ('lot', 'serial')",
+        name="ck_pick_identity_assignments_policy",
+    ),
+    CheckConstraint(
+        "quantity_base > 0",
+        name="ck_pick_identity_assignments_quantity",
+    ),
+    CheckConstraint(
+        "(tracking_policy = 'lot' AND lot_identity_id IS NOT NULL "
+        "AND serial_allocation_id IS NULL) "
+        "OR (tracking_policy = 'serial' AND lot_identity_id IS NULL "
+        "AND serial_allocation_id IS NOT NULL AND quantity_base = 1)",
+        name="ck_pick_identity_assignments_shape",
+    ),
+    UniqueConstraint(
+        "pick_line_id",
+        "lot_identity_id",
+        name="uq_pick_identity_assignment_lot",
+    ),
+    UniqueConstraint(
+        "pick_line_id",
+        "serial_allocation_id",
+        name="uq_pick_identity_assignment_serial",
+    ),
+)
+
+fulfillment_line_pick_state = Table(
+    "fulfillment_line_pick_state",
+    metadata,
+    Column(
+        "fulfillment_order_id",
+        PostgresUUID(as_uuid=True),
+        primary_key=True,
+    ),
+    Column("line_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column("released_quantity_base", Numeric(18, 6), nullable=False),
+    Column("picked_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("reversed_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("version", Integer, nullable=False, server_default="1"),
+    ForeignKeyConstraint(
+        ["fulfillment_order_id", "line_id"],
+        ["fulfillment_order_lines.fulfillment_order_id", "fulfillment_order_lines.line_id"],
+        name="fk_fulfillment_line_pick_state_line",
+    ),
+    CheckConstraint(
+        "released_quantity_base > 0 AND picked_quantity_base >= 0 "
+        "AND reversed_quantity_base >= 0 "
+        "AND picked_quantity_base >= reversed_quantity_base "
+        "AND picked_quantity_base - reversed_quantity_base <= released_quantity_base",
+        name="ck_fulfillment_line_pick_state_quantities",
+    ),
+    CheckConstraint(
+        "version > 0",
+        name="ck_fulfillment_line_pick_state_version",
     ),
 )

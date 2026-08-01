@@ -22,6 +22,7 @@ from tradeflow_api.auth import (
     require_payment_recorder,
     require_payment_reverser,
     require_payment_verifier,
+    require_pick_reader,
     require_pick_releaser,
     require_reservation_retrier,
 )
@@ -36,6 +37,7 @@ from tradeflow_api.models import (
     commercial_approvals,
     companies,
     customer_accounts,
+    fulfillment_line_pick_state,
     fulfillment_order_lines,
     fulfillment_order_state,
     fulfillment_orders,
@@ -185,7 +187,9 @@ class PaymentReversalResponse(BaseModel):
 class FulfillmentOrderResponse(BaseModel):
     fulfillment_order_id: UUID
     sales_order_id: UUID
+    warehouse_id: UUID
     reservation_generation: int
+    payment_timing_policy: Literal["prepaid", "cash_on_delivery", "on_account"]
     status: str
     currency: str
     order_value: Decimal
@@ -357,7 +361,9 @@ async def _fulfillment_response(
     return FulfillmentOrderResponse(
         fulfillment_order_id=row["fulfillment_order_id"],
         sales_order_id=row["sales_order_id"],
+        warehouse_id=row["warehouse_id"],
         reservation_generation=row["reservation_generation"],
+        payment_timing_policy=row["payment_timing_policy"],
         status=row["status"],
         currency=row["currency"],
         order_value=_money(row["order_value"], row["currency"]),
@@ -640,7 +646,8 @@ async def create_fulfillment_for_approval(
                 revision["currency"],
             )
         )
-        required += reserved_value
+        if revision["payment_timing_policy"] == "prepaid":
+            required += reserved_value
         line_values.append((dict(commitment), dict(line), cast(Decimal, reserved_value)))
     payment_deadline_policy_id = None
     payment_deadline_minutes = None
@@ -710,7 +717,7 @@ async def create_fulfillment_for_approval(
             status=initial_status,
             reserved_quantity_base=reserved_quantity,
             backorder_quantity_base=backorder_quantity,
-            covered_amount=(ZERO if initial_status == "reserved" else required),
+            covered_amount=ZERO,
             payment_hold=False,
         )
     )
@@ -1648,19 +1655,22 @@ async def reverse_payment_receipt(
     responses=error_responses(401, 403, 404, 500),
 )
 async def list_fulfillment_orders(
-    sales_order_id: Annotated[UUID, Query()],
-    actor: Annotated[AuthorizedUser, Depends(require_pick_releaser)],
+    actor: Annotated[AuthorizedUser, Depends(require_pick_reader)],
     session: Annotated[AsyncSession, Depends(get_database_session)],
+    sales_order_id: Annotated[UUID | None, Query()] = None,
 ) -> FulfillmentOrderListResponse:
+    query = select(fulfillment_orders.c.fulfillment_order_id).where(
+        fulfillment_orders.c.branch_id.in_(actor.branch_ids),
+        fulfillment_orders.c.warehouse_id.in_(actor.warehouse_ids),
+    )
+    if sales_order_id is not None:
+        query = query.where(fulfillment_orders.c.sales_order_id == sales_order_id)
     rows = (
         await session.execute(
-            select(fulfillment_orders.c.fulfillment_order_id)
-            .where(
-                fulfillment_orders.c.sales_order_id == sales_order_id,
-                fulfillment_orders.c.branch_id.in_(actor.branch_ids),
-                fulfillment_orders.c.warehouse_id.in_(actor.warehouse_ids),
+            query.order_by(
+                fulfillment_orders.c.created_at,
+                fulfillment_orders.c.reservation_generation,
             )
-            .order_by(fulfillment_orders.c.reservation_generation)
         )
     ).scalars()
     items = [await _fulfillment_response(session, row) for row in rows]
@@ -1791,6 +1801,29 @@ async def release_fulfillment_to_pick(
                 idempotency_key=idempotency_key,
             )
         )
+        releasable_lines = (
+            (
+                await session.execute(
+                    select(
+                        fulfillment_order_lines.c.line_id,
+                        fulfillment_order_lines.c.reserved_quantity_base,
+                    ).where(
+                        fulfillment_order_lines.c.fulfillment_order_id == fulfillment_order_id,
+                        fulfillment_order_lines.c.reserved_quantity_base > ZERO,
+                    )
+                )
+            )
+            .mappings()
+            .all()
+        )
+        for line in releasable_lines:
+            await session.execute(
+                insert(fulfillment_line_pick_state).values(
+                    fulfillment_order_id=fulfillment_order_id,
+                    line_id=line["line_id"],
+                    released_quantity_base=line["reserved_quantity_base"],
+                )
+            )
         await session.execute(
             update(fulfillment_order_state)
             .where(fulfillment_order_state.c.fulfillment_order_id == fulfillment_order_id)

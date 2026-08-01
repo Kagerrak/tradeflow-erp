@@ -284,10 +284,10 @@ function RoutePreview() {
             One accountable route
           </Text>
         </View>
-        <Text style={styles.routeCount}>3 TASKS</Text>
+        <Text style={styles.routeCount}>4 TASKS</Text>
       </View>
       {routeTasks.map(([number, label, detail], index) =>
-        index < 3 ? (
+        index < 4 ? (
           <Link
             asChild
             href={
@@ -295,7 +295,9 @@ function RoutePreview() {
                 ? "./customers"
                 : index === 1
                   ? "./sales-orders"
-                  : "./payments"
+                  : index === 2
+                    ? "./payments"
+                    : "./picking"
             }
             key={number}
           >
@@ -324,8 +326,8 @@ function RoutePreview() {
         ),
       )}
       <Text style={styles.routeNote}>
-        Customer lookup and Sales Order capture respect server scope. Posting,
-        stock commitment, and credit commitment remain locked.
+        Customer, Sales, Payment, and Pick capture respect live server scope.
+        Offline Pick commands stay Pending Sync and never imply staged stock.
       </Text>
     </View>
   );
