@@ -102,8 +102,7 @@ jobs:
 
       - name: Test authenticated web and mobile shells against the real stack
         run: |
-          uv run alembic -c apps/api/alembic.ini downgrade base
-          uv run alembic -c apps/api/alembic.ini upgrade head
+          uv run python scripts/clear_test_database.py
           export TRADEFLOW_REAL_STACK_BOOTSTRAP_TOKEN="$(uv run python scripts/create_test_token.py --subject bootstrapper --name Bootstrapper --capability organization:bootstrap)"
           export TRADEFLOW_REAL_STACK_SALES_TOKEN="$(uv run python scripts/create_test_token.py --subject sales-mnl --name 'Local Platform Operator' --capability platform:read --capability platform:write)"
           export TRADEFLOW_REAL_STACK_CEB_TOKEN="$(uv run python scripts/create_test_token.py --subject sales-ceb --name 'Cebu Sales')"
