@@ -97,6 +97,25 @@ jobs:
       - name: Validate Expo project
         run: pnpm --filter @tradeflow/mobile run doctor
 
+      - name: Start private object storage
+        run: |
+          docker run --detach --name tradeflow-minio \
+            --publish 9000:9000 \
+            --env MINIO_ROOT_USER=tradeflow \
+            --env MINIO_ROOT_PASSWORD=tradeflow-local-only \
+            minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e \
+            server /data
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:9000/minio/health/ready > /dev/null; then
+              break
+            fi
+            if [ "$attempt" = 30 ]; then
+              docker logs tradeflow-minio
+              exit 1
+            fi
+            sleep 1
+          done
+
       - name: Test
         run: pnpm test
 
