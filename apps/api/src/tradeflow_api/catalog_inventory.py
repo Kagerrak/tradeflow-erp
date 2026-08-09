@@ -983,7 +983,12 @@ async def search_availability(
             )
         )
         .where(*filters)
-        .order_by(skus.c.code, warehouses.c.code, warehouse_stock_locations.c.code)
+        .order_by(
+            skus.c.code,
+            warehouses.c.code,
+            warehouse_stock_locations.c.code,
+            inventory_availability.c.identity_key,
+        )
     )
     total = await session.scalar(select(func.count()).select_from(statement.subquery()))
     rows = list((await session.execute(statement.limit(limit))).mappings())
