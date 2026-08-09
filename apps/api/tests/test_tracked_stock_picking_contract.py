@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
@@ -818,6 +818,8 @@ async def test_expired_lot_is_never_resolved_or_manually_pickable(
     picking_settings: Settings,
     postgres_url: str,
 ) -> None:
+    initially_fresh = date.today() + timedelta(days=1)
+    expired = date.today() - timedelta(days=1)
     fixture = await approved_tracked_order(
         picking_client,
         picking_settings,
@@ -828,7 +830,7 @@ async def test_expired_lot_is_never_resolved_or_manually_pickable(
             {
                 "quantity": "1.000000",
                 "lot_code": "LOT-EXPIRED",
-                "expiration_date": "2026-08-02",
+                "expiration_date": initially_fresh.isoformat(),
             },
             {
                 "quantity": "1.000000",
@@ -843,11 +845,11 @@ async def test_expired_lot_is_never_resolved_or_manually_pickable(
             text(
                 """
                 UPDATE inventory_availability
-                SET expiration_date = DATE '2026-07-31'
+                SET expiration_date = :expired
                 WHERE sku_id = :sku_id AND lot_code = 'LOT-EXPIRED'
                 """
             ),
-            {"sku_id": fixture["sku_id"]},
+            {"expired": expired, "sku_id": fixture["sku_id"]},
         )
     await engine.dispose()
     scan = await picking_client.post(
