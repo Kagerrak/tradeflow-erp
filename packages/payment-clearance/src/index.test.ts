@@ -29,7 +29,7 @@ const receipt = {
 
 describe("Payment Clearance client", () => {
   it("gives every operational state an explicit next action", () => {
-    expect(Object.keys(paymentStateContent)).toHaveLength(9);
+    expect(Object.keys(paymentStateContent)).toHaveLength(14);
     for (const content of Object.values(paymentStateContent)) {
       expect(content.title.length).toBeGreaterThan(0);
       expect(content.nextAction.length).toBeGreaterThan(0);

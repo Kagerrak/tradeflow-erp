@@ -100,7 +100,9 @@ export async function syncDeliveryConfirmations(
       const reason =
         response.status === 403
           ? "forbidden"
-          : response.status === 409
+          : response.status === 400 ||
+              response.status === 409 ||
+              response.status === 422
             ? "conflict"
             : "unavailable";
       if (reason !== "unavailable") {

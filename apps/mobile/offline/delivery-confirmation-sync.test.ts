@@ -127,6 +127,35 @@ it("resumes after upload and retries a lost response with the same identities", 
   expect(await store.listPending()).toEqual([]);
 });
 
+it("removes a server-invalid command from FIFO and surfaces a conflict", async () => {
+  const store = createMemoryDeliveryConfirmationStore();
+  await store.saveAndEnqueue(capture, "2026-08-01T13:01:00Z");
+  const result = await syncDeliveryConfirmations({
+    accessToken: "token",
+    baseUrl: "https://api.test",
+    createCorrelationId: () => "validation-correlation",
+    fetch: async () =>
+      new Response(
+        JSON.stringify({
+          error: {
+            code: "validation_error",
+            correlation_id: "server-validation-correlation",
+          },
+        }),
+        { headers: { "Content-Type": "application/json" }, status: 422 },
+      ),
+    store,
+    uploadEvidence: async () => {},
+  });
+
+  expect(result).toEqual({ kind: "paused", reason: "conflict" });
+  expect(await store.listPending()).toEqual([]);
+  expect(await store.load(confirmationId)).toMatchObject({
+    correlationId: "server-validation-correlation",
+    status: "conflict",
+  });
+});
+
 it("uploads only missing multipart bytes after an interrupted evidence transfer", async () => {
   const store = createMemoryDeliveryConfirmationStore();
   const largeCapture: DeliveryConfirmationCapture = {

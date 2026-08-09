@@ -76,6 +76,16 @@ it("renders a confirmed Delivery while its receipt is rendering", async () => {
     1,
     {
       confirmation_id: "65a4745a-7d07-4cc2-a497-bc27f60be7a0",
+      collection: {
+        amount_collected: "224.00",
+        amount_due: "224.00",
+        application_status: "unapplied",
+        cash_reconciliation_status: "pending",
+        currency: "PHP",
+        payment_method: "cash",
+        payment_receipt_id: "7bf0d080-e08d-4bac-8375-0a6c2c914029",
+        status: "cleared",
+      },
       delivery_id: "8a8e9f4d-cb22-4c51-9fd7-30995bf9abef",
       delivery_receipt: {
         delivery_receipt_id: "d98873ae-7cf1-48b6-b2e5-129d23bd9f81",
@@ -104,6 +114,7 @@ it("renders a confirmed Delivery while its receipt is rendering", async () => {
     await screen.findByRole("header", { name: "Delivery confirmed" }),
   ).toBeOnTheScreen();
   expect(screen.getByText(/Receipt unavailable/)).toBeOnTheScreen();
+  expect(screen.getByText(/PHP 224.00 cleared/)).toBeOnTheScreen();
   await fireEvent.press(screen.getByText("REFRESH RECEIPT"));
   expect(
     await screen.findByText(/Receipt rendering unavailable/),

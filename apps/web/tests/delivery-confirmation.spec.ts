@@ -9,6 +9,7 @@ const assigned = {
   items: [
     {
       assignedTo: "delivery-mnl",
+      collectionAmountDue: null as string | null,
       collectionRequired: false,
       deliveryAddress: { city: "Manila" },
       deliveryId,
@@ -35,9 +36,9 @@ const assigned = {
   total: 1,
 };
 
-async function openAssigned(page: Page) {
+async function openAssigned(page: Page, payload = assigned) {
   await page.route("**/api/deliveries", (route) =>
-    route.fulfill({ contentType: "application/json", json: assigned }),
+    route.fulfill({ contentType: "application/json", json: payload }),
   );
   await page.goto("/deliveries");
   await page.getByRole("button", { name: /Ana Santos/ }).click();
@@ -47,6 +48,221 @@ async function openAssigned(page: Page) {
     name: "signature.png",
   });
 }
+
+test("confirms COD cash and proof as one stable command", async ({ page }) => {
+  await openAssigned(page, {
+    ...assigned,
+    items: [
+      {
+        ...assigned.items[0]!,
+        collectionAmountDue: "224.00",
+        collectionRequired: true,
+        paymentTimingPolicy: "cash_on_delivery",
+      },
+    ],
+  });
+  let confirmationCommand: Record<string, unknown> | null = null;
+  await page.route(
+    `**/api/deliveries/${deliveryId}/confirmation`,
+    async (route) => {
+      const body = route.request().postDataJSON() as {
+        action: string;
+        command?: Record<string, unknown>;
+      };
+      if (body.action === "intent" || body.action === "complete") {
+        await route.fulfill({
+          contentType: "application/json",
+          json: {
+            evidence_id: "cod-proof",
+            expires_at: null,
+            parts: [],
+            status: "verified",
+            upload_id: null,
+          },
+        });
+        return;
+      }
+      confirmationCommand = body.command ?? null;
+      await route.fulfill({
+        contentType: "application/json",
+        json: {
+          collection: {
+            amount_collected: "224.00",
+            cash_reconciliation_status: "pending",
+            payment_method: "cash",
+            status: "cleared",
+          },
+          confirmation_id: "cod-confirmation",
+          delivery_id: deliveryId,
+          delivery_receipt: {
+            delivery_receipt_id: "cod-receipt",
+            number: "DR-MNL-00000001",
+            status: "pending_document",
+          },
+          lines: [],
+          outbox_event_id: "cod-event",
+          status: "confirmed",
+          version: 2,
+        },
+      });
+    },
+  );
+  await page
+    .getByRole("button", { name: "Confirm COD collection and delivery" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Delivery confirmed" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/COD cash collection of PHP 224.00 cleared/),
+  ).toBeVisible();
+  expect(confirmationCommand).toMatchObject({
+    collection: {
+      amount: "224.00",
+      currency: "PHP",
+      payment_method: "cash",
+    },
+  });
+});
+
+test("links cleared non-cash COD and rejects malformed money locally", async ({
+  page,
+}) => {
+  await openAssigned(page, {
+    ...assigned,
+    items: [
+      {
+        ...assigned.items[0]!,
+        collectionAmountDue: "224.00",
+        collectionRequired: true,
+        paymentTimingPolicy: "cash_on_delivery",
+      },
+    ],
+  });
+  await page.getByLabel("COD amount collected").fill(".");
+  await expect(
+    page.getByRole("button", { name: "Confirm COD collection and delivery" }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "noncash" }).click();
+  await page.getByLabel("COD amount collected").fill("224.00");
+  await page
+    .getByLabel("Cleared Payment Receipt ID")
+    .fill("7bf0d080-e08d-4bac-8375-0a6c2c914029");
+  let command: Record<string, unknown> | undefined;
+  await page.route(`**/api/deliveries/${deliveryId}/confirmation`, (route) => {
+    const body = route.request().postDataJSON() as {
+      action: string;
+      command?: Record<string, unknown>;
+    };
+    if (body.action === "confirm") command = body.command;
+    return route.fulfill({
+      contentType: "application/json",
+      json:
+        body.action === "confirm"
+          ? {
+              collection: {
+                amount_collected: "224.00",
+                cash_reconciliation_status: null,
+                payment_method: "bank_transfer",
+                status: "cleared",
+              },
+              confirmation_id: "cod-confirmation",
+              delivery_id: deliveryId,
+              delivery_receipt: {
+                delivery_receipt_id: "cod-receipt",
+                number: "DR-MNL-00000001",
+                status: "pending_document",
+              },
+              lines: [],
+              outbox_event_id: "cod-event",
+              status: "confirmed",
+              version: 2,
+            }
+          : {
+              evidence_id: "cod-proof",
+              expires_at: null,
+              parts: [],
+              status: "verified",
+              upload_id: null,
+            },
+    });
+  });
+  await page
+    .getByRole("button", { name: "Confirm COD collection and delivery" })
+    .click();
+  await expect.poll(() => command).toBeDefined();
+  expect(command).toMatchObject({
+    collection: {
+      payment_method: "bank_transfer",
+      payment_receipt_id: "7bf0d080-e08d-4bac-8375-0a6c2c914029",
+    },
+  });
+});
+
+test("confirms COD using an approved On Account conversion", async ({
+  page,
+}) => {
+  await openAssigned(page, {
+    ...assigned,
+    items: [
+      {
+        ...assigned.items[0]!,
+        collectionAmountDue: "224.00",
+        collectionRequired: true,
+        paymentTimingPolicy: "cash_on_delivery",
+      },
+    ],
+  });
+  await page.getByRole("button", { name: "on account" }).click();
+  await page
+    .getByLabel("Approved On Account conversion ID")
+    .fill("a704d621-df0d-487c-8b84-e822d049b411");
+  let command: Record<string, unknown> | undefined;
+  await page.route(`**/api/deliveries/${deliveryId}/confirmation`, (route) => {
+    const body = route.request().postDataJSON() as {
+      action: string;
+      command?: Record<string, unknown>;
+    };
+    if (body.action === "confirm") command = body.command;
+    return route.fulfill({
+      contentType: "application/json",
+      json:
+        body.action === "confirm"
+          ? {
+              confirmation_id: "cod-confirmation",
+              delivery_id: deliveryId,
+              delivery_receipt: {
+                delivery_receipt_id: "cod-receipt",
+                number: "DR-MNL-00000001",
+                status: "pending_document",
+              },
+              lines: [],
+              on_account_conversion: {
+                amount: "224.00",
+                status: "consumed",
+              },
+              outbox_event_id: "cod-event",
+              status: "confirmed",
+              version: 2,
+            }
+          : {
+              evidence_id: "cod-proof",
+              expires_at: null,
+              parts: [],
+              status: "verified",
+              upload_id: null,
+            },
+    });
+  });
+  await page
+    .getByRole("button", { name: "Confirm COD collection and delivery" })
+    .click();
+  await expect.poll(() => command).toBeDefined();
+  expect(command).toMatchObject({
+    on_account_conversion_id: "a704d621-df0d-487c-8b84-e822d049b411",
+  });
+  expect(command).not.toHaveProperty("collection");
+});
 
 test("renders empty assigned and captured confirmation states", async ({
   page,

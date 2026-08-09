@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
@@ -12,7 +12,16 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from test_payment_clearance_contract import approved_prepaid_order, auth, record_receipt
+from test_payment_clearance_contract import (
+    approved_prepaid_order,
+    auth,
+    bootstrap_payment_clearance,
+    create_customer,
+    create_sku,
+    create_tax_code,
+    record_receipt,
+    seed_available_stock,
+)
 from test_tracked_stock_picking_contract import (
     approved_lot_order,
     approved_serial_order,
@@ -131,6 +140,289 @@ def test_final_partial_invoice_line_receives_every_rounding_residual() -> None:
     )
 
 
+@pytest.mark.asyncio
+async def test_cod_residual_matches_each_invoice_when_outbox_runs_out_of_order(
+    confirmation_client: AsyncClient,
+    confirmation_settings: Settings,
+    postgres_url: str,
+) -> None:
+    organization = await bootstrap_payment_clearance(
+        confirmation_client,
+        confirmation_settings,
+    )
+    branch = organization["branches"][0]
+    branch_id = branch["branch_id"]
+    warehouse_id = branch["warehouses"][0]["warehouse_id"]
+    customer = await create_customer(
+        confirmation_client,
+        confirmation_settings,
+        branch_id,
+        payment_timing_policy="cash_on_delivery",
+    )
+    sku = await create_sku(confirmation_client, confirmation_settings)
+    tax = await create_tax_code(confirmation_client, confirmation_settings)
+    price_list_response = await confirmation_client.post(
+        "/v1/sales/price-list-versions",
+        headers=auth(
+            confirmation_settings,
+            "sales-mnl",
+            **{"Idempotency-Key": "cod-residual-price-list"},
+        ),
+        json={
+            "code": "MNL-COD-RESIDUAL",
+            "branch_id": branch_id,
+            "customer_id": customer["customer_id"],
+            "inclusion_mode": "exclusive",
+            "effective_from": "2026-01-01",
+            "effective_to": None,
+            "items": [
+                {
+                    "sku_id": sku["sku_id"],
+                    "unit_code": "EA",
+                    "list_unit_price": "0.013333",
+                    "floor_unit_price": "0.013333",
+                    "tax_code_version_id": tax["tax_code_version_id"],
+                }
+            ],
+        },
+    )
+    assert price_list_response.status_code == 201, price_list_response.text
+    price_list = price_list_response.json()
+    engine = create_async_engine(postgres_url)
+    async with engine.begin() as connection:
+        await connection.execute(
+            text(
+                "INSERT INTO document_series(document_series_id, branch_id, document_type, "
+                "prefix, next_number) VALUES (:id, :branch_id, 'delivery_receipt', "
+                "'DR-MNL', 1)"
+            ),
+            {"branch_id": branch_id, "id": uuid4()},
+        )
+    await engine.dispose()
+
+    sales_order_id = str(uuid4())
+    line_id = str(uuid4())
+    created = await confirmation_client.post(
+        "/v1/sales/orders",
+        headers=auth(
+            confirmation_settings,
+            "sales-mnl",
+            **{"Idempotency-Key": "cod-residual-order"},
+        ),
+        json={
+            "sales_order_id": sales_order_id,
+            "branch_id": branch_id,
+            "customer_id": customer["customer_id"],
+            "expected_customer_version": customer["version"],
+            "expected_price_list_version_id": price_list["price_list_version_id"],
+            "expected_pricing_date": date.today().isoformat(),
+            "delivery_address_version_id": customer["addresses"][0]["address_version_id"],
+            "payment_timing_policy": None,
+            "payment_timing_override_reason": None,
+            "order_discount_amount": "0.000000",
+            "lines": [
+                {
+                    "line_id": line_id,
+                    "sku_id": sku["sku_id"],
+                    "expected_price_list_line_id": price_list["items"][0]["price_list_line_id"],
+                    "expected_unit_conversion_id": None,
+                    "expected_unit_conversion_version": None,
+                    "quantity": "3.000000",
+                    "unit_code": "EA",
+                    "manual_override_unit_price": None,
+                    "price_override_reason": None,
+                }
+            ],
+        },
+    )
+    assert created.status_code == 201, created.text
+    assert created.json()["grand_total"] == "0.04"
+    await seed_available_stock(
+        postgres_url,
+        sku_id=sku["sku_id"],
+        warehouse_id=warehouse_id,
+        quantity="3.000000",
+    )
+    approved = await confirmation_client.post(
+        f"/v1/sales/orders/{sales_order_id}/commercial-approval",
+        headers=auth(
+            confirmation_settings,
+            "sales-mnl",
+            **{"Idempotency-Key": "cod-residual-approval", "If-Match": "1"},
+        ),
+        json={
+            "warehouse_id": warehouse_id,
+            "exception_reason": None,
+            "credit_override_reason": None,
+        },
+    )
+    assert approved.status_code == 201, approved.text
+    fulfillment = await confirmation_client.get(
+        "/v1/fulfillment/orders",
+        headers=auth(confirmation_settings, "warehouse-supervisor-mnl"),
+        params={"sales_order_id": sales_order_id},
+    )
+    assert fulfillment.status_code == 200, fulfillment.text
+    fulfillment_order_id = fulfillment.json()["items"][0]["fulfillment_order_id"]
+    released = await confirmation_client.post(
+        f"/v1/fulfillment/orders/{fulfillment_order_id}/pick-release",
+        headers=auth(
+            confirmation_settings,
+            "warehouse-supervisor-mnl",
+            **{"Idempotency-Key": "cod-residual-release"},
+        ),
+        json={"reason": "Split fractional COD value across three deliveries"},
+    )
+    assert released.status_code == 201, released.text
+
+    version = 2
+    pick_ids: list[str] = []
+    for index in range(3):
+        pick_id = str(uuid4())
+        picked = await confirmation_client.post(
+            f"/v1/fulfillment/orders/{fulfillment_order_id}/picks",
+            headers=auth(
+                confirmation_settings,
+                "warehouse-supervisor-mnl",
+                **{"Idempotency-Key": f"cod-residual-pick-{index}"},
+            ),
+            json={
+                "pick_id": pick_id,
+                "expected_fulfillment_version": version,
+                "lines": [
+                    {
+                        "line_id": line_id,
+                        "quantity": "1.000000",
+                        "unit_code": "EA",
+                        "selections": [],
+                    }
+                ],
+            },
+        )
+        assert picked.status_code == 201, picked.text
+        version = picked.json()["version"]
+        pick_ids.append(pick_id)
+
+    deliveries: list[str] = []
+    engine = create_async_engine(postgres_url)
+    async with engine.connect() as connection:
+        version = await connection.scalar(
+            text(
+                "SELECT version FROM fulfillment_order_state "
+                "WHERE fulfillment_order_id = :fulfillment_order_id"
+            ),
+            {"fulfillment_order_id": fulfillment_order_id},
+        )
+    await engine.dispose()
+    assert version is not None
+    for index, pick_id in enumerate(pick_ids):
+        delivery_id = str(uuid4())
+        dispatched = await confirmation_client.post(
+            f"/v1/fulfillment/orders/{fulfillment_order_id}/dispatch",
+            headers=auth(
+                confirmation_settings,
+                "warehouse-supervisor-mnl",
+                **{"Idempotency-Key": f"cod-residual-dispatch-{index}"},
+            ),
+            json={
+                "delivery_id": delivery_id,
+                "expected_fulfillment_version": version,
+                "assigned_to": "delivery-mnl",
+                "pick_ids": [pick_id],
+            },
+        )
+        assert dispatched.status_code == 201, dispatched.text
+        version += 1
+        deliveries.append(delivery_id)
+
+    expected_amounts = ["0.01", "0.01", "0.02"]
+    event_ids: list[UUID] = []
+    for index, (delivery_id, amount) in enumerate(zip(deliveries, expected_amounts, strict=True)):
+        evidence_id = str(uuid4())
+        uploaded = await confirmation_client.post(
+            f"/v1/deliveries/{delivery_id}/evidence/uploads",
+            headers=auth(confirmation_settings, "delivery-mnl"),
+            json={
+                "evidence_id": evidence_id,
+                "kind": "signature",
+                "content_type": "image/png",
+                "size_bytes": 12,
+                "sha256": "a" * 64,
+                "device_captured_at": f"2026-08-01T13:0{index}:00Z",
+            },
+        )
+        assert uploaded.status_code == 201, uploaded.text
+        completed = await confirmation_client.post(
+            f"/v1/deliveries/{delivery_id}/evidence/{evidence_id}/complete",
+            headers=auth(confirmation_settings, "delivery-mnl"),
+        )
+        assert completed.status_code == 200, completed.text
+        confirmed = await confirmation_client.post(
+            f"/v1/deliveries/{delivery_id}/confirmations",
+            headers=auth(
+                confirmation_settings,
+                "delivery-mnl",
+                **{"Idempotency-Key": f"cod-residual-confirm-{index}"},
+            ),
+            json={
+                "confirmation_id": str(uuid4()),
+                "expected_delivery_version": 1,
+                "recipient_name": f"Residual Recipient {index}",
+                "device_captured_at": f"2026-08-01T13:0{index}:00Z",
+                "evidence_ids": [evidence_id],
+                "lines": [{"line_id": line_id, "accepted_quantity_base": "1.000000"}],
+                "collection": {
+                    "payment_receipt_id": str(uuid4()),
+                    "payment_method": "cash",
+                    "amount": amount,
+                    "currency": "PHP",
+                    "received_at": f"2026-08-01T13:0{index}:00Z",
+                    "external_reference": None,
+                    "evidence": None,
+                },
+            },
+        )
+        assert confirmed.status_code == 201, confirmed.text
+        assert confirmed.json()["collection"]["amount_due"] == amount
+        event_ids.append(UUID(confirmed.json()["outbox_event_id"]))
+
+    engine = create_async_engine(postgres_url)
+    for event_id in reversed(event_ids):
+        async with engine.begin() as connection:
+            session = AsyncSession(bind=connection, expire_on_commit=False)
+            await create_draft_invoice_for_event(session, event_id)
+    async with engine.connect() as connection:
+        rows = (
+            (
+                await connection.execute(
+                    text(
+                        """
+                        SELECT collection.amount_due, receipt.amount AS receipt_amount,
+                               invoice.grand_total
+                        FROM delivery_confirmations confirmation
+                        JOIN cod_collections collection USING (confirmation_id)
+                        JOIN payment_receipts receipt USING (payment_receipt_id)
+                        JOIN draft_invoices invoice
+                          ON invoice.delivery_confirmation_id = confirmation.confirmation_id
+                        ORDER BY confirmation.confirmed_at, confirmation.confirmation_id
+                        """
+                    )
+                )
+            )
+            .mappings()
+            .all()
+        )
+    await engine.dispose()
+    assert [dict(row) for row in rows] == [
+        {
+            "amount_due": Decimal(amount),
+            "receipt_amount": Decimal(amount),
+            "grand_total": Decimal(amount),
+        }
+        for amount in expected_amounts
+    ]
+
+
 @pytest.fixture
 def fake_storage() -> FakeObjectStorage:
     return FakeObjectStorage()
@@ -217,6 +509,7 @@ async def dispatched_prepaid_delivery(
             },
         )
     await engine.dispose()
+
     fulfillment_order_id = fixture["fulfillment_order"]["fulfillment_order_id"]
     if payment_timing_policy == "prepaid":
         receipt = await record_receipt(
@@ -277,6 +570,85 @@ async def dispatched_prepaid_delivery(
     )
     assert dispatched.status_code == 201, dispatched.text
     return fixture, delivery_id
+
+
+@pytest.mark.asyncio
+async def test_cod_on_account_conversion_enforces_current_customer_credit_controls(
+    confirmation_client: AsyncClient,
+    confirmation_settings: Settings,
+    postgres_url: str,
+) -> None:
+    fixture, delivery_id = await dispatched_prepaid_delivery(
+        confirmation_client,
+        confirmation_settings,
+        postgres_url,
+        payment_timing_policy="cash_on_delivery",
+    )
+    engine = create_async_engine(postgres_url)
+
+    async def attempt(key: str):
+        return await confirmation_client.post(
+            f"/v1/deliveries/{delivery_id}/cod-on-account-conversions",
+            headers=auth(
+                confirmation_settings,
+                "cod-credit-approver-mnl",
+                **{"Idempotency-Key": key},
+            ),
+            json={
+                "conversion_id": str(uuid4()),
+                "expected_delivery_version": 1,
+                "reason": "Current credit controls must authorize this exception",
+            },
+        )
+
+    async with engine.begin() as connection:
+        await connection.execute(
+            text("UPDATE customer_accounts SET status = 'inactive' WHERE customer_id = :id"),
+            {"id": fixture["customer_id"]},
+        )
+    inactive = await attempt("cod-conversion-inactive-customer")
+    assert inactive.status_code == 409, inactive.text
+    assert inactive.json()["error"]["code"] == "customer_inactive"
+
+    async with engine.begin() as connection:
+        await connection.execute(
+            text(
+                "UPDATE customer_accounts SET status = 'active', credit_hold = true "
+                "WHERE customer_id = :id"
+            ),
+            {"id": fixture["customer_id"]},
+        )
+    held = await attempt("cod-conversion-credit-held-customer")
+    assert held.status_code == 409, held.text
+    assert held.json()["error"]["code"] == "customer_credit_hold"
+
+    async with engine.begin() as connection:
+        await connection.execute(
+            text(
+                "UPDATE customer_accounts SET credit_hold = false, payment_terms = '' "
+                "WHERE customer_id = :id"
+            ),
+            {"id": fixture["customer_id"]},
+        )
+    missing_terms = await attempt("cod-conversion-missing-payment-terms")
+    assert missing_terms.status_code == 409, missing_terms.text
+    assert missing_terms.json()["error"]["code"] == "payment_terms_required"
+    async with engine.connect() as connection:
+        counts = (
+            (
+                await connection.execute(
+                    text(
+                        "SELECT (SELECT count(*) FROM cod_on_account_conversions) AS conversions, "
+                        "(SELECT count(*) FROM credit_exposure_entries "
+                        " WHERE source_type = 'cod_on_account_conversion') AS exposures"
+                    )
+                )
+            )
+            .mappings()
+            .one()
+        )
+    assert dict(counts) == {"conversions": 0, "exposures": 0}
+    await engine.dispose()
 
 
 @pytest.mark.asyncio
@@ -1084,7 +1456,7 @@ async def test_assigned_staff_confirms_accepted_quantity_atomically_and_idempote
 
 
 @pytest.mark.asyncio
-async def test_cash_on_delivery_confirmation_waits_for_atomic_collection_slice(
+async def test_cash_on_delivery_confirmation_records_cleared_unapplied_cash_atomically(
     confirmation_client: AsyncClient,
     confirmation_settings: Settings,
     postgres_url: str,
@@ -1095,29 +1467,678 @@ async def test_cash_on_delivery_confirmation_waits_for_atomic_collection_slice(
         postgres_url,
         payment_timing_policy="cash_on_delivery",
     )
-    rejected = await confirmation_client.post(
+    assigned = await confirmation_client.get(
+        f"/v1/deliveries/{delivery_id}",
+        headers=auth(confirmation_settings, "delivery-mnl"),
+    )
+    assert assigned.status_code == 200, assigned.text
+    assert assigned.json()["collection_amount_due"] == "224.00"
+    evidence_id = str(uuid4())
+    upload = await confirmation_client.post(
+        f"/v1/deliveries/{delivery_id}/evidence/uploads",
+        headers=auth(confirmation_settings, "delivery-mnl"),
+        json={
+            "evidence_id": evidence_id,
+            "kind": "signature",
+            "content_type": "image/png",
+            "size_bytes": 12,
+            "sha256": "a" * 64,
+            "device_captured_at": "2026-08-01T13:00:00Z",
+        },
+    )
+    assert upload.status_code == 201, upload.text
+    completed = await confirmation_client.post(
+        f"/v1/deliveries/{delivery_id}/evidence/{evidence_id}/complete",
+        headers=auth(confirmation_settings, "delivery-mnl"),
+    )
+    assert completed.status_code == 200, completed.text
+    insufficient = await confirmation_client.post(
         f"/v1/deliveries/{delivery_id}/confirmations",
         headers=auth(
             confirmation_settings,
             "delivery-mnl",
-            **{"Idempotency-Key": "cod-confirmation-before-collection"},
+            **{"Idempotency-Key": "cod-confirmation-short"},
         ),
         json={
             "confirmation_id": str(uuid4()),
             "expected_delivery_version": 1,
             "recipient_name": "Ana Santos",
             "device_captured_at": "2026-08-01T13:00:00Z",
-            "evidence_ids": [str(uuid4())],
+            "evidence_ids": [evidence_id],
             "lines": [
                 {
                     "line_id": fixture["line_id"],
                     "accepted_quantity_base": "2.000000",
                 }
             ],
+            "collection": {
+                "payment_receipt_id": str(uuid4()),
+                "payment_method": "cash",
+                "amount": "223.99",
+                "currency": "PHP",
+                "received_at": "2026-08-01T13:00:00Z",
+                "external_reference": None,
+                "evidence": None,
+            },
         },
     )
-    assert rejected.status_code == 409, rejected.text
-    assert rejected.json()["error"]["code"] == "cod_collection_required"
+    assert insufficient.status_code == 409, insufficient.text
+    assert insufficient.json()["error"]["code"] == "cod_collection_insufficient"
+    engine = create_async_engine(postgres_url)
+    async with engine.connect() as connection:
+        counts = (
+            (
+                await connection.execute(
+                    text(
+                        """
+                    SELECT (SELECT count(*) FROM delivery_confirmations) AS confirmations,
+                           (SELECT count(*) FROM payment_receipts) AS receipts,
+                           (SELECT count(*) FROM cod_collections) AS collections
+                    """
+                    )
+                )
+            )
+            .mappings()
+            .one()
+        )
+    await engine.dispose()
+    assert dict(counts) == {"confirmations": 0, "receipts": 0, "collections": 0}
+    payment_receipt_id = str(uuid4())
+    confirmed = await confirmation_client.post(
+        f"/v1/deliveries/{delivery_id}/confirmations",
+        headers=auth(
+            confirmation_settings,
+            "delivery-mnl",
+            **{"Idempotency-Key": "cod-confirmation-cash"},
+        ),
+        json={
+            "confirmation_id": str(uuid4()),
+            "expected_delivery_version": 1,
+            "recipient_name": "Ana Santos",
+            "device_captured_at": "2026-08-01T13:00:00Z",
+            "evidence_ids": [evidence_id],
+            "lines": [
+                {
+                    "line_id": fixture["line_id"],
+                    "accepted_quantity_base": "2.000000",
+                }
+            ],
+            "collection": {
+                "payment_receipt_id": payment_receipt_id,
+                "payment_method": "cash",
+                "amount": "224.00",
+                "currency": "PHP",
+                "received_at": "2026-08-01T13:00:00Z",
+                "external_reference": None,
+                "evidence": None,
+            },
+        },
+    )
+    assert confirmed.status_code == 201, confirmed.text
+    assert confirmed.json()["collection"] == {
+        "payment_receipt_id": payment_receipt_id,
+        "amount_due": "224.00",
+        "amount_collected": "224.00",
+        "currency": "PHP",
+        "payment_method": "cash",
+        "status": "cleared",
+        "application_status": "unapplied",
+        "cash_reconciliation_status": "pending",
+    }
+    engine = create_async_engine(postgres_url)
+    async with engine.connect() as connection:
+        row = (
+            (
+                await connection.execute(
+                    text(
+                        """
+                        SELECT pr.amount, prs.state, prb.allocated_amount,
+                               cri.status AS cash_status, cc.amount_due, cc.status
+                        FROM cod_collections cc
+                        JOIN payment_receipts pr USING (payment_receipt_id)
+                        JOIN payment_receipt_status prs USING (payment_receipt_id)
+                        JOIN payment_receipt_balances prb USING (payment_receipt_id)
+                        JOIN cash_reconciliation_items cri USING (payment_receipt_id)
+                        WHERE cc.confirmation_id = :confirmation_id
+                        """
+                    ),
+                    {"confirmation_id": confirmed.json()["confirmation_id"]},
+                )
+            )
+            .mappings()
+            .one()
+        )
+    await engine.dispose()
+    assert dict(row) == {
+        "amount": Decimal("224.000000"),
+        "state": "cleared",
+        "allocated_amount": Decimal("0.000000"),
+        "cash_status": "pending",
+        "amount_due": Decimal("224.000000"),
+        "status": "cleared",
+    }
+    reconciliation_id = str(uuid4())
+    reconciled = await confirmation_client.post(
+        f"/v1/finance/payment-receipts/{payment_receipt_id}/cash-reconciliation",
+        headers=auth(
+            confirmation_settings,
+            "finance-recorder",
+            **{"Idempotency-Key": "reconcile-cod-cash"},
+        ),
+        json={
+            "cash_reconciliation_id": reconciliation_id,
+            "counted_amount": "223.00",
+            "reconciled_at": "2026-08-01T17:00:00Z",
+            "reason": "PHP 1.00 documented till shortage",
+        },
+    )
+    assert reconciled.status_code == 201, reconciled.text
+    assert reconciled.json()["variance_amount"] == "-1.00"
+    engine = create_async_engine(postgres_url)
+    async with engine.connect() as connection:
+        reconciliation = (
+            (
+                await connection.execute(
+                    text(
+                        """
+                        SELECT cc.status, cre.event_type, cre.expected_amount,
+                               cre.counted_amount, cre.variance_amount, cre.reason
+                        FROM cod_collections cc
+                        JOIN cash_reconciliation_events cre USING (payment_receipt_id)
+                        WHERE cc.payment_receipt_id = :payment_receipt_id
+                        """
+                    ),
+                    {"payment_receipt_id": payment_receipt_id},
+                )
+            )
+            .mappings()
+            .one()
+        )
+    await engine.dispose()
+    assert dict(reconciliation) == {
+        "status": "reconciled",
+        "event_type": "reconciled",
+        "expected_amount": Decimal("224.000000"),
+        "counted_amount": Decimal("223.000000"),
+        "variance_amount": Decimal("-1.000000"),
+        "reason": "PHP 1.00 documented till shortage",
+    }
+    adjusted = await confirmation_client.post(
+        f"/v1/finance/payment-receipts/{payment_receipt_id}/cash-reconciliation/adjustments",
+        headers=auth(
+            confirmation_settings,
+            "finance-recorder",
+            **{"Idempotency-Key": "adjust-cod-cash-count"},
+        ),
+        json={
+            "cash_reconciliation_id": str(uuid4()),
+            "counted_amount": "224.00",
+            "reconciled_at": "2026-08-01T17:10:00Z",
+            "reason": "Second checker found the missing peso in the sealed pouch",
+        },
+    )
+    assert adjusted.status_code == 201, adjusted.text
+    assert adjusted.json()["event_type"] == "adjusted"
+    assert adjusted.json()["variance_amount"] == "0.00"
+    reversed_reconciliation = await confirmation_client.post(
+        f"/v1/finance/payment-receipts/{payment_receipt_id}/cash-reconciliation/reversal",
+        headers=auth(
+            confirmation_settings,
+            "finance-recorder",
+            **{"Idempotency-Key": "reverse-cod-reconciliation"},
+        ),
+        json={
+            "cash_reconciliation_id": str(uuid4()),
+            "reversed_at": "2026-08-01T17:20:00Z",
+            "reason": "Deposit batch was assigned to the wrong cashier session",
+        },
+    )
+    assert reversed_reconciliation.status_code == 201, reversed_reconciliation.text
+    assert reversed_reconciliation.json()["event_type"] == "reversed"
+    assert reversed_reconciliation.json()["status"] == "pending"
+    engine = create_async_engine(postgres_url)
+    async with engine.connect() as connection:
+        history = list(
+            (
+                await connection.execute(
+                    text(
+                        """
+                        SELECT event_type FROM cash_reconciliation_events
+                        WHERE payment_receipt_id = :payment_receipt_id
+                        ORDER BY occurred_at
+                        """
+                    ),
+                    {"payment_receipt_id": payment_receipt_id},
+                )
+            ).scalars()
+        )
+        projection = (
+            (
+                await connection.execute(
+                    text(
+                        """
+                        SELECT cri.status AS cash_status, cc.status AS cod_status
+                        FROM cash_reconciliation_items cri
+                        JOIN cod_collections cc USING (payment_receipt_id)
+                        WHERE cri.payment_receipt_id = :payment_receipt_id
+                        """
+                    ),
+                    {"payment_receipt_id": payment_receipt_id},
+                )
+            )
+            .mappings()
+            .one()
+        )
+    assert history == ["reconciled", "adjusted", "reversed"]
+    assert dict(projection) == {"cash_status": "pending", "cod_status": "cleared"}
+    with pytest.raises(DBAPIError, match="immutable"):
+        async with engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "UPDATE cash_reconciliation_events SET reason = 'rewritten' "
+                    "WHERE payment_receipt_id = :payment_receipt_id"
+                ),
+                {"payment_receipt_id": payment_receipt_id},
+            )
+    with pytest.raises(DBAPIError, match="immutable"):
+        async with engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "DELETE FROM cash_reconciliation_events "
+                    "WHERE payment_receipt_id = :payment_receipt_id"
+                ),
+                {"payment_receipt_id": payment_receipt_id},
+            )
+    with pytest.raises(DBAPIError, match="immutable"):
+        async with engine.begin() as connection:
+            await connection.execute(
+                text("DELETE FROM cod_collections WHERE payment_receipt_id = :payment_receipt_id"),
+                {"payment_receipt_id": payment_receipt_id},
+            )
+    with pytest.raises(DBAPIError, match="ck_cash_reconciliation_events_amounts"):
+        async with engine.begin() as connection:
+            await connection.execute(
+                text(
+                    """
+                    INSERT INTO cash_reconciliation_events(
+                      cash_reconciliation_event_id, payment_receipt_id,
+                      cash_reconciliation_id, event_type, expected_amount,
+                      counted_amount, variance_amount, reason, actor_subject,
+                      occurred_at, idempotency_key
+                    ) VALUES (
+                      :event_id, :payment_receipt_id, :reconciliation_id,
+                      'adjusted', 224, 223, 0, 'invalid arithmetic fixture',
+                      'finance-recorder', now(), :idempotency_key
+                    )
+                    """
+                ),
+                {
+                    "event_id": uuid4(),
+                    "payment_receipt_id": payment_receipt_id,
+                    "reconciliation_id": uuid4(),
+                    "idempotency_key": f"invalid-reconciliation-{uuid4()}",
+                },
+            )
+    reversed_payment = await confirmation_client.post(
+        f"/v1/finance/payment-receipts/{payment_receipt_id}/reversal",
+        headers=auth(
+            confirmation_settings,
+            "finance-reverser",
+            **{"Idempotency-Key": "reverse-reconciled-cod-cash"},
+        ),
+        json={
+            "payment_reversal_id": str(uuid4()),
+            "reason": "The collected cash receipt was voided after reconciliation review",
+            "reversed_at": "2026-08-01T17:30:00Z",
+        },
+    )
+    assert reversed_payment.status_code == 201, reversed_payment.text
+    reconcile_reversed = await confirmation_client.post(
+        f"/v1/finance/payment-receipts/{payment_receipt_id}/cash-reconciliation",
+        headers=auth(
+            confirmation_settings,
+            "finance-recorder",
+            **{"Idempotency-Key": "reconcile-reversed-cod-cash"},
+        ),
+        json={
+            "cash_reconciliation_id": str(uuid4()),
+            "counted_amount": "224.00",
+            "reconciled_at": "2026-08-01T17:35:00Z",
+            "reason": "A reversed receipt must remain terminal",
+        },
+    )
+    assert reconcile_reversed.status_code == 409, reconcile_reversed.text
+    assert (
+        reconcile_reversed.json()["error"]["code"] == "cash_reconciliation_payment_state_conflict"
+    )
+    async with engine.connect() as connection:
+        cod_status = await connection.scalar(
+            text("SELECT status FROM cod_collections WHERE payment_receipt_id = :id"),
+            {"id": payment_receipt_id},
+        )
+    assert cod_status == "reversed"
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_non_cash_cod_requires_maker_checker_clearance_before_confirmation(
+    confirmation_client: AsyncClient,
+    confirmation_settings: Settings,
+    postgres_url: str,
+) -> None:
+    fixture, delivery_id = await dispatched_prepaid_delivery(
+        confirmation_client,
+        confirmation_settings,
+        postgres_url,
+        payment_timing_policy="cash_on_delivery",
+    )
+    receipt = await record_receipt(
+        confirmation_client,
+        confirmation_settings,
+        fixture,
+        payment_method="bank_transfer",
+        external_reference="COD-BANK-1001",
+        key="cod-transfer-capture",
+        actor="delivery-mnl",
+    )
+    assert receipt.status_code == 201, receipt.text
+    assert receipt.json()["status"] == "pending_verification"
+    evidence_id = str(uuid4())
+    uploaded = await confirmation_client.post(
+        f"/v1/deliveries/{delivery_id}/evidence/uploads",
+        headers=auth(confirmation_settings, "delivery-mnl"),
+        json={
+            "evidence_id": evidence_id,
+            "kind": "signature",
+            "content_type": "image/png",
+            "size_bytes": 12,
+            "sha256": "a" * 64,
+            "device_captured_at": "2026-08-01T13:00:00Z",
+        },
+    )
+    assert uploaded.status_code == 201, uploaded.text
+    completed = await confirmation_client.post(
+        f"/v1/deliveries/{delivery_id}/evidence/{evidence_id}/complete",
+        headers=auth(confirmation_settings, "delivery-mnl"),
+    )
+    assert completed.status_code == 200, completed.text
+    confirmation_id = str(uuid4())
+    command = {
+        "confirmation_id": confirmation_id,
+        "expected_delivery_version": 1,
+        "recipient_name": "Ana Santos",
+        "device_captured_at": "2026-08-01T13:00:00Z",
+        "evidence_ids": [evidence_id],
+        "lines": [
+            {
+                "line_id": fixture["line_id"],
+                "accepted_quantity_base": "2.000000",
+            }
+        ],
+        "collection": {
+            "payment_receipt_id": receipt.json()["payment_receipt_id"],
+            "payment_method": "bank_transfer",
+            "amount": "224.00",
+            "currency": "PHP",
+            "received_at": "2026-08-01T13:00:00Z",
+            "external_reference": "COD-BANK-1001",
+            "evidence": None,
+        },
+    }
+    pending = await confirmation_client.post(
+        f"/v1/deliveries/{delivery_id}/confirmations",
+        headers=auth(
+            confirmation_settings,
+            "delivery-mnl",
+            **{"Idempotency-Key": "cod-transfer-pending"},
+        ),
+        json=command,
+    )
+    assert pending.status_code == 409, pending.text
+    assert pending.json()["error"]["code"] == "cod_payment_verification_required"
+    verified = await confirmation_client.post(
+        f"/v1/finance/payment-receipts/{receipt.json()['payment_receipt_id']}/verification",
+        headers=auth(
+            confirmation_settings,
+            "finance-verifier",
+            **{"Idempotency-Key": "cod-transfer-verify"},
+        ),
+        json={
+            "decision": "cleared",
+            "verified_at": "2026-08-01T13:05:00Z",
+            "reason": "Bank settlement verified independently",
+        },
+    )
+    assert verified.status_code == 201, verified.text
+    confirmed = await confirmation_client.post(
+        f"/v1/deliveries/{delivery_id}/confirmations",
+        headers=auth(
+            confirmation_settings,
+            "delivery-mnl",
+            **{"Idempotency-Key": "cod-transfer-cleared"},
+        ),
+        json=command,
+    )
+    assert confirmed.status_code == 201, confirmed.text
+    assert confirmed.json()["collection"] == {
+        "payment_receipt_id": receipt.json()["payment_receipt_id"],
+        "amount_due": "224.00",
+        "amount_collected": "224.00",
+        "currency": "PHP",
+        "payment_method": "bank_transfer",
+        "status": "cleared",
+        "application_status": "unapplied",
+        "cash_reconciliation_status": None,
+    }
+    reversed_payment = await confirmation_client.post(
+        f"/v1/finance/payment-receipts/{receipt.json()['payment_receipt_id']}/reversal",
+        headers=auth(
+            confirmation_settings,
+            "finance-reverser",
+            **{"Idempotency-Key": "reverse-cleared-cod-transfer"},
+        ),
+        json={
+            "payment_reversal_id": str(uuid4()),
+            "reason": "Provider recalled the transfer after delivery",
+            "reversed_at": "2026-08-02T09:00:00Z",
+        },
+    )
+    assert reversed_payment.status_code == 201, reversed_payment.text
+    engine = create_async_engine(postgres_url)
+    async with engine.connect() as connection:
+        cod_status = await connection.scalar(
+            text(
+                "SELECT status FROM cod_collections WHERE payment_receipt_id = :payment_receipt_id"
+            ),
+            {"payment_receipt_id": receipt.json()["payment_receipt_id"]},
+        )
+    await engine.dispose()
+    assert cod_status == "reversed"
+
+
+@pytest.mark.asyncio
+async def test_distinct_authorized_user_converts_unpaid_cod_to_serialized_credit(
+    confirmation_client: AsyncClient,
+    confirmation_settings: Settings,
+    postgres_url: str,
+) -> None:
+    fixture, delivery_id = await dispatched_prepaid_delivery(
+        confirmation_client,
+        confirmation_settings,
+        postgres_url,
+        payment_timing_policy="cash_on_delivery",
+    )
+    conversion_id = str(uuid4())
+    conversion_command = {
+        "conversion_id": conversion_id,
+        "expected_delivery_version": 1,
+        "reason": "Customer accepted delivery and requested approved account terms",
+    }
+    self_approval = await confirmation_client.post(
+        f"/v1/deliveries/{delivery_id}/cod-on-account-conversions",
+        headers=auth(
+            confirmation_settings,
+            "delivery-mnl",
+            **{"Idempotency-Key": "driver-self-conversion"},
+        ),
+        json=conversion_command,
+    )
+    assert self_approval.status_code == 403, self_approval.text
+    competing_id = str(uuid4())
+    approved, competing = await asyncio.gather(
+        confirmation_client.post(
+            f"/v1/deliveries/{delivery_id}/cod-on-account-conversions",
+            headers=auth(
+                confirmation_settings,
+                "cod-credit-approver-mnl",
+                **{"Idempotency-Key": "approve-cod-credit-a"},
+            ),
+            json=conversion_command,
+        ),
+        confirmation_client.post(
+            f"/v1/deliveries/{delivery_id}/cod-on-account-conversions",
+            headers=auth(
+                confirmation_settings,
+                "cod-credit-approver-mnl",
+                **{"Idempotency-Key": "approve-cod-credit-b"},
+            ),
+            json={**conversion_command, "conversion_id": competing_id},
+        ),
+    )
+    assert sorted([approved.status_code, competing.status_code]) == [201, 409]
+    approved = next(response for response in (approved, competing) if response.status_code == 201)
+    conversion_id = approved.json()["conversion_id"]
+    assert approved.status_code == 201, approved.text
+    assert approved.json() == {
+        "conversion_id": conversion_id,
+        "delivery_id": delivery_id,
+        "amount": "224.00",
+        "currency": "PHP",
+        "status": "approved",
+        "approved_by": "cod-credit-approver-mnl",
+    }
+    evidence_id = str(uuid4())
+    uploaded = await confirmation_client.post(
+        f"/v1/deliveries/{delivery_id}/evidence/uploads",
+        headers=auth(confirmation_settings, "delivery-mnl"),
+        json={
+            "evidence_id": evidence_id,
+            "kind": "signature",
+            "content_type": "image/png",
+            "size_bytes": 12,
+            "sha256": "a" * 64,
+            "device_captured_at": "2026-08-01T13:00:00Z",
+        },
+    )
+    assert uploaded.status_code == 201, uploaded.text
+    completed = await confirmation_client.post(
+        f"/v1/deliveries/{delivery_id}/evidence/{evidence_id}/complete",
+        headers=auth(confirmation_settings, "delivery-mnl"),
+    )
+    assert completed.status_code == 200, completed.text
+    confirmed = await confirmation_client.post(
+        f"/v1/deliveries/{delivery_id}/confirmations",
+        headers=auth(
+            confirmation_settings,
+            "delivery-mnl",
+            **{"Idempotency-Key": "confirm-converted-cod"},
+        ),
+        json={
+            "confirmation_id": str(uuid4()),
+            "expected_delivery_version": 1,
+            "recipient_name": "Ana Santos",
+            "device_captured_at": "2026-08-01T13:00:00Z",
+            "evidence_ids": [evidence_id],
+            "lines": [
+                {
+                    "line_id": fixture["line_id"],
+                    "accepted_quantity_base": "2.000000",
+                }
+            ],
+            "on_account_conversion_id": conversion_id,
+        },
+    )
+    assert confirmed.status_code == 201, confirmed.text
+    assert confirmed.json()["collection"] is None
+    assert confirmed.json()["on_account_conversion"] == {
+        "conversion_id": conversion_id,
+        "delivery_id": delivery_id,
+        "amount": "224.00",
+        "currency": "PHP",
+        "status": "consumed",
+        "approved_by": "cod-credit-approver-mnl",
+    }
+    engine = create_async_engine(postgres_url)
+    async with engine.connect() as connection:
+        row = (
+            (
+                await connection.execute(
+                    text(
+                        """
+                        SELECT cce.approved_uninvoiced, cce.version,
+                               cee.amount_delta, cee.source_type,
+                               conversion.status,
+                               (SELECT count(*) FROM payment_receipts) AS receipt_count
+                        FROM customer_credit_exposure cce
+                        JOIN credit_exposure_entries cee USING (customer_id)
+                        JOIN cod_on_account_conversions conversion
+                          ON conversion.conversion_id = cee.source_id
+                        WHERE cce.customer_id = :customer_id
+                        """
+                    ),
+                    {"customer_id": fixture["customer_id"]},
+                )
+            )
+            .mappings()
+            .one()
+        )
+    assert dict(row) == {
+        "approved_uninvoiced": Decimal("224.000000"),
+        "version": 1,
+        "amount_delta": Decimal("224.000000"),
+        "source_type": "cod_on_account_conversion",
+        "status": "consumed",
+        "receipt_count": 0,
+    }
+    with pytest.raises(DBAPIError, match="Invalid COD On Account approval transition"):
+        async with engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "UPDATE cod_on_account_conversions SET status = 'approved', "
+                    "confirmation_id = NULL WHERE conversion_id = :conversion_id"
+                ),
+                {"conversion_id": conversion_id},
+            )
+    with pytest.raises(DBAPIError, match="immutable"):
+        async with engine.begin() as connection:
+            await connection.execute(
+                text("DELETE FROM cod_on_account_conversions WHERE conversion_id = :conversion_id"),
+                {"conversion_id": conversion_id},
+            )
+    async with engine.connect() as connection:
+        ownership_constraints = set(
+            (
+                await connection.execute(
+                    text(
+                        """
+                        SELECT conname
+                        FROM pg_constraint
+                        WHERE conname IN (
+                          'uq_delivery_confirmation_delivery_identity',
+                          'fk_cod_collection_confirmation_delivery',
+                          'fk_cod_conversion_confirmation_delivery'
+                        )
+                        """
+                    )
+                )
+            ).scalars()
+        )
+    assert ownership_constraints == {
+        "uq_delivery_confirmation_delivery_identity",
+        "fk_cod_collection_confirmation_delivery",
+        "fk_cod_conversion_confirmation_delivery",
+    }
+    await engine.dispose()
 
 
 @pytest.mark.asyncio

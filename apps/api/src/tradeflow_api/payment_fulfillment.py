@@ -32,7 +32,9 @@ from tradeflow_api.errors import AppError, error_responses
 from tradeflow_api.models import (
     active_sales_order_holds,
     branch_payment_deadline_policies,
+    cash_reconciliation_events,
     cash_reconciliation_items,
+    cod_collections,
     commercial_approval_invalidations,
     commercial_approvals,
     companies,
@@ -116,10 +118,26 @@ class CheckClearanceCommand(CommandModel):
     reason: str = Field(min_length=1, max_length=500)
 
 
+class ProviderConfirmationCommand(CommandModel):
+    confirmed_at: datetime
+    provider_reference: str = Field(min_length=1, max_length=200)
+    reason: str = Field(min_length=1, max_length=500)
+
+
 class CashReconciliationCommand(CommandModel):
     cash_reconciliation_id: UUID
     counted_amount: Decimal = Field(ge=0, max_digits=24, decimal_places=6)
     reconciled_at: datetime
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class CashReconciliationAdjustmentCommand(CashReconciliationCommand):
+    pass
+
+
+class CashReconciliationReversalCommand(CommandModel):
+    cash_reconciliation_id: UUID
+    reversed_at: datetime
     reason: str = Field(min_length=1, max_length=500)
 
 
@@ -173,6 +191,15 @@ class CashReconciliationResponse(BaseModel):
     cash_reconciliation_id: UUID
     payment_receipt_id: UUID
     status: Literal["reconciled"]
+    counted_amount: Decimal
+    variance_amount: Decimal
+
+
+class CashReconciliationChangeResponse(BaseModel):
+    cash_reconciliation_id: UUID
+    payment_receipt_id: UUID
+    event_type: Literal["adjusted", "reversed"]
+    status: Literal["pending", "reconciled"]
     counted_amount: Decimal
     variance_amount: Decimal
 
@@ -1319,6 +1346,127 @@ async def verify_payment_receipt(
 
 
 @router.post(
+    "/v1/finance/payment-receipts/{payment_receipt_id}/provider-confirmation",
+    response_model=PaymentReceiptResponse,
+    status_code=201,
+    responses=error_responses(400, 401, 403, 404, 409, 422, 500),
+)
+async def confirm_provider_payment(
+    payment_receipt_id: UUID,
+    command: ProviderConfirmationCommand,
+    request: Request,
+    response: Response,
+    actor: Annotated[AuthorizedUser, Depends(require_payment_verifier)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    idempotency_key: Annotated[
+        str | None,
+        Header(alias="Idempotency-Key", min_length=1, max_length=200),
+    ] = None,
+) -> PaymentReceiptResponse:
+    if idempotency_key is None:
+        raise AppError(400, "idempotency_key_required", "Idempotency-Key is required.")
+    request_hash = _request_hash("confirm-provider-payment", command, str(payment_receipt_id))
+    await session.rollback()
+    async with session.begin():
+        replay = await get_command_replay(
+            session,
+            actor_subject=actor.subject,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+        )
+        if replay is not None:
+            response.status_code = 200
+            return PaymentReceiptResponse.model_validate(replay)
+        receipt = (
+            (
+                await session.execute(
+                    select(payment_receipts, payment_receipt_status.c.state)
+                    .join(
+                        payment_receipt_status,
+                        payment_receipts.c.payment_receipt_id
+                        == payment_receipt_status.c.payment_receipt_id,
+                    )
+                    .where(payment_receipts.c.payment_receipt_id == payment_receipt_id)
+                    .with_for_update(of=payment_receipt_status)
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+        if receipt is None:
+            raise AppError(404, "payment_receipt_not_found", "Payment Receipt not found.")
+        if receipt["branch_id"] not in actor.branch_ids:
+            raise AppError(403, "operational_scope_required", "Branch scope is required.")
+        if receipt["recorded_by"] == actor.subject:
+            raise AppError(
+                409,
+                "maker_checker_violation",
+                "The Payment recorder cannot confirm the same provider payment.",
+            )
+        method = (
+            (
+                await session.execute(
+                    select(payment_methods).where(
+                        payment_methods.c.payment_method_id == receipt["payment_method_id"]
+                    )
+                )
+            )
+            .mappings()
+            .one()
+        )
+        if (
+            receipt["state"] != "pending_verification"
+            or not method["provider_confirmation_enabled"]
+        ):
+            raise AppError(
+                409,
+                "provider_confirmation_not_allowed",
+                "This Payment Method is not awaiting an approved provider confirmation.",
+            )
+        if (
+            _normalize_reference(command.provider_reference)
+            != receipt["external_reference_normalized"]
+        ):
+            raise AppError(
+                409,
+                "provider_reference_conflict",
+                "Provider confirmation must match the recorded External Payment Reference.",
+            )
+        await session.execute(
+            insert(payment_receipt_events).values(
+                payment_receipt_event_id=uuid4(),
+                payment_receipt_id=payment_receipt_id,
+                event_type="provider_confirmed",
+                actor_subject=actor.subject,
+                reason=command.reason,
+                evidence={"provider_reference": command.provider_reference},
+                source_id=payment_receipt_id,
+                correlation_id=request.state.correlation_id,
+                idempotency_key=f"{idempotency_key}:provider-confirmed",
+                occurred_at=command.confirmed_at,
+            )
+        )
+        await _clear_receipt(
+            session,
+            receipt=dict(receipt),
+            actor_subject=actor.subject,
+            correlation_id=request.state.correlation_id,
+            idempotency_key=idempotency_key,
+            occurred_at=command.confirmed_at,
+            verified_by=actor.subject,
+        )
+        result = await _receipt_response(session, payment_receipt_id)
+        await store_command_result(
+            session,
+            actor_subject=actor.subject,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+            result=result,
+        )
+        return result
+
+
+@router.post(
     "/v1/finance/payment-receipts/{payment_receipt_id}/bank-clearance",
     response_model=PaymentReceiptResponse,
     status_code=201,
@@ -1446,9 +1594,14 @@ async def reconcile_cash_payment(
         receipt = (
             (
                 await session.execute(
-                    select(payment_receipts).where(
-                        payment_receipts.c.payment_receipt_id == payment_receipt_id
+                    select(payment_receipts, payment_receipt_status.c.state)
+                    .join(
+                        payment_receipt_status,
+                        payment_receipts.c.payment_receipt_id
+                        == payment_receipt_status.c.payment_receipt_id,
                     )
+                    .where(payment_receipts.c.payment_receipt_id == payment_receipt_id)
+                    .with_for_update(of=payment_receipt_status)
                 )
             )
             .mappings()
@@ -1458,6 +1611,12 @@ async def reconcile_cash_payment(
             raise AppError(404, "payment_receipt_not_found", "The Payment Receipt does not exist.")
         if receipt["branch_id"] not in actor.branch_ids:
             raise AppError(403, "operational_scope_required", "Branch scope is required.")
+        if receipt["state"] != "cleared":
+            raise AppError(
+                409,
+                "cash_reconciliation_payment_state_conflict",
+                "Only a Cleared cash Payment Receipt can be reconciled.",
+            )
         item = (
             (
                 await session.execute(
@@ -1474,6 +1633,12 @@ async def reconcile_cash_payment(
                 409,
                 "cash_reconciliation_not_required",
                 "This Payment Receipt is not an authorized cash collection.",
+            )
+        if item["status"] == "reconciled":
+            raise AppError(
+                409,
+                "cash_reconciliation_already_completed",
+                "Cash has already been reconciled; use an adjustment or reversal.",
             )
         variance = _money(
             command.counted_amount - item["expected_amount"],
@@ -1492,6 +1657,26 @@ async def reconcile_cash_payment(
                 reason=command.reason,
             )
         )
+        await session.execute(
+            insert(cash_reconciliation_events).values(
+                cash_reconciliation_event_id=uuid4(),
+                payment_receipt_id=payment_receipt_id,
+                cash_reconciliation_id=command.cash_reconciliation_id,
+                event_type="reconciled",
+                expected_amount=item["expected_amount"],
+                counted_amount=_money(command.counted_amount, receipt["currency"]),
+                variance_amount=variance,
+                reason=command.reason,
+                actor_subject=actor.subject,
+                occurred_at=command.reconciled_at,
+                idempotency_key=idempotency_key,
+            )
+        )
+        await session.execute(
+            update(cod_collections)
+            .where(cod_collections.c.payment_receipt_id == payment_receipt_id)
+            .values(status="reconciled")
+        )
         result = CashReconciliationResponse(
             cash_reconciliation_id=command.cash_reconciliation_id,
             payment_receipt_id=payment_receipt_id,
@@ -1507,6 +1692,254 @@ async def reconcile_cash_payment(
             result=result,
         )
     return result
+
+
+@router.post(
+    "/v1/finance/payment-receipts/{payment_receipt_id}/cash-reconciliation/adjustments",
+    response_model=CashReconciliationChangeResponse,
+    status_code=201,
+    responses=error_responses(400, 401, 403, 404, 409, 422, 500),
+)
+async def adjust_cash_reconciliation(
+    payment_receipt_id: UUID,
+    command: CashReconciliationAdjustmentCommand,
+    response: Response,
+    actor: Annotated[AuthorizedUser, Depends(require_cash_reconciler)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    idempotency_key: Annotated[
+        str | None,
+        Header(alias="Idempotency-Key", min_length=1, max_length=200),
+    ] = None,
+) -> CashReconciliationChangeResponse:
+    if idempotency_key is None:
+        raise AppError(400, "idempotency_key_required", "Idempotency-Key is required.")
+    request_hash = _request_hash("adjust-cash-reconciliation", command, str(payment_receipt_id))
+    await session.rollback()
+    async with session.begin():
+        replay = await get_command_replay(
+            session,
+            actor_subject=actor.subject,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+        )
+        if replay is not None:
+            response.status_code = 200
+            return CashReconciliationChangeResponse.model_validate(replay)
+        receipt = (
+            (
+                await session.execute(
+                    select(payment_receipts, payment_receipt_status.c.state)
+                    .join(
+                        payment_receipt_status,
+                        payment_receipts.c.payment_receipt_id
+                        == payment_receipt_status.c.payment_receipt_id,
+                    )
+                    .where(payment_receipts.c.payment_receipt_id == payment_receipt_id)
+                    .with_for_update(of=payment_receipt_status)
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+        if receipt is None:
+            raise AppError(404, "payment_receipt_not_found", "Payment Receipt not found.")
+        if receipt["branch_id"] not in actor.branch_ids:
+            raise AppError(403, "operational_scope_required", "Branch scope is required.")
+        if receipt["state"] != "cleared":
+            raise AppError(
+                409,
+                "cash_reconciliation_payment_state_conflict",
+                "Only a Cleared cash Payment Receipt can be adjusted.",
+            )
+        item = (
+            (
+                await session.execute(
+                    select(cash_reconciliation_items)
+                    .where(cash_reconciliation_items.c.payment_receipt_id == payment_receipt_id)
+                    .with_for_update()
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+        if item is None or item["status"] != "reconciled":
+            raise AppError(
+                409,
+                "cash_reconciliation_adjustment_conflict",
+                "Only reconciled cash can receive a reasoned adjustment.",
+            )
+        counted = _money(command.counted_amount, receipt["currency"])
+        variance = _money(counted - item["expected_amount"], receipt["currency"])
+        await session.execute(
+            update(cash_reconciliation_items)
+            .where(cash_reconciliation_items.c.payment_receipt_id == payment_receipt_id)
+            .values(
+                counted_amount=counted,
+                variance_amount=variance,
+                cash_reconciliation_id=command.cash_reconciliation_id,
+                reconciled_by=actor.subject,
+                reconciled_at=command.reconciled_at,
+                reason=command.reason,
+            )
+        )
+        await session.execute(
+            insert(cash_reconciliation_events).values(
+                cash_reconciliation_event_id=uuid4(),
+                payment_receipt_id=payment_receipt_id,
+                cash_reconciliation_id=command.cash_reconciliation_id,
+                event_type="adjusted",
+                expected_amount=item["expected_amount"],
+                counted_amount=counted,
+                variance_amount=variance,
+                reason=command.reason,
+                actor_subject=actor.subject,
+                occurred_at=command.reconciled_at,
+                idempotency_key=idempotency_key,
+            )
+        )
+        result = CashReconciliationChangeResponse(
+            cash_reconciliation_id=command.cash_reconciliation_id,
+            payment_receipt_id=payment_receipt_id,
+            status="reconciled",
+            counted_amount=counted,
+            variance_amount=variance,
+            event_type="adjusted",
+        )
+        await store_command_result(
+            session,
+            actor_subject=actor.subject,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+            result=result,
+        )
+        return result
+
+
+@router.post(
+    "/v1/finance/payment-receipts/{payment_receipt_id}/cash-reconciliation/reversal",
+    response_model=CashReconciliationChangeResponse,
+    status_code=201,
+    responses=error_responses(400, 401, 403, 404, 409, 422, 500),
+)
+async def reverse_cash_reconciliation(
+    payment_receipt_id: UUID,
+    command: CashReconciliationReversalCommand,
+    response: Response,
+    actor: Annotated[AuthorizedUser, Depends(require_cash_reconciler)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    idempotency_key: Annotated[
+        str | None,
+        Header(alias="Idempotency-Key", min_length=1, max_length=200),
+    ] = None,
+) -> CashReconciliationChangeResponse:
+    if idempotency_key is None:
+        raise AppError(400, "idempotency_key_required", "Idempotency-Key is required.")
+    request_hash = _request_hash("reverse-cash-reconciliation", command, str(payment_receipt_id))
+    await session.rollback()
+    async with session.begin():
+        replay = await get_command_replay(
+            session,
+            actor_subject=actor.subject,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+        )
+        if replay is not None:
+            response.status_code = 200
+            return CashReconciliationChangeResponse.model_validate(replay)
+        receipt = (
+            (
+                await session.execute(
+                    select(payment_receipts, payment_receipt_status.c.state)
+                    .join(
+                        payment_receipt_status,
+                        payment_receipts.c.payment_receipt_id
+                        == payment_receipt_status.c.payment_receipt_id,
+                    )
+                    .where(payment_receipts.c.payment_receipt_id == payment_receipt_id)
+                    .with_for_update(of=payment_receipt_status)
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+        if receipt is None:
+            raise AppError(404, "payment_receipt_not_found", "Payment Receipt not found.")
+        if receipt["branch_id"] not in actor.branch_ids:
+            raise AppError(403, "operational_scope_required", "Branch scope is required.")
+        if receipt["state"] != "cleared":
+            raise AppError(
+                409,
+                "cash_reconciliation_payment_state_conflict",
+                "Only a Cleared cash Payment Receipt can have reconciliation reversed.",
+            )
+        item = (
+            (
+                await session.execute(
+                    select(cash_reconciliation_items)
+                    .where(cash_reconciliation_items.c.payment_receipt_id == payment_receipt_id)
+                    .with_for_update()
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+        if item is None or item["status"] != "reconciled":
+            raise AppError(
+                409,
+                "cash_reconciliation_reversal_conflict",
+                "Only a current reconciliation can be reversed.",
+            )
+        counted = cast(Decimal, item["counted_amount"])
+        variance = cast(Decimal, item["variance_amount"])
+        await session.execute(
+            insert(cash_reconciliation_events).values(
+                cash_reconciliation_event_id=uuid4(),
+                payment_receipt_id=payment_receipt_id,
+                cash_reconciliation_id=command.cash_reconciliation_id,
+                event_type="reversed",
+                expected_amount=item["expected_amount"],
+                counted_amount=counted,
+                variance_amount=variance,
+                reason=command.reason,
+                actor_subject=actor.subject,
+                occurred_at=command.reversed_at,
+                idempotency_key=idempotency_key,
+            )
+        )
+        await session.execute(
+            update(cash_reconciliation_items)
+            .where(cash_reconciliation_items.c.payment_receipt_id == payment_receipt_id)
+            .values(
+                status="pending",
+                counted_amount=None,
+                variance_amount=None,
+                cash_reconciliation_id=None,
+                reconciled_by=None,
+                reconciled_at=None,
+                reason=None,
+            )
+        )
+        await session.execute(
+            update(cod_collections)
+            .where(cod_collections.c.payment_receipt_id == payment_receipt_id)
+            .values(status="cleared")
+        )
+        result = CashReconciliationChangeResponse(
+            cash_reconciliation_id=command.cash_reconciliation_id,
+            payment_receipt_id=payment_receipt_id,
+            status="pending",
+            counted_amount=counted,
+            variance_amount=variance,
+            event_type="reversed",
+        )
+        await store_command_result(
+            session,
+            actor_subject=actor.subject,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+            result=result,
+        )
+        return result
 
 
 @router.post(
@@ -1632,6 +2065,11 @@ async def reverse_payment_receipt(
                 reversed_amount=receipt["amount"],
                 version=payment_receipt_balances.c.version + 1,
             )
+        )
+        await session.execute(
+            update(cod_collections)
+            .where(cod_collections.c.payment_receipt_id == payment_receipt_id)
+            .values(status="reversed")
         )
         result = PaymentReversalResponse(
             payment_reversal_id=command.payment_reversal_id,

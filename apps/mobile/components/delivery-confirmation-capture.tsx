@@ -31,6 +31,17 @@ export function DeliveryConfirmationCapture({
   const [recipient, setRecipient] = useState(delivery.recipientName);
   const [notes, setNotes] = useState("");
   const [evidence, setEvidence] = useState<LocalDeliveryEvidence[]>([]);
+  const [cashCollected, setCashCollected] = useState(
+    delivery.collectionAmountDue ?? "",
+  );
+  const [settlementMode, setSettlementMode] = useState<
+    "cash" | "noncash" | "on_account"
+  >("cash");
+  const [noncashMethod, setNoncashMethod] = useState<
+    "bank_transfer" | "check" | "electronic"
+  >("bank_transfer");
+  const [paymentReceiptId, setPaymentReceiptId] = useState("");
+  const [conversionId, setConversionId] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const signature = evidence.find((item) => item.kind === "signature");
 
@@ -87,12 +98,46 @@ export function DeliveryConfirmationCapture({
       setMessage("Recipient name and signature evidence are required.");
       return;
     }
+    if (delivery.collectionRequired && delivery.collectionAmountDue === null) {
+      setMessage(
+        "The server-calculated COD due is unavailable. Refresh the Delivery before capture.",
+      );
+      return;
+    }
+    if (
+      delivery.collectionRequired &&
+      settlementMode !== "on_account" &&
+      (!isCanonicalPositiveDecimal(cashCollected) ||
+        Number(cashCollected) < Number(delivery.collectionAmountDue))
+    ) {
+      setMessage(
+        `Collection must be a positive decimal covering ${delivery.collectionAmountDue}.`,
+      );
+      return;
+    }
+    if (
+      delivery.collectionRequired &&
+      settlementMode === "noncash" &&
+      paymentReceiptId.trim().length === 0
+    ) {
+      setMessage("Enter the cleared non-cash Payment Receipt ID.");
+      return;
+    }
+    if (
+      delivery.collectionRequired &&
+      settlementMode === "on_account" &&
+      conversionId.trim().length === 0
+    ) {
+      setMessage("Enter the approved On Account conversion ID.");
+      return;
+    }
     const confirmationId = randomUUID();
+    const capturedAt = now();
     await store.saveAndEnqueue(
       {
         command: {
           confirmation_id: confirmationId,
-          device_captured_at: now(),
+          device_captured_at: capturedAt,
           evidence_ids: evidence.map((item) => item.evidenceId),
           expected_delivery_version: delivery.version,
           lines: delivery.lines.map((line) => ({
@@ -101,6 +146,26 @@ export function DeliveryConfirmationCapture({
           })),
           notes: notes.trim() || null,
           recipient_name: recipient.trim(),
+          ...(delivery.collectionRequired && settlementMode !== "on_account"
+            ? {
+                collection: {
+                  amount: cashCollected,
+                  currency: "PHP",
+                  evidence: null,
+                  external_reference: null,
+                  payment_method:
+                    settlementMode === "cash" ? "cash" : noncashMethod,
+                  payment_receipt_id:
+                    settlementMode === "cash"
+                      ? randomUUID()
+                      : paymentReceiptId.trim(),
+                  received_at: capturedAt,
+                },
+              }
+            : {}),
+          ...(delivery.collectionRequired && settlementMode === "on_account"
+            ? { on_account_conversion_id: conversionId.trim() }
+            : {}),
         },
         deliveryId: delivery.deliveryId,
         evidence,
@@ -111,24 +176,80 @@ export function DeliveryConfirmationCapture({
     onSaved();
   };
 
-  if (delivery.collectionRequired) {
-    return (
-      <View style={styles.panel}>
-        <Text accessibilityRole="header" style={styles.title}>
-          Collection required before confirmation
-        </Text>
-        <Text style={styles.help}>
-          COD acceptance is handled atomically in Issue #11.
-        </Text>
-      </View>
-    );
-  }
   return (
     <View style={styles.panel}>
       <Text style={styles.eyebrow}>ACCEPTED DELIVERY</Text>
       <Text accessibilityRole="header" style={styles.title}>
-        Capture Proof of Delivery
+        {delivery.collectionRequired
+          ? "Capture COD payment and Proof of Delivery"
+          : "Capture Proof of Delivery"}
       </Text>
+      {delivery.collectionRequired && (
+        <View style={styles.collection}>
+          <Text style={styles.help}>
+            COD due: PHP {delivery.collectionAmountDue ?? "Unavailable"}
+          </Text>
+          <View style={styles.actions}>
+            {(["cash", "noncash", "on_account"] as const).map((value) => (
+              <Pressable key={value} onPress={() => setSettlementMode(value)}>
+                <Text style={styles.link}>
+                  {settlementMode === value ? "● " : "○ "}
+                  {value.replaceAll("_", " ").toUpperCase()}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          {settlementMode !== "on_account" && (
+            <TextInput
+              accessibilityLabel="COD amount collected"
+              keyboardType="decimal-pad"
+              onChangeText={setCashCollected}
+              placeholder="0.00"
+              style={styles.input}
+              value={cashCollected}
+            />
+          )}
+          {settlementMode === "noncash" && (
+            <>
+              <View style={styles.actions}>
+                {(["bank_transfer", "check", "electronic"] as const).map(
+                  (value) => (
+                    <Pressable
+                      key={value}
+                      onPress={() => setNoncashMethod(value)}
+                    >
+                      <Text style={styles.link}>
+                        {noncashMethod === value ? "● " : "○ "}
+                        {value.replaceAll("_", " ").toUpperCase()}
+                      </Text>
+                    </Pressable>
+                  ),
+                )}
+              </View>
+              <TextInput
+                accessibilityLabel="Cleared Payment Receipt ID"
+                onChangeText={setPaymentReceiptId}
+                placeholder="Payment Receipt UUID"
+                style={styles.input}
+                value={paymentReceiptId}
+              />
+            </>
+          )}
+          {settlementMode === "on_account" && (
+            <TextInput
+              accessibilityLabel="Approved On Account conversion ID"
+              onChangeText={setConversionId}
+              placeholder="Conversion UUID"
+              style={styles.input}
+              value={conversionId}
+            />
+          )}
+          <Text style={styles.help}>
+            Settlement and proof stay Pending Sync offline and take effect only
+            after server acknowledgement.
+          </Text>
+        </View>
+      )}
       <TextInput
         accessibilityLabel="Recipient name"
         onChangeText={setRecipient}
@@ -173,10 +294,18 @@ export function DeliveryConfirmationCapture({
         onPress={() => void queue()}
         style={styles.submit}
       >
-        <Text style={styles.submitText}>SAVE TO PENDING SYNC</Text>
+        <Text style={styles.submitText}>
+          {delivery.collectionRequired
+            ? "SAVE COD TO PENDING SYNC"
+            : "SAVE TO PENDING SYNC"}
+        </Text>
       </Pressable>
     </View>
   );
+}
+
+function isCanonicalPositiveDecimal(value: string): boolean {
+  return /^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(value) && Number(value) > 0;
 }
 
 function contentTypeFor(
@@ -201,6 +330,11 @@ function hex(value: ArrayBuffer): string {
 
 const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: 24, marginVertical: 14 },
+  collection: {
+    borderLeftColor: colors.orange,
+    borderLeftWidth: 3,
+    paddingLeft: 12,
+  },
   error: { color: colors.red, marginTop: 10 },
   eyebrow: {
     color: colors.orange,

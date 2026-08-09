@@ -65,6 +65,21 @@ export function DeliveryConfirmationStatus({
             {title(item)}
           </Text>
           <Text style={styles.detail}>Delivery {item.deliveryId}</Text>
+          {item.response?.collection?.status === "cleared" && (
+            <Text style={styles.positive}>
+              COD {item.response.collection.payment_method.replaceAll("_", " ")}{" "}
+              · PHP {item.response.collection.amount_collected} cleared · cash
+              reconciliation{" "}
+              {item.response.collection.cash_reconciliation_status ??
+                "not required"}
+            </Text>
+          )}
+          {item.response?.on_account_conversion?.status === "consumed" && (
+            <Text style={styles.warning}>
+              COD converted to On Account · PHP{" "}
+              {item.response.on_account_conversion.amount}
+            </Text>
+          )}
           {item.status === "confirmed" &&
             (() => {
               const receipt = item.response?.delivery_receipt;
@@ -176,6 +191,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   link: { color: colors.orange, fontSize: 12, fontWeight: "700", marginTop: 8 },
+  positive: { color: colors.green, fontSize: 12, marginTop: 6 },
   section: {
     borderTopColor: colors.ink,
     borderTopWidth: 1,

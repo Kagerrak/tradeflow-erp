@@ -14,6 +14,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tradeflow_api.auth import AuthorizedUser, require_delivery_reader, require_dispatcher
+from tradeflow_api.cod_settlement import calculate_cod_amount_due
 from tradeflow_api.command_receipts import get_command_replay, store_command_result
 from tradeflow_api.database import get_database_session
 from tradeflow_api.errors import AppError, error_responses
@@ -32,6 +33,7 @@ from tradeflow_api.models import (
     pick_postings,
     role_template_capabilities,
     role_templates,
+    sales_order_line_revisions,
     sales_order_revisions,
     skus,
     stock_lot_allocations,
@@ -104,6 +106,7 @@ class AssignedDeliveryResponse(BaseModel):
     delivery_address: dict[str, object]
     payment_timing_policy: Literal["prepaid", "cash_on_delivery", "on_account"]
     collection_required: bool
+    collection_amount_due: Decimal | None
     evidence_requirements: list[str]
     lines: list[AssignedDeliveryLineResponse]
 
@@ -379,8 +382,25 @@ async def _assigned_delivery_response(
                     delivery_lines.c.pick_line_id,
                     skus.c.code.label("sku_code"),
                     skus.c.name.label("sku_name"),
+                    sales_order_line_revisions.c.quantity_base.label("source_quantity_base"),
+                    sales_order_line_revisions.c.allocated_discount.label(
+                        "source_allocated_discount"
+                    ),
+                    sales_order_line_revisions.c.tax_amount.label("source_tax_amount"),
+                    sales_order_line_revisions.c.line_total.label("source_line_total"),
+                    sales_order_line_revisions.c.calculation_snapshot.label(
+                        "source_calculation_snapshot"
+                    ),
                 )
                 .join(skus, delivery_lines.c.sku_id == skus.c.sku_id)
+                .join(
+                    sales_order_line_revisions,
+                    (
+                        sales_order_line_revisions.c.sales_order_revision_id
+                        == delivery["sales_order_revision_id"]
+                    )
+                    & (sales_order_line_revisions.c.line_id == delivery_lines.c.line_id),
+                )
                 .where(delivery_lines.c.delivery_id == delivery["delivery_id"])
                 .order_by(delivery_lines.c.line_id, delivery_lines.c.pick_line_id)
             )
@@ -413,6 +433,28 @@ async def _assigned_delivery_response(
                 )
             elif assignment["tracking_policy"] == "serial":
                 aggregate["serial_numbers"].append(assignment["serial_number"])
+    collection_amount_due: Decimal | None = None
+    if delivery["payment_timing_policy"] == "cash_on_delivery":
+        currency = cast(
+            str,
+            await session.scalar(
+                select(sales_order_revisions.c.currency).where(
+                    sales_order_revisions.c.sales_order_revision_id
+                    == delivery["sales_order_revision_id"]
+                )
+            ),
+        )
+        accepted = {
+            line_id: cast(Decimal, data["quantity_base"])
+            for (line_id, _, _, _), data in aggregates.items()
+        }
+        collection_amount_due = await calculate_cod_amount_due(
+            session,
+            sales_order_revision_id=delivery["sales_order_revision_id"],
+            lines=cast(list[Mapping[str, Any]], line_rows),
+            accepted=accepted,
+            currency=currency,
+        )
     return AssignedDeliveryResponse(
         delivery_id=delivery["delivery_id"],
         fulfillment_order_id=delivery["fulfillment_order_id"],
@@ -423,6 +465,7 @@ async def _assigned_delivery_response(
         delivery_address=dict(delivery["delivery_address_snapshot"]),
         payment_timing_policy=delivery["payment_timing_policy"],
         collection_required=delivery["payment_timing_policy"] == "cash_on_delivery",
+        collection_amount_due=collection_amount_due,
         evidence_requirements=list(delivery["evidence_requirements"]),
         lines=[
             AssignedDeliveryLineResponse(

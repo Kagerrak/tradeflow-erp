@@ -19,6 +19,7 @@ export type DeliveryLine = {
 export type AssignedDelivery = {
   assignedTo: string;
   collectionRequired: boolean;
+  collectionAmountDue: string | null;
   deliveryAddress: Record<string, unknown>;
   deliveryId: string;
   evidenceRequirements: string[];
@@ -152,6 +153,7 @@ function mapAssigned(value: AssignedWire): AssignedDelivery {
   return {
     assignedTo: value.assigned_to,
     collectionRequired: value.collection_required,
+    collectionAmountDue: value.collection_amount_due,
     deliveryAddress: value.delivery_address,
     deliveryId: value.delivery_id,
     evidenceRequirements: value.evidence_requirements,

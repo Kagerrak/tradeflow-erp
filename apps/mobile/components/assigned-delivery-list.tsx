@@ -211,7 +211,7 @@ function DeliveryCard({
       <View style={styles.paymentRail}>
         <Text style={styles.paymentText}>
           {delivery.paymentTimingPolicy === "cash_on_delivery"
-            ? "CASH ON DELIVERY · COLLECTION REQUIRED"
+            ? `CASH ON DELIVERY · PHP ${delivery.collectionAmountDue ?? "DUE UNAVAILABLE"} · COLLECTION REQUIRED`
             : delivery.paymentTimingPolicy.replaceAll("_", " ").toUpperCase()}
         </Text>
       </View>
