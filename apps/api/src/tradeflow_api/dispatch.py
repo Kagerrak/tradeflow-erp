@@ -22,6 +22,7 @@ from tradeflow_api.models import (
     customer_accounts,
     delivery_assignment_events,
     delivery_dispatches,
+    delivery_line_identity_allocations,
     delivery_lines,
     delivery_state,
     fulfillment_order_state,
@@ -86,7 +87,16 @@ class DispatchResponse(BaseModel):
     lines: list[DispatchLineResponse]
 
 
+class DeliveryIdentityPositionResponse(BaseModel):
+    delivery_line_identity_allocation_id: UUID
+    tracking_policy: Literal["lot", "serial"]
+    quantity_base: Decimal
+    lot_code: str | None
+    serial_number: str | None
+
+
 class AssignedDeliveryLineResponse(BaseModel):
+    delivery_line_id: UUID
     line_id: UUID
     sku_id: UUID
     sku_code: str
@@ -94,6 +104,7 @@ class AssignedDeliveryLineResponse(BaseModel):
     quantity_base: Decimal
     lot_selections: list[LotSelectionResponse]
     serial_numbers: list[str]
+    identity_positions: list[DeliveryIdentityPositionResponse]
 
 
 class AssignedDeliveryResponse(BaseModel):
@@ -376,6 +387,7 @@ async def _assigned_delivery_response(
         (
             await session.execute(
                 select(
+                    delivery_lines.c.delivery_line_id,
                     delivery_lines.c.line_id,
                     delivery_lines.c.sku_id,
                     delivery_lines.c.quantity_base,
@@ -406,18 +418,61 @@ async def _assigned_delivery_response(
             )
         ).mappings()
     )
-    aggregates: dict[tuple[UUID, UUID, str, str], dict[str, Any]] = defaultdict(
+    aggregates: dict[tuple[UUID, UUID, UUID, str, str], dict[str, Any]] = defaultdict(
         lambda: {
             "quantity_base": ZERO,
             "lot_selections": [],
             "serial_numbers": [],
+            "identity_positions": [],
         }
     )
     for row in line_rows:
-        key = (row["line_id"], row["sku_id"], row["sku_code"], row["sku_name"])
+        key = (
+            row["delivery_line_id"],
+            row["line_id"],
+            row["sku_id"],
+            row["sku_code"],
+            row["sku_name"],
+        )
         aggregate = aggregates[key]
         aggregate["quantity_base"] += row["quantity_base"]
-        assignments = await _pick_assignments(session, row["pick_line_id"])
+        assignments = list(
+            (
+                await session.execute(
+                    select(
+                        delivery_line_identity_allocations.c.allocation_id,
+                        delivery_line_identity_allocations.c.quantity_base,
+                        pick_identity_assignments.c.tracking_policy,
+                        lot_identities.c.lot_code,
+                        lot_identities.c.expiration_date.label("lot_expiration_date"),
+                        stock_serial_allocations.c.serial_number,
+                    )
+                    .join(
+                        pick_identity_assignments,
+                        delivery_line_identity_allocations.c.pick_identity_assignment_id
+                        == pick_identity_assignments.c.pick_identity_assignment_id,
+                    )
+                    .outerjoin(
+                        lot_identities,
+                        pick_identity_assignments.c.lot_identity_id
+                        == lot_identities.c.lot_identity_id,
+                    )
+                    .outerjoin(
+                        stock_serial_allocations,
+                        pick_identity_assignments.c.serial_allocation_id
+                        == stock_serial_allocations.c.serial_allocation_id,
+                    )
+                    .where(
+                        delivery_line_identity_allocations.c.delivery_line_id
+                        == row["delivery_line_id"]
+                    )
+                    .order_by(
+                        lot_identities.c.lot_code,
+                        stock_serial_allocations.c.serial_number,
+                    )
+                )
+            ).mappings()
+        )
         for assignment in assignments:
             if assignment["tracking_policy"] == "lot":
                 aggregate["lot_selections"].append(
@@ -433,6 +488,15 @@ async def _assigned_delivery_response(
                 )
             elif assignment["tracking_policy"] == "serial":
                 aggregate["serial_numbers"].append(assignment["serial_number"])
+            aggregate["identity_positions"].append(
+                DeliveryIdentityPositionResponse(
+                    delivery_line_identity_allocation_id=assignment["allocation_id"],
+                    tracking_policy=assignment["tracking_policy"],
+                    quantity_base=assignment["quantity_base"],
+                    lot_code=assignment["lot_code"],
+                    serial_number=assignment["serial_number"],
+                )
+            )
     collection_amount_due: Decimal | None = None
     if delivery["payment_timing_policy"] == "cash_on_delivery":
         currency = cast(
@@ -444,10 +508,9 @@ async def _assigned_delivery_response(
                 )
             ),
         )
-        accepted = {
-            line_id: cast(Decimal, data["quantity_base"])
-            for (line_id, _, _, _), data in aggregates.items()
-        }
+        accepted: dict[UUID, Decimal] = defaultdict(lambda: ZERO)
+        for (_, line_id, _, _, _), data in aggregates.items():
+            accepted[line_id] += cast(Decimal, data["quantity_base"])
         collection_amount_due = await calculate_cod_amount_due(
             session,
             sales_order_revision_id=delivery["sales_order_revision_id"],
@@ -469,6 +532,7 @@ async def _assigned_delivery_response(
         evidence_requirements=list(delivery["evidence_requirements"]),
         lines=[
             AssignedDeliveryLineResponse(
+                delivery_line_id=delivery_line_id,
                 line_id=line_id,
                 sku_id=sku_id,
                 sku_code=sku_code,
@@ -476,8 +540,9 @@ async def _assigned_delivery_response(
                 quantity_base=data["quantity_base"],
                 lot_selections=data["lot_selections"],
                 serial_numbers=sorted(data["serial_numbers"]),
+                identity_positions=data["identity_positions"],
             )
-            for (line_id, sku_id, sku_code, sku_name), data in sorted(
+            for (delivery_line_id, line_id, sku_id, sku_code, sku_name), data in sorted(
                 aggregates.items(), key=lambda item: str(item[0][0])
             )
         ],
@@ -953,9 +1018,10 @@ async def dispatch_fulfillment(
                             },
                         ],
                     )
+            delivery_line_id = uuid4()
             await session.execute(
                 insert(delivery_lines).values(
-                    delivery_line_id=uuid4(),
+                    delivery_line_id=delivery_line_id,
                     delivery_id=command.delivery_id,
                     pick_line_id=pick_line["pick_line_id"],
                     line_id=pick_line["line_id"],
@@ -966,6 +1032,21 @@ async def dispatch_fulfillment(
                     transit_movement_id=transit_movement_id,
                 )
             )
+            if assignments:
+                await session.execute(
+                    insert(delivery_line_identity_allocations),
+                    [
+                        {
+                            "allocation_id": uuid4(),
+                            "delivery_line_id": delivery_line_id,
+                            "pick_identity_assignment_id": assignment[
+                                "pick_identity_assignment_id"
+                            ],
+                            "quantity_base": assignment["quantity_base"],
+                        }
+                        for assignment in assignments
+                    ],
+                )
             key = (pick_line["line_id"], pick_line["sku_id"])
             aggregate = response_lines[key]
             aggregate["quantity_base"] += pick_line["quantity_base"]

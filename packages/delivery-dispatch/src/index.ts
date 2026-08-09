@@ -3,6 +3,15 @@ import { createTradeFlowClient, type components } from "@tradeflow/api-client";
 export type DispatchCommand = components["schemas"]["DispatchCommand"];
 
 export type DeliveryLine = {
+  deliveryLineId: string;
+  identityPositions: Array<{
+    deliveryLineIdentityAllocationId: string;
+    expirationDate: string | null;
+    kind: "lot" | "serial" | "untracked";
+    lotCode: string | null;
+    quantityBase: string;
+    serialNumber: string | null;
+  }>;
   lineId: string;
   lotSelections: Array<{
     expirationDate: string;
@@ -159,6 +168,10 @@ function mapAssigned(value: AssignedWire): AssignedDelivery {
     evidenceRequirements: value.evidence_requirements,
     fulfillmentOrderId: value.fulfillment_order_id,
     lines: value.lines.map((line) => ({
+      deliveryLineId:
+        (line as typeof line & { delivery_line_id?: string })
+          .delivery_line_id ?? line.line_id,
+      identityPositions: identityPositions(line),
       lineId: line.line_id,
       lotSelections: line.lot_selections.map((lot) => ({
         expirationDate: lot.expiration_date ?? "",
@@ -176,6 +189,20 @@ function mapAssigned(value: AssignedWire): AssignedDelivery {
     status: value.status,
     version: value.version,
   };
+}
+
+function identityPositions(
+  line: AssignedWire["lines"][number],
+): DeliveryLine["identityPositions"] {
+  return line.identity_positions.map((position) => ({
+    deliveryLineIdentityAllocationId:
+      position.delivery_line_identity_allocation_id,
+    expirationDate: null,
+    kind: position.tracking_policy,
+    lotCode: position.lot_code,
+    quantityBase: position.quantity_base,
+    serialNumber: position.serial_number,
+  }));
 }
 
 function mapDispatch(value: DispatchWire): DispatchResult {

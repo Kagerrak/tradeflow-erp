@@ -8,9 +8,13 @@ import { DeliveryConfirmationStatus } from "../components/delivery-confirmation-
 import { createAssignedDeliveryCache } from "../offline/assigned-delivery-database";
 import type { AssignedDeliveryCache } from "../offline/assigned-delivery-cache";
 import { createDeliveryConfirmationStore } from "../offline/delivery-confirmation-database";
-import type { DeliveryConfirmationStore } from "../offline/delivery-confirmation-store";
+import type {
+  DeliveryConfirmationStore,
+  LocalDeliveryConfirmation,
+} from "../offline/delivery-confirmation-store";
 import { syncDeliveryConfirmations } from "../offline/delivery-confirmation-sync";
 import type { AssignedDelivery } from "@tradeflow/delivery-dispatch";
+import { listAssignedDeliveries } from "@tradeflow/delivery-dispatch";
 import { createTradeFlowClient } from "@tradeflow/api-client";
 
 export default function Deliveries() {
@@ -18,6 +22,11 @@ export default function Deliveries() {
   const [confirmationStore, setConfirmationStore] =
     useState<DeliveryConfirmationStore | null>(null);
   const [selected, setSelected] = useState<AssignedDelivery | null>(null);
+  const [replacesConfirmationId, setReplacesConfirmationId] = useState<
+    string | undefined
+  >();
+  const [replacementSource, setReplacementSource] =
+    useState<LocalDeliveryConfirmation>();
   const accessToken = process.env.EXPO_PUBLIC_TRADEFLOW_TEST_ACCESS_TOKEN;
   const subject = tokenSubject(accessToken) ?? "signed-out";
 
@@ -62,11 +71,65 @@ export default function Deliveries() {
       {selected !== null && (
         <DeliveryConfirmationCapture
           delivery={selected}
-          onSaved={() => setSelected(null)}
+          onSaved={() => {
+            setSelected(null);
+            setReplacesConfirmationId(undefined);
+            setReplacementSource(undefined);
+          }}
+          quoteCOD={async ({ deliveryId, expectedDeliveryVersion, lines }) => {
+            const response = await fetch(
+              `${baseUrl}/v1/deliveries/${deliveryId}/confirmation-quote`,
+              {
+                body: JSON.stringify({
+                  expected_delivery_version: expectedDeliveryVersion,
+                  lines,
+                }),
+                headers: {
+                  Authorization: `Bearer ${accessToken ?? ""}`,
+                  "Content-Type": "application/json",
+                  "X-Correlation-ID": randomUUID(),
+                },
+                method: "POST",
+              },
+            );
+            if (!response.ok) throw new Error("COD quote unavailable.");
+            return (await response.json()) as {
+              accepted_quantity_base: string;
+              amount_due: string;
+              currency: string;
+              delivery_id: string;
+              delivery_version: number;
+            };
+          }}
+          {...(replacesConfirmationId === undefined
+            ? {}
+            : { replacesConfirmationId })}
+          {...(replacementSource === undefined ? {} : { replacementSource })}
           store={confirmationStore}
         />
       )}
       <DeliveryConfirmationStatus
+        onReviewConflict={async (item) => {
+          const result = await listAssignedDeliveries({
+            accessToken,
+            baseUrl,
+            correlationId: randomUUID(),
+          });
+          if (result.kind !== "ready")
+            throw new Error(
+              result.message ?? "Refresh current custody before replacement.",
+            );
+          const current = result.items.find(
+            (delivery) => delivery.deliveryId === item.deliveryId,
+          );
+          if (current === undefined)
+            throw new Error(
+              "This Delivery is no longer assigned for replacement.",
+            );
+          setReplacesConfirmationId(item.confirmationId);
+          setReplacementSource(item);
+          setSelected(current);
+        }}
         onRefreshReceipt={async (receiptId) => {
           const client = createTradeFlowClient({
             accessToken: accessToken ?? "",
@@ -98,6 +161,12 @@ export default function Deliveries() {
             accessToken,
             baseUrl,
             createCorrelationId: randomUUID,
+            onSynced: async () => {
+              await cache.remove(subject);
+              setSelected(null);
+              setReplacesConfirmationId(undefined);
+              setReplacementSource(undefined);
+            },
             store: confirmationStore,
           });
         }}

@@ -30,6 +30,7 @@ from tradeflow_api.models import (
     barcode_mappings,
     companies,
     delivery_confirmation_lines,
+    delivery_line_identity_allocations,
     delivery_lines,
     inventory_availability,
     inventory_reserved_by_sku_warehouse,
@@ -40,6 +41,7 @@ from tradeflow_api.models import (
     products,
     skus,
     stock_lot_allocations,
+    stock_movement_identity_allocations,
     stock_movements,
     stock_serial_allocations,
     unit_conversions,
@@ -1232,6 +1234,51 @@ async def rebuild_projections(
             if movement_line is not None
             else []
         )
+        movement_identities = list(
+            (
+                await session.execute(
+                    select(
+                        stock_movement_identity_allocations.c.quantity_base.label(
+                            "movement_identity_quantity"
+                        ),
+                        pick_identity_assignments.c.tracking_policy,
+                        lot_identities.c.lot_code,
+                        lot_identities.c.expiration_date.label("lot_expiration_date"),
+                        stock_serial_allocations.c.serial_number,
+                        stock_serial_allocations.c.expiration_date.label("serial_expiration_date"),
+                    )
+                    .join(
+                        delivery_line_identity_allocations,
+                        stock_movement_identity_allocations.c[
+                            "delivery_line_identity_allocation_id"
+                        ]
+                        == delivery_line_identity_allocations.c.allocation_id,
+                    )
+                    .join(
+                        pick_identity_assignments,
+                        delivery_line_identity_allocations.c.pick_identity_assignment_id
+                        == pick_identity_assignments.c.pick_identity_assignment_id,
+                    )
+                    .outerjoin(
+                        lot_identities,
+                        pick_identity_assignments.c.lot_identity_id
+                        == lot_identities.c.lot_identity_id,
+                    )
+                    .outerjoin(
+                        stock_serial_allocations,
+                        pick_identity_assignments.c.serial_allocation_id
+                        == stock_serial_allocations.c.serial_allocation_id,
+                    )
+                    .where(
+                        stock_movement_identity_allocations.c.movement_id == movement["movement_id"]
+                    )
+                    .order_by(
+                        lot_identities.c.lot_code,
+                        stock_serial_allocations.c.serial_number,
+                    )
+                )
+            ).mappings()
+        )
         lot = cast(
             Mapping[str, Any] | None,
             (
@@ -1298,9 +1345,95 @@ async def rebuild_projections(
             "pick_staging_in",
             "pick_reversal_available_in",
             "dispatch_transit_in",
+            "exception_investigation_in",
+            "return_quarantine_in",
+            "recovery_quarantine_in",
         }
         signed_quantity = movement["quantity_base"] if incoming else -movement["quantity_base"]
-        if serials and movement["movement_leg"] != "opening_in":
+        if movement_identities:
+            for identity in movement_identities:
+                is_serial = identity["tracking_policy"] == "serial"
+                identity_key = (
+                    f"serial:{identity['serial_number']}"
+                    if is_serial
+                    else f"lot:{identity['lot_code']}"
+                )
+                identity_quantity = cast(Decimal, identity["movement_identity_quantity"])
+                identity_serials = [identity["serial_number"]] if is_serial else []
+                expiration = (
+                    identity["serial_expiration_date"]
+                    if is_serial
+                    else identity["lot_expiration_date"]
+                )
+                if incoming:
+                    await session.execute(
+                        pg_insert(inventory_availability)
+                        .values(
+                            sku_id=movement["sku_id"],
+                            warehouse_id=movement["warehouse_id"],
+                            location_id=movement["location_id"],
+                            identity_key=identity_key,
+                            lot_code=None if is_serial else identity["lot_code"],
+                            serial_numbers=identity_serials,
+                            expiration_date=expiration,
+                            on_hand=identity_quantity,
+                            reserved=Decimal("0"),
+                        )
+                        .on_conflict_do_update(
+                            index_elements=[
+                                "sku_id",
+                                "warehouse_id",
+                                "location_id",
+                                "identity_key",
+                            ],
+                            set_={
+                                "on_hand": inventory_availability.c.on_hand + identity_quantity,
+                                "serial_numbers": identity_serials,
+                                "expiration_date": expiration,
+                            },
+                        )
+                    )
+                else:
+                    identity_position = (
+                        (
+                            await session.execute(
+                                select(inventory_availability)
+                                .where(
+                                    inventory_availability.c.sku_id == movement["sku_id"],
+                                    inventory_availability.c.warehouse_id
+                                    == movement["warehouse_id"],
+                                    inventory_availability.c.location_id == movement["location_id"],
+                                    inventory_availability.c.identity_key == identity_key,
+                                )
+                                .with_for_update()
+                            )
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if (
+                        identity_position is None
+                        or identity_position["on_hand"] < identity_quantity
+                    ):
+                        raise AppError(
+                            409,
+                            "inventory_projection_rebuild_conflict",
+                            "Tracked movement identity history cannot be reconciled.",
+                        )
+                    await session.execute(
+                        update(inventory_availability)
+                        .where(
+                            inventory_availability.c.sku_id == movement["sku_id"],
+                            inventory_availability.c.warehouse_id == movement["warehouse_id"],
+                            inventory_availability.c.location_id == movement["location_id"],
+                            inventory_availability.c.identity_key == identity_key,
+                        )
+                        .values(
+                            on_hand=inventory_availability.c.on_hand - identity_quantity,
+                            serial_numbers=[] if is_serial else identity_position["serial_numbers"],
+                        )
+                    )
+        elif serials and movement["movement_leg"] != "opening_in":
             serial_numbers = sorted(serial["serial_number"] for serial in serials)
             if incoming and movement["movement_leg"] in {
                 "pick_staging_in",
@@ -1496,6 +1629,85 @@ async def rebuild_projections(
                 },
             )
         )
+    await session.execute(
+        text(
+            """
+            DELETE FROM delivery_exception_state state
+            USING delivery_exception_cases exception_case,
+                  delivery_confirmation_lines confirmation_line,
+                  delivery_confirmations confirmation,
+                  delivery_dispatches delivery
+            WHERE state.exception_case_id = exception_case.exception_case_id
+              AND exception_case.confirmation_line_id = confirmation_line.confirmation_line_id
+              AND confirmation_line.confirmation_id = confirmation.confirmation_id
+              AND confirmation.delivery_id = delivery.delivery_id
+              AND delivery.warehouse_id = ANY(:warehouse_ids)
+            """
+        ),
+        {"warehouse_ids": list(warehouse_ids)},
+    )
+    await session.execute(
+        text(
+            """
+            INSERT INTO delivery_exception_state(
+              exception_case_id, status, custody, open_quantity_base,
+              returned_quantity_base, retry_allocated_quantity_base,
+              resolved_quantity_base, version, updated_at
+            )
+            SELECT exception_case.exception_case_id,
+              CASE
+                WHEN exception_case.original_quantity_base - totals.closed_quantity = 0
+                  THEN 'resolved'
+                WHEN totals.closed_quantity > 0 THEN 'partially_resolved'
+                ELSE 'open'
+              END,
+              CASE
+                WHEN exception_case.original_quantity_base - totals.closed_quantity > 0
+                  THEN exception_case.initial_custody
+                ELSE coalesce(latest.to_custody, exception_case.initial_custody)
+              END,
+              exception_case.original_quantity_base - totals.closed_quantity,
+              totals.returned_quantity,
+              totals.retry_quantity,
+              totals.resolved_quantity,
+              totals.event_count,
+              coalesce(latest.occurred_at, exception_case.opened_at)
+            FROM delivery_exception_cases exception_case
+            JOIN delivery_confirmation_lines confirmation_line
+              ON confirmation_line.confirmation_line_id = exception_case.confirmation_line_id
+            JOIN delivery_confirmations confirmation
+              ON confirmation.confirmation_id = confirmation_line.confirmation_id
+            JOIN delivery_dispatches delivery
+              ON delivery.delivery_id = confirmation.delivery_id
+            CROSS JOIN LATERAL (
+              SELECT
+                coalesce(sum(event.quantity_base) FILTER (
+                  WHERE event.event_type = 'return_received'), 0) AS returned_quantity,
+                coalesce(sum(event.quantity_base) FILTER (
+                  WHERE event.event_type = 'retry_allocated'), 0) AS retry_quantity,
+                coalesce(sum(event.quantity_base) FILTER (
+                  WHERE event.event_type IN (
+                    'recovered','carrier_claim_resolved','inventory_adjustment_resolved'
+                  )), 0) AS resolved_quantity,
+                coalesce(sum(event.quantity_base) FILTER (
+                  WHERE event.event_type <> 'opened'), 0) AS closed_quantity,
+                count(*) AS event_count
+              FROM delivery_exception_events event
+              WHERE event.exception_case_id = exception_case.exception_case_id
+            ) totals
+            LEFT JOIN LATERAL (
+              SELECT event.to_custody, event.occurred_at
+              FROM delivery_exception_events event
+              WHERE event.exception_case_id = exception_case.exception_case_id
+                AND event.event_type <> 'opened'
+              ORDER BY event.occurred_at DESC, event.exception_event_id DESC
+              LIMIT 1
+            ) latest ON true
+            WHERE delivery.warehouse_id = ANY(:warehouse_ids)
+            """
+        ),
+        {"warehouse_ids": list(warehouse_ids)},
+    )
     availability_rows = await session.scalar(
         select(func.count())
         .select_from(inventory_availability)

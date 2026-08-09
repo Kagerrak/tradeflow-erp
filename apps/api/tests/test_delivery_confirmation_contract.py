@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import logging
 from collections.abc import AsyncIterator
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -8,6 +10,8 @@ from uuid import UUID, uuid4
 
 import pytest
 import tradeflow_api.delivery_confirmation as delivery_confirmation_module
+from alembic import command as alembic_command
+from alembic.config import Config as AlembicConfig
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
@@ -1143,9 +1147,14 @@ async def test_assigned_staff_confirms_accepted_quantity_atomically_and_idempote
     assert payload["version"] == 2
     assert payload["lines"] == [
         {
+            "delivery_line_id": payload["lines"][0]["delivery_line_id"],
             "line_id": fixture["line_id"],
             "sku_id": fixture["sku_id"],
             "accepted_quantity_base": "2.000000",
+            "refused_quantity_base": "0",
+            "damaged_quantity_base": "0",
+            "short_missing_quantity_base": "0",
+            "still_undelivered_quantity_base": "0",
             "unit_cost": "7.500000",
             "value_delta": "-15.000000",
             "outbound_movement_id": payload["lines"][0]["outbound_movement_id"],
@@ -1473,6 +1482,27 @@ async def test_cash_on_delivery_confirmation_records_cleared_unapplied_cash_atom
     )
     assert assigned.status_code == 200, assigned.text
     assert assigned.json()["collection_amount_due"] == "224.00"
+    quote = await confirmation_client.post(
+        f"/v1/deliveries/{delivery_id}/confirmation-quote",
+        headers=auth(confirmation_settings, "delivery-mnl"),
+        json={
+            "expected_delivery_version": 1,
+            "lines": [
+                {
+                    "line_id": fixture["line_id"],
+                    "accepted_quantity_base": "2.000000",
+                }
+            ],
+        },
+    )
+    assert quote.status_code == 200, quote.text
+    assert quote.json() == {
+        "delivery_id": delivery_id,
+        "delivery_version": 1,
+        "accepted_quantity_base": "2.000000",
+        "amount_due": "224.00",
+        "currency": "PHP",
+    }
     evidence_id = str(uuid4())
     upload = await confirmation_client.post(
         f"/v1/deliveries/{delivery_id}/evidence/uploads",
@@ -1523,7 +1553,23 @@ async def test_cash_on_delivery_confirmation_records_cleared_unapplied_cash_atom
         },
     )
     assert insufficient.status_code == 409, insufficient.text
-    assert insufficient.json()["error"]["code"] == "cod_collection_insufficient"
+    assert insufficient.json()["error"]["code"] == "cod_collection_amount_conflict"
+    overpaid_command = insufficient.request.content.decode()
+    overpaid_payload = json.loads(overpaid_command)
+    overpaid_payload["confirmation_id"] = str(uuid4())
+    overpaid_payload["collection"]["payment_receipt_id"] = str(uuid4())
+    overpaid_payload["collection"]["amount"] = "224.01"
+    overpaid = await confirmation_client.post(
+        f"/v1/deliveries/{delivery_id}/confirmations",
+        headers=auth(
+            confirmation_settings,
+            "delivery-mnl",
+            **{"Idempotency-Key": "cod-confirmation-over"},
+        ),
+        json=overpaid_payload,
+    )
+    assert overpaid.status_code == 409, overpaid.text
+    assert overpaid.json()["error"]["code"] == "cod_collection_amount_conflict"
     engine = create_async_engine(postgres_url)
     async with engine.connect() as connection:
         counts = (
@@ -2109,6 +2155,16 @@ async def test_distinct_authorized_user_converts_unpaid_cod_to_serialized_credit
                 ),
                 {"conversion_id": conversion_id},
             )
+    with pytest.raises(DBAPIError, match="Invalid COD On Account approval transition"):
+        async with engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "UPDATE cod_on_account_conversions "
+                    "SET consumed_amount = consumed_amount - 1 "
+                    "WHERE conversion_id = :conversion_id"
+                ),
+                {"conversion_id": conversion_id},
+            )
     with pytest.raises(DBAPIError, match="immutable"):
         async with engine.begin() as connection:
             await connection.execute(
@@ -2139,6 +2195,36 @@ async def test_distinct_authorized_user_converts_unpaid_cod_to_serialized_credit
         "fk_cod_conversion_confirmation_delivery",
     }
     await engine.dispose()
+
+    migration_config = AlembicConfig("apps/api/alembic.ini")
+    migration_config.set_main_option("sqlalchemy.url", postgres_url)
+    request_logger = logging.getLogger("tradeflow_api.request")
+    assert not request_logger.disabled
+    await asyncio.to_thread(alembic_command.downgrade, migration_config, "0013")
+    await asyncio.to_thread(alembic_command.upgrade, migration_config, "head")
+    assert not request_logger.disabled
+    engine = create_async_engine(postgres_url)
+    async with engine.connect() as connection:
+        migrated_conversion = (
+            (
+                await connection.execute(
+                    text(
+                        "SELECT amount, consumed_amount, status "
+                        "FROM cod_on_account_conversions "
+                        "WHERE conversion_id = :conversion_id"
+                    ),
+                    {"conversion_id": conversion_id},
+                )
+            )
+            .mappings()
+            .one()
+        )
+    await engine.dispose()
+    assert migrated_conversion == {
+        "amount": Decimal("224.000000"),
+        "consumed_amount": Decimal("224.000000"),
+        "status": "consumed",
+    }
 
 
 @pytest.mark.asyncio

@@ -188,6 +188,10 @@ async def test_supervisor_dispatches_a_picked_order_to_assigned_delivery_staff(
                 "evidence_requirements": ["recipient_name", "signature"],
                 "lines": [
                     {
+                        "delivery_line_id": assigned.json()["items"][0]["lines"][0][
+                            "delivery_line_id"
+                        ],
+                        "identity_positions": [],
                         "line_id": fixture["line_id"],
                         "sku_id": fixture["sku_id"],
                         "sku_code": "PREPAID-EA",

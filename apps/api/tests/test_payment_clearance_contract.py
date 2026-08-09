@@ -164,9 +164,12 @@ async def bootstrap_payment_clearance(
                         "fulfillment:pick-release",
                         "fulfillment:pick-manual",
                         "fulfillment:fefo-override",
+                        "fulfillment:return-receive",
+                        "fulfillment:delivery-retry",
                         "inventory:read",
                         "inventory:post",
                         "inventory:rebuild",
+                        "inventory:investigation-resolve",
                         "inventory:reservation-retry",
                     ],
                 },
@@ -249,6 +252,15 @@ async def bootstrap_payment_clearance(
                     "role_template_codes": ["WAREHOUSE_SUPERVISOR"],
                     "branch_codes": ["MNL"],
                     "warehouse_codes": ["MNL-01"],
+                    "approval_authorities": [
+                        {
+                            "capability": "inventory:investigation-resolve",
+                            "branch_code": "MNL",
+                            "maximum_amount": "1000.00",
+                            "maximum_percentage": None,
+                            "maker_checker_required": True,
+                        }
+                    ],
                 },
                 {
                     "subject": "warehouse-picker-mnl",

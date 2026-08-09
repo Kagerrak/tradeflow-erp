@@ -404,6 +404,30 @@ async def require_delivery_confirmer(
     return require_capability(user, "fulfillment:delivery-confirm")
 
 
+async def require_delivery_exception_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "fulfillment:delivery-read")
+
+
+async def require_return_to_warehouse_receiver(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "fulfillment:return-receive")
+
+
+async def require_delivery_retrier(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "fulfillment:delivery-retry")
+
+
+async def require_investigation_resolver(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "inventory:investigation-resolve")
+
+
 async def require_reservation_retrier(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:

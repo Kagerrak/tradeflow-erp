@@ -17,6 +17,8 @@ const assigned = {
       fulfillmentOrderId: "765b5ab6-7f39-4671-8561-747755641016",
       lines: [
         {
+          deliveryLineId: "d5de5a26-47c8-4f06-9b58-aa85d2e8a1d9",
+          identityPositions: [],
           lineId,
           lotSelections: [],
           quantityBase: "2.000000",

@@ -35,7 +35,17 @@ function hydrate(value: string | null): MemoryDeliveryConfirmationBacking {
   try {
     const parsed = JSON.parse(value) as SerializedBacking;
     return {
-      captures: new Map(parsed.captures),
+      captures: new Map(
+        parsed.captures.map(([key, capture]) => [
+          key,
+          {
+            ...capture,
+            authPaused: capture.authPaused ?? false,
+            replacedByConfirmationId: capture.replacedByConfirmationId ?? null,
+            replacesConfirmationId: capture.replacesConfirmationId ?? null,
+          },
+        ]),
+      ),
       nextSequence: parsed.nextSequence,
       outbox: new Map(parsed.outbox),
     };
@@ -70,8 +80,38 @@ export function createWebDeliveryConfirmationStore(
       await memory.markEvidenceUploaded(sequence, evidenceId, updatedAt);
       persist();
     },
-    async markState(sequence, status, correlationId, updatedAt) {
-      await memory.markState(sequence, status, correlationId, updatedAt);
+    async markRetryableAuth(
+      sequence,
+      correlationId,
+      updatedAt,
+      errorCode,
+      errorMessage,
+    ) {
+      await memory.markRetryableAuth(
+        sequence,
+        correlationId,
+        updatedAt,
+        errorCode,
+        errorMessage,
+      );
+      persist();
+    },
+    async markState(
+      sequence,
+      status,
+      correlationId,
+      updatedAt,
+      errorCode,
+      errorMessage,
+    ) {
+      await memory.markState(
+        sequence,
+        status,
+        correlationId,
+        updatedAt,
+        errorCode,
+        errorMessage,
+      );
       persist();
     },
     async markSynced(sequence, response, updatedAt) {
@@ -80,6 +120,15 @@ export function createWebDeliveryConfirmationStore(
     },
     async saveAndEnqueue(capture, updatedAt) {
       const result = await memory.saveAndEnqueue(capture, updatedAt);
+      persist();
+      return result;
+    },
+    async replaceConflict(confirmationId, capture, updatedAt) {
+      const result = await memory.replaceConflict(
+        confirmationId,
+        capture,
+        updatedAt,
+      );
       persist();
       return result;
     },

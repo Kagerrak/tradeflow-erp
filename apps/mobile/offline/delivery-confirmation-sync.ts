@@ -1,4 +1,4 @@
-import { createTradeFlowClient } from "@tradeflow/api-client";
+import { createTradeFlowClient, type components } from "@tradeflow/api-client";
 
 import type {
   DeliveryConfirmationStore,
@@ -11,6 +11,7 @@ export type SyncDeliveryConfirmationsOptions = {
   createCorrelationId: () => string;
   fetch?: (request: Request) => Promise<Response>;
   now?: () => string;
+  onSynced?: (deliveryId: string) => Promise<void>;
   readEvidence?: (localUri: string) => Promise<ArrayBuffer>;
   store: DeliveryConfirmationStore;
   uploadEvidence?: (evidence: LocalDeliveryEvidence) => Promise<void>;
@@ -20,13 +21,43 @@ export type DeliveryConfirmationSyncResult =
   | { kind: "empty" }
   | {
       kind: "paused";
-      reason: "conflict" | "forbidden" | "unavailable" | "upload_failed";
+      reason:
+        | "conflict"
+        | "forbidden"
+        | "unauthenticated"
+        | "unavailable"
+        | "upload_failed";
     }
   | { count: number; kind: "synced" };
 
 type ErrorEnvelope = {
-  error?: { code?: unknown; correlation_id?: unknown };
+  error?: { code?: unknown; correlation_id?: unknown; message?: unknown };
 };
+
+class SyncHttpError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+    readonly correlationId: string,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+function readError(payload: unknown): { code: string; message: string } {
+  const envelope = (payload ?? {}) as ErrorEnvelope;
+  return {
+    code:
+      typeof envelope.error?.code === "string"
+        ? envelope.error.code
+        : "delivery_confirmation_rejected",
+    message:
+      typeof envelope.error?.message === "string"
+        ? envelope.error.message
+        : "The server rejected this Delivery outcome.",
+  };
+}
 
 function readCorrelation(
   payload: unknown,
@@ -66,7 +97,34 @@ export async function syncDeliveryConfirmations(
           evidence.evidenceId,
           now(),
         );
-      } catch {
+      } catch (error) {
+        if (
+          error instanceof SyncHttpError &&
+          (error.status === 401 || error.status === 403)
+        ) {
+          if (error.status === 401) {
+            await options.store.markRetryableAuth(
+              item.sequence,
+              error.correlationId,
+              now(),
+              error.code,
+              error.message,
+            );
+          } else {
+            await options.store.markState(
+              item.sequence,
+              "forbidden",
+              error.correlationId,
+              now(),
+              error.code,
+              error.message,
+            );
+          }
+          return {
+            kind: "paused",
+            reason: error.status === 401 ? "unauthenticated" : "forbidden",
+          };
+        }
         await options.store.markState(
           item.sequence,
           "upload_failed",
@@ -78,40 +136,67 @@ export async function syncDeliveryConfirmations(
     }
     const correlationId = options.createCorrelationId();
     try {
-      const client = createTradeFlowClient({
-        accessToken: options.accessToken ?? "",
-        baseUrl: options.baseUrl,
-        correlationId,
-        ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
-      });
-      const { data, error, response } = await client.POST(
-        "/v1/deliveries/{delivery_id}/confirmations",
-        {
-          body: item.command,
-          headers: { "Idempotency-Key": item.idempotencyKey },
-          params: { path: { delivery_id: item.deliveryId } },
-        },
+      const response = await (options.fetch ?? fetch)(
+        new Request(
+          `${options.baseUrl}/v1/deliveries/${item.deliveryId}/confirmations`,
+          {
+            body: JSON.stringify(item.command),
+            headers: {
+              Authorization: `Bearer ${options.accessToken ?? ""}`,
+              "Content-Type": "application/json",
+              "Idempotency-Key": item.idempotencyKey,
+              "X-Correlation-ID": correlationId,
+            },
+            method: "POST",
+          },
+        ),
       );
+      const payload = (await response.json()) as unknown;
+      const data = response.ok
+        ? (payload as components["schemas"]["DeliveryConfirmationResponse"])
+        : undefined;
+      const error = response.ok ? undefined : payload;
       if (data !== undefined) {
         await options.store.markSynced(item.sequence, data, now());
+        await options.onSynced?.(item.deliveryId);
         count += 1;
         continue;
       }
       const reason =
-        response.status === 403
-          ? "forbidden"
-          : response.status === 400 ||
-              response.status === 409 ||
-              response.status === 422
-            ? "conflict"
-            : "unavailable";
+        response.status === 401
+          ? "unauthenticated"
+          : response.status === 403
+            ? "forbidden"
+            : response.status === 400 ||
+                response.status === 409 ||
+                response.status === 422
+              ? "conflict"
+              : "unavailable";
       if (reason !== "unavailable") {
-        await options.store.markState(
-          item.sequence,
-          reason,
-          readCorrelation(error, response, correlationId),
-          now(),
+        const detail = readError(error);
+        const responseCorrelation = readCorrelation(
+          error,
+          response,
+          correlationId,
         );
+        if (reason === "unauthenticated") {
+          await options.store.markRetryableAuth(
+            item.sequence,
+            responseCorrelation,
+            now(),
+            detail.code,
+            detail.message,
+          );
+        } else {
+          await options.store.markState(
+            item.sequence,
+            reason,
+            responseCorrelation,
+            now(),
+            detail.code,
+            detail.message,
+          );
+        }
       }
       return { kind: "paused", reason };
     } catch {
@@ -148,8 +233,15 @@ async function uploadEvidenceToServer(
       params: { path: { delivery_id: deliveryId } },
     },
   );
-  if (intent.data === undefined)
-    throw new Error("Evidence upload intent failed.");
+  if (intent.data === undefined) {
+    const detail = readError(intent.error);
+    throw new SyncHttpError(
+      intent.response.status,
+      detail.code,
+      readCorrelation(intent.error, intent.response, correlationId),
+      detail.message,
+    );
+  }
   if (intent.data.status !== "verified") {
     const body = await (
       options.readEvidence ??
@@ -175,7 +267,16 @@ async function uploadEvidenceToServer(
         },
       },
     );
-    if (completed.data === undefined || completed.data.status !== "verified") {
+    if (completed.data === undefined) {
+      const detail = readError(completed.error);
+      throw new SyncHttpError(
+        completed.response.status,
+        detail.code,
+        readCorrelation(completed.error, completed.response, correlationId),
+        detail.message,
+      );
+    }
+    if (completed.data.status !== "verified") {
       throw new Error("Evidence verification failed.");
     }
   }

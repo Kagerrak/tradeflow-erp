@@ -209,6 +209,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/deliveries/{delivery_id}/confirmation-quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Quote Delivery Confirmation */
+        post: operations["quote_delivery_confirmation_v1_deliveries__delivery_id__confirmation_quote_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/deliveries/{delivery_id}/confirmations": {
         parameters: {
             query?: never;
@@ -271,6 +288,74 @@ export interface paths {
         put?: never;
         /** Complete Evidence Upload */
         post: operations["complete_evidence_upload_v1_deliveries__delivery_id__evidence__evidence_id__complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/deliveries/{delivery_id}/retries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Retry Delivery */
+        post: operations["create_retry_delivery_v1_deliveries__delivery_id__retries_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/deliveries/{delivery_id}/return-to-warehouse-receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receive Return To Warehouse */
+        post: operations["receive_return_to_warehouse_v1_deliveries__delivery_id__return_to_warehouse_receipts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/delivery-exceptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Delivery Exceptions */
+        get: operations["list_delivery_exceptions_v1_delivery_exceptions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/delivery-investigations/{investigation_id}/resolutions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve Delivery Investigation */
+        post: operations["resolve_delivery_investigation_v1_delivery_investigations__investigation_id__resolutions_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1107,6 +1192,13 @@ export interface components {
         /** AssignedDeliveryLineResponse */
         AssignedDeliveryLineResponse: {
             /**
+             * Delivery Line Id
+             * Format: uuid
+             */
+            delivery_line_id: string;
+            /** Identity Positions */
+            identity_positions: components["schemas"]["DeliveryIdentityPositionResponse"][];
+            /**
              * Line Id
              * Format: uuid
              */
@@ -1850,39 +1942,127 @@ export interface components {
             /** Recipient Name */
             recipient_name: string;
         };
+        /** ConfirmationIdentityPartitionCommand */
+        ConfirmationIdentityPartitionCommand: {
+            /**
+             * Accepted Quantity Base
+             * @default 0
+             */
+            accepted_quantity_base: number | string;
+            /**
+             * Damaged Quantity Base
+             * @default 0
+             */
+            damaged_quantity_base: number | string;
+            /**
+             * Delivery Line Identity Allocation Id
+             * Format: uuid
+             */
+            delivery_line_identity_allocation_id: string;
+            /**
+             * Refused Quantity Base
+             * @default 0
+             */
+            refused_quantity_base: number | string;
+            /**
+             * Short Missing Quantity Base
+             * @default 0
+             */
+            short_missing_quantity_base: number | string;
+            /**
+             * Still Undelivered Quantity Base
+             * @default 0
+             */
+            still_undelivered_quantity_base: number | string;
+        };
         /** ConfirmationLineCommand */
         ConfirmationLineCommand: {
             /** Accepted Quantity Base */
             accepted_quantity_base: number | string;
             /**
-             * Line Id
-             * Format: uuid
+             * Damaged Quantity Base
+             * @default 0
              */
-            line_id: string;
+            damaged_quantity_base: number | string;
+            /** Delivery Line Id */
+            delivery_line_id?: string | null;
+            exception_details?: components["schemas"]["DeliveryExceptionDetailsCommand"];
+            /** Identity Partitions */
+            identity_partitions?: components["schemas"]["ConfirmationIdentityPartitionCommand"][];
+            /** Line Id */
+            line_id?: string | null;
+            /**
+             * Refused Quantity Base
+             * @default 0
+             */
+            refused_quantity_base: number | string;
+            /**
+             * Short Missing Quantity Base
+             * @default 0
+             */
+            short_missing_quantity_base: number | string;
+            /**
+             * Still Undelivered Quantity Base
+             * @default 0
+             */
+            still_undelivered_quantity_base: number | string;
         };
         /** ConfirmationLineResponse */
         ConfirmationLineResponse: {
             /** Accepted Quantity Base */
             accepted_quantity_base: string;
+            /** Damaged Quantity Base */
+            damaged_quantity_base: string;
+            /**
+             * Delivery Line Id
+             * Format: uuid
+             */
+            delivery_line_id: string;
             /**
              * Line Id
              * Format: uuid
              */
             line_id: string;
-            /**
-             * Outbound Movement Id
-             * Format: uuid
-             */
-            outbound_movement_id: string;
+            /** Outbound Movement Id */
+            outbound_movement_id: string | null;
+            /** Refused Quantity Base */
+            refused_quantity_base: string;
+            /** Short Missing Quantity Base */
+            short_missing_quantity_base: string;
             /**
              * Sku Id
              * Format: uuid
              */
             sku_id: string;
+            /** Still Undelivered Quantity Base */
+            still_undelivered_quantity_base: string;
             /** Unit Cost */
             unit_cost: string;
             /** Value Delta */
             value_delta: string;
+        };
+        /** ConfirmationQuoteCommand */
+        ConfirmationQuoteCommand: {
+            /** Expected Delivery Version */
+            expected_delivery_version: number;
+            /** Lines */
+            lines: components["schemas"]["ConfirmationLineCommand"][];
+        };
+        /** ConfirmationQuoteResponse */
+        ConfirmationQuoteResponse: {
+            /** Accepted Quantity Base */
+            accepted_quantity_base: string;
+            /** Amount Due */
+            amount_due: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Delivery Id
+             * Format: uuid
+             */
+            delivery_id: string;
+            /** Delivery Version */
+            delivery_version: number;
         };
         /** ContactInput */
         ContactInput: {
@@ -2254,15 +2434,12 @@ export interface components {
              * Format: uuid
              */
             delivery_id: string;
-            delivery_receipt: components["schemas"]["DeliveryReceiptResponse"];
+            delivery_receipt: components["schemas"]["DeliveryReceiptResponse"] | null;
             /** Lines */
             lines: components["schemas"]["ConfirmationLineResponse"][];
             on_account_conversion?: components["schemas"]["CODOnAccountConversionResponse"] | null;
-            /**
-             * Outbox Event Id
-             * Format: uuid
-             */
-            outbox_event_id: string;
+            /** Outbox Event Id */
+            outbox_event_id: string | null;
             /**
              * Status
              * @constant
@@ -2270,6 +2447,103 @@ export interface components {
             status: "confirmed";
             /** Version */
             version: number;
+        };
+        /** DeliveryExceptionDetailCommand */
+        DeliveryExceptionDetailCommand: {
+            /** Evidence Ids */
+            evidence_ids: string[];
+            /** Reason */
+            reason: string;
+            /**
+             * Responsible Party Type
+             * @enum {string}
+             */
+            responsible_party_type: "staff" | "carrier" | "customer" | "unknown";
+            /** Responsible Subject */
+            responsible_subject?: string | null;
+        };
+        /** DeliveryExceptionDetailsCommand */
+        DeliveryExceptionDetailsCommand: {
+            damaged?: components["schemas"]["DeliveryExceptionDetailCommand"] | null;
+            refused?: components["schemas"]["DeliveryExceptionDetailCommand"] | null;
+            short_missing?: components["schemas"]["DeliveryExceptionDetailCommand"] | null;
+            still_undelivered?: components["schemas"]["DeliveryExceptionDetailCommand"] | null;
+        };
+        /** DeliveryExceptionItem */
+        DeliveryExceptionItem: {
+            /** Age Days */
+            age_days: number;
+            /** Custody */
+            custody: string;
+            /**
+             * Delivery Id
+             * Format: uuid
+             */
+            delivery_id: string;
+            /**
+             * Delivery Line Id
+             * Format: uuid
+             */
+            delivery_line_id: string;
+            /** Delivery Version */
+            delivery_version: number;
+            /** Evidence Ids */
+            evidence_ids: string[];
+            /**
+             * Exception Case Id
+             * Format: uuid
+             */
+            exception_case_id: string;
+            /** Exception Kind */
+            exception_kind: string;
+            /** Investigation Id */
+            investigation_id: string | null;
+            /** Open Quantity Base */
+            open_quantity_base: string;
+            /**
+             * Opened At
+             * Format: date-time
+             */
+            opened_at: string;
+            /** Original Quantity Base */
+            original_quantity_base: string;
+            /** Responsible Party Type */
+            responsible_party_type: string;
+            /** Status */
+            status: string;
+            /**
+             * Tracking Policy
+             * @enum {string}
+             */
+            tracking_policy: "untracked" | "lot" | "serial";
+            /** Version */
+            version: number;
+        };
+        /** DeliveryExceptionListResponse */
+        DeliveryExceptionListResponse: {
+            /** Items */
+            items: components["schemas"]["DeliveryExceptionItem"][];
+            /** Total */
+            total: number;
+        };
+        /** DeliveryIdentityPositionResponse */
+        DeliveryIdentityPositionResponse: {
+            /**
+             * Delivery Line Identity Allocation Id
+             * Format: uuid
+             */
+            delivery_line_identity_allocation_id: string;
+            /** Lot Code */
+            lot_code: string | null;
+            /** Quantity Base */
+            quantity_base: string;
+            /** Serial Number */
+            serial_number: string | null;
+            /**
+             * Tracking Policy
+             * @enum {string}
+             */
+            tracking_policy: "lot" | "serial";
         };
         /** DeliveryReceiptDetailResponse */
         DeliveryReceiptDetailResponse: {
@@ -2524,6 +2798,54 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** InvestigationResolutionCommand */
+        InvestigationResolutionCommand: {
+            /** Evidence Ids */
+            evidence_ids: string[];
+            /** Expected Investigation Version */
+            expected_investigation_version: number;
+            /** External Reference */
+            external_reference?: string | null;
+            /** Reason */
+            reason: string;
+            /**
+             * Resolution Id
+             * Format: uuid
+             */
+            resolution_id: string;
+            /**
+             * Resolution Type
+             * @enum {string}
+             */
+            resolution_type: "recovery" | "carrier_claim" | "inventory_adjustment";
+        };
+        /** InvestigationResolutionResponse */
+        InvestigationResolutionResponse: {
+            /**
+             * Custody
+             * @enum {string}
+             */
+            custody: "quarantine" | "outbound";
+            /**
+             * Investigation Id
+             * Format: uuid
+             */
+            investigation_id: string;
+            /** Quantity Base */
+            quantity_base: string;
+            /**
+             * Resolution Id
+             * Format: uuid
+             */
+            resolution_id: string;
+            /** Resolution Type */
+            resolution_type: string;
+            /**
+             * Status
+             * @constant
+             */
+            status: "resolved";
         };
         /** LifecycleCommand */
         LifecycleCommand: {
@@ -3447,6 +3769,104 @@ export interface components {
              * @constant
              */
             status: "approved";
+        };
+        /** RetryDeliveryCommand */
+        RetryDeliveryCommand: {
+            /** Assigned To */
+            assigned_to: string;
+            /** Expected Delivery Version */
+            expected_delivery_version: number;
+            /** Reason */
+            reason: string;
+            /**
+             * Retry Delivery Id
+             * Format: uuid
+             */
+            retry_delivery_id: string;
+        };
+        /** ReturnLineCommand */
+        ReturnLineCommand: {
+            /**
+             * Damaged Quantity Base
+             * @default 0
+             */
+            damaged_quantity_base: number | string;
+            /**
+             * Delivery Line Id
+             * Format: uuid
+             */
+            delivery_line_id: string;
+            /**
+             * Refused Quantity Base
+             * @default 0
+             */
+            refused_quantity_base: number | string;
+        };
+        /** ReturnLineResponse */
+        ReturnLineResponse: {
+            /**
+             * Custody
+             * @constant
+             */
+            custody: "quarantine";
+            /**
+             * Delivery Line Id
+             * Format: uuid
+             */
+            delivery_line_id: string;
+            /**
+             * Exception Case Id
+             * Format: uuid
+             */
+            exception_case_id: string;
+            /**
+             * Exception Kind
+             * @enum {string}
+             */
+            exception_kind: "refused" | "damaged";
+            /** Quantity Base */
+            quantity_base: string;
+        };
+        /** ReturnToWarehouseCommand */
+        ReturnToWarehouseCommand: {
+            /** Evidence Ids */
+            evidence_ids: string[];
+            /** Expected Delivery Version */
+            expected_delivery_version: number;
+            /** Lines */
+            lines: components["schemas"]["ReturnLineCommand"][];
+            /** Reason */
+            reason: string;
+            /**
+             * Received At
+             * Format: date-time
+             */
+            received_at: string;
+            /**
+             * Return Receipt Id
+             * Format: uuid
+             */
+            return_receipt_id: string;
+        };
+        /** ReturnToWarehouseResponse */
+        ReturnToWarehouseResponse: {
+            /**
+             * Delivery Id
+             * Format: uuid
+             */
+            delivery_id: string;
+            /** Lines */
+            lines: components["schemas"]["ReturnLineResponse"][];
+            /**
+             * Return Receipt Id
+             * Format: uuid
+             */
+            return_receipt_id: string;
+            /**
+             * Status
+             * @constant
+             */
+            status: "received";
         };
         /** ReversePickCommand */
         ReversePickCommand: {
@@ -4966,6 +5386,86 @@ export interface operations {
             };
         };
     };
+    quote_delivery_confirmation_v1_deliveries__delivery_id__confirmation_quote_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                delivery_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmationQuoteCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfirmationQuoteResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     confirm_delivery_v1_deliveries__delivery_id__confirmations_post: {
         parameters: {
             query?: never;
@@ -5309,6 +5809,337 @@ export interface operations {
             };
             /** @description Stable TradeFlow error envelope. */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_retry_delivery_v1_deliveries__delivery_id__retries_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                delivery_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetryDeliveryCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignedDeliveryResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    receive_return_to_warehouse_v1_deliveries__delivery_id__return_to_warehouse_receipts_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                delivery_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReturnToWarehouseCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReturnToWarehouseResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    list_delivery_exceptions_v1_delivery_exceptions_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryExceptionListResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    resolve_delivery_investigation_v1_delivery_investigations__investigation_id__resolutions_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                investigation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvestigationResolutionCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvestigationResolutionResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

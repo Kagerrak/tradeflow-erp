@@ -18,7 +18,13 @@ async function queued(): Promise<DeliveryConfirmationStore> {
         lines: [
           {
             accepted_quantity_base: "1.000000",
-            line_id: "4af0c99a-b55d-4f68-bf34-6f0805630032",
+            damaged_quantity_base: "0",
+            delivery_line_id: "d5de5a26-47c8-4f06-9b58-aa85d2e8a1d9",
+            exception_details: {},
+            identity_partitions: [],
+            refused_quantity_base: "0",
+            short_missing_quantity_base: "0",
+            still_undelivered_quantity_base: "0",
           },
         ],
         recipient_name: "Ana Santos",
@@ -68,6 +74,57 @@ it.each([
     <DeliveryConfirmationStatus onSync={async () => {}} store={store} />,
   );
   expect(await screen.findByRole("header", { name: title })).toBeOnTheScreen();
+});
+
+it("opens explicit conflict review without discarding original evidence", async () => {
+  const store = await queued();
+  await store.markState(
+    1,
+    "conflict",
+    "server-reference",
+    "2026-08-01T13:02:00Z",
+    "delivery_version_conflict",
+    "Refresh before replacement.",
+  );
+  const review = jest.fn(async () => {});
+  await render(
+    <DeliveryConfirmationStatus
+      onReviewConflict={review}
+      onSync={async () => {}}
+      store={store}
+    />,
+  );
+  await fireEvent.press(await screen.findByText("REVIEW AND REPLACE"));
+  expect(review).toHaveBeenCalledWith(
+    expect.objectContaining({
+      errorCode: "delivery_version_conflict",
+      evidence: [expect.objectContaining({ kind: "signature" })],
+    }),
+  );
+});
+
+it("tells the user to sign in and keeps retryable proof available to sync", async () => {
+  const store = await queued();
+  await store.markRetryableAuth(
+    1,
+    "auth-reference",
+    "2026-08-01T13:02:00Z",
+    "authentication_required",
+    "Token expired.",
+  );
+  await render(
+    <DeliveryConfirmationStatus onSync={async () => {}} store={store} />,
+  );
+  expect(
+    await screen.findByRole("header", {
+      name: "Sign in required — Pending Sync retained",
+    }),
+  ).toBeOnTheScreen();
+  expect(
+    screen.getByText(/Sign in again, then sync pending proof/),
+  ).toBeOnTheScreen();
+  expect(screen.getByText("SYNC PENDING PROOF")).toBeOnTheScreen();
+  expect(await store.listPending()).toHaveLength(1);
 });
 
 it("renders a confirmed Delivery while its receipt is rendering", async () => {

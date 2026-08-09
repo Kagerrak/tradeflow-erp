@@ -9,6 +9,7 @@ import type {
 
 export function DeliveryConfirmationStatus({
   onRefreshReceipt,
+  onReviewConflict,
   onSync,
   store,
 }: {
@@ -17,11 +18,13 @@ export function DeliveryConfirmationStatus({
     number: string;
     status: "pending_document" | "ready" | "unavailable";
   }>;
+  onReviewConflict?: (item: LocalDeliveryConfirmation) => Promise<void>;
   onSync: () => Promise<void>;
   store: DeliveryConfirmationStore;
 }) {
   const [items, setItems] = useState<LocalDeliveryConfirmation[] | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [reviewErrors, setReviewErrors] = useState<Record<string, string>>({});
   const [receiptStates, setReceiptStates] = useState<
     Record<
       string,
@@ -65,6 +68,63 @@ export function DeliveryConfirmationStatus({
             {title(item)}
           </Text>
           <Text style={styles.detail}>Delivery {item.deliveryId}</Text>
+          {(item.status === "conflict" ||
+            item.status === "forbidden" ||
+            item.authPaused) && (
+            <Text style={styles.error}>
+              {item.errorMessage ?? "Review this outcome before continuing."}
+              {item.errorCode === null ? "" : ` · ${item.errorCode}`}
+              {item.correlationId === null ? "" : ` · ${item.correlationId}`}
+            </Text>
+          )}
+          {item.authPaused && (
+            <Text style={styles.warning}>
+              Sign in again, then sync pending proof to resume this unchanged
+              command.
+            </Text>
+          )}
+          {item.status === "conflict" && (
+            <>
+              <Text style={styles.warning}>
+                Evidence is retained. Refresh the Delivery, compare remaining
+                custody, then create a replacement with a new command identity.
+              </Text>
+              {item.replacedByConfirmationId === null &&
+                onReviewConflict !== undefined && (
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() =>
+                      void onReviewConflict(item).catch((error: unknown) =>
+                        setReviewErrors((current) => ({
+                          ...current,
+                          [item.confirmationId]:
+                            error instanceof Error
+                              ? error.message
+                              : "Current Delivery custody is unavailable.",
+                        })),
+                      )
+                    }
+                  >
+                    <Text style={styles.link}>REVIEW AND REPLACE</Text>
+                  </Pressable>
+                )}
+              {reviewErrors[item.confirmationId] !== undefined && (
+                <Text style={styles.error}>
+                  {reviewErrors[item.confirmationId]}
+                </Text>
+              )}
+              {item.replacedByConfirmationId !== null && (
+                <Text style={styles.warning}>
+                  Replaced by {item.replacedByConfirmationId}
+                </Text>
+              )}
+            </>
+          )}
+          {item.replacesConfirmationId !== null && (
+            <Text style={styles.detail}>
+              Replacement for {item.replacesConfirmationId}
+            </Text>
+          )}
           {item.response?.collection?.status === "cleared" && (
             <Text style={styles.positive}>
               COD {item.response.collection.payment_method.replaceAll("_", " ")}{" "}
@@ -83,7 +143,7 @@ export function DeliveryConfirmationStatus({
           {item.status === "confirmed" &&
             (() => {
               const receipt = item.response?.delivery_receipt;
-              if (receipt === undefined) return null;
+              if (receipt == null) return null;
               const current = receiptStates[receipt.delivery_receipt_id];
               const status = current?.status ?? receipt.status;
               return (
@@ -153,9 +213,15 @@ export function DeliveryConfirmationStatus({
 }
 
 function title(item: LocalDeliveryConfirmation): string {
+  if (item.authPaused) return "Sign in required — Pending Sync retained";
   if (item.status === "confirmed") return "Delivery confirmed";
   if (item.status === "conflict")
     return "Confirmation conflict — review required";
+  if (
+    item.status === "forbidden" &&
+    ["authentication_required", "invalid_token"].includes(item.errorCode ?? "")
+  )
+    return "Sign in required before sync";
   if (item.status === "forbidden") return "Confirmation forbidden";
   if (item.status === "upload_failed")
     return "Upload failed — evidence retained";

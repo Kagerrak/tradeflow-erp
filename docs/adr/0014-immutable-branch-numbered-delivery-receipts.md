@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-07-28
+- Amended: 2026-08-10
 
 ## Context
 
@@ -19,6 +20,11 @@ customer, address, product, unit, quantity, and source-order information. Proof
 of Delivery remains separate linked evidence. Retries reuse receipt identity;
 corrections create authorized, reasoned reversal and replacement records,
 movements, and receipts as needed.
+
+A Delivery Confirmation with zero accepted quantity is an exception-only
+custody record and does not issue a Delivery Receipt or consume a Document Series
+number. If still-undelivered quantity is accepted on a later retry Delivery, that
+retry confirmation issues its own immutable Delivery Receipt.
 
 ## Consequences
 

@@ -17,7 +17,13 @@ it("hydrates the browser Delivery Confirmation outbox from durable storage", asy
         lines: [
           {
             accepted_quantity_base: "1.000000",
-            line_id: "4af0c99a-b55d-4f68-bf34-6f0805630032",
+            damaged_quantity_base: "0",
+            delivery_line_id: "d5de5a26-47c8-4f06-9b58-aa85d2e8a1d9",
+            exception_details: {},
+            identity_partitions: [],
+            refused_quantity_base: "0",
+            short_missing_quantity_base: "0",
+            still_undelivered_quantity_base: "0",
           },
         ],
         recipient_name: "Ana Santos",
@@ -38,6 +44,13 @@ it("hydrates the browser Delivery Confirmation outbox from durable storage", asy
     },
     "2026-08-01T13:01:00Z",
   );
+  await first.markRetryableAuth(
+    1,
+    "auth-correlation",
+    "2026-08-01T13:02:00Z",
+    "authentication_required",
+    "Sign in again.",
+  );
 
   const restarted = createWebDeliveryConfirmationStore(storage);
   expect(await restarted.listPending()).toEqual([
@@ -46,4 +59,12 @@ it("hydrates the browser Delivery Confirmation outbox from durable storage", asy
       sequence: 1,
     }),
   ]);
+  expect(
+    await restarted.load("65a4745a-7d07-4cc2-a497-bc27f60be7a0"),
+  ).toMatchObject({
+    authPaused: true,
+    correlationId: "auth-correlation",
+    errorCode: "authentication_required",
+    status: "pending_upload",
+  });
 });

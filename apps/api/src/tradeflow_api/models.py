@@ -474,10 +474,31 @@ warehouse_stock_locations = Table(
     Column("version", Integer, nullable=False, server_default="1"),
     Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
     CheckConstraint(
-        "custody IN ('available', 'quarantine', 'dispatch_staging', 'in_transit')",
+        "custody IN ('available', 'quarantine', 'dispatch_staging', 'in_transit', 'investigation')",
         name="ck_warehouse_stock_locations_custody",
     ),
     UniqueConstraint("warehouse_id", "code", name="uq_warehouse_stock_location_code"),
+)
+Index(
+    "uq_warehouse_active_dispatch_staging",
+    warehouse_stock_locations.c.warehouse_id,
+    unique=True,
+    postgresql_where=(warehouse_stock_locations.c.custody == "dispatch_staging")
+    & warehouse_stock_locations.c.is_active,
+)
+Index(
+    "uq_warehouse_active_in_transit",
+    warehouse_stock_locations.c.warehouse_id,
+    unique=True,
+    postgresql_where=(warehouse_stock_locations.c.custody == "in_transit")
+    & warehouse_stock_locations.c.is_active,
+)
+Index(
+    "uq_warehouse_active_investigation",
+    warehouse_stock_locations.c.warehouse_id,
+    unique=True,
+    postgresql_where=(warehouse_stock_locations.c.custody == "investigation")
+    & warehouse_stock_locations.c.is_active,
 )
 
 stock_movements = Table(
@@ -519,7 +540,8 @@ stock_movements = Table(
     ),
     CheckConstraint(
         "movement_type IN ('opening_stock', 'pick', 'pick_reversal', 'dispatch', "
-        "'delivery_confirmation')",
+        "'delivery_confirmation', 'delivery_exception', 'return_to_warehouse', "
+        "'investigation_resolution')",
         name="ck_stock_movements_type",
     ),
     CheckConstraint(
@@ -532,7 +554,14 @@ stock_movements = Table(
         "OR (movement_type = 'dispatch' "
         "AND movement_leg IN ('dispatch_staging_out', 'dispatch_transit_in')) "
         "OR (movement_type = 'delivery_confirmation' "
-        "AND movement_leg = 'delivery_outbound')",
+        "AND movement_leg = 'delivery_outbound') "
+        "OR (movement_type = 'delivery_exception' "
+        "AND movement_leg IN ('exception_transit_out', 'exception_investigation_in')) "
+        "OR (movement_type = 'return_to_warehouse' "
+        "AND movement_leg IN ('return_transit_out', 'return_quarantine_in')) "
+        "OR (movement_type = 'investigation_resolution' "
+        "AND movement_leg IN ('recovery_investigation_out', 'recovery_quarantine_in', "
+        "'carrier_claim_investigation_out', 'inventory_adjustment_investigation_out'))",
         name="ck_stock_movements_leg",
     ),
     CheckConstraint("quantity_base > 0", name="ck_stock_movements_quantity_positive"),
@@ -1882,6 +1911,7 @@ cod_on_account_conversions = Table(
         nullable=False,
     ),
     Column("amount", Numeric(24, 6), nullable=False),
+    Column("consumed_amount", Numeric(24, 6), nullable=False, server_default="0"),
     Column("currency", String(3), nullable=False),
     Column("open_balance_snapshot", Numeric(24, 6), nullable=False),
     Column("approved_uninvoiced_snapshot", Numeric(24, 6), nullable=False),
@@ -1897,6 +1927,10 @@ cod_on_account_conversions = Table(
         "amount > 0 AND open_balance_snapshot >= 0 "
         "AND approved_uninvoiced_snapshot >= 0 AND credit_excess_approved >= 0",
         name="ck_cod_on_account_conversion_amounts",
+    ),
+    CheckConstraint(
+        "consumed_amount >= 0 AND consumed_amount <= amount",
+        name="ck_cod_conversion_consumed_amount",
     ),
     CheckConstraint(
         "status IN ('approved','consumed','reversed')",
@@ -2317,10 +2351,22 @@ delivery_dispatches = Table(
     Column("dispatched_by", String(200), ForeignKey("users.subject"), nullable=False),
     Column("correlation_id", String(100), nullable=False),
     Column("idempotency_key", String(200), nullable=False),
+    Column("dispatch_kind", String(20), nullable=False, server_default="initial"),
+    Column(
+        "parent_delivery_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_dispatches.delivery_id"),
+        nullable=True,
+    ),
     Column("dispatched_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     CheckConstraint(
         "payment_timing_policy IN ('prepaid', 'cash_on_delivery', 'on_account')",
         name="ck_delivery_dispatches_payment_timing",
+    ),
+    CheckConstraint(
+        "(dispatch_kind = 'initial' AND parent_delivery_id IS NULL) "
+        "OR (dispatch_kind = 'retry' AND parent_delivery_id IS NOT NULL)",
+        name="ck_delivery_dispatch_kind",
     ),
     UniqueConstraint(
         "dispatched_by",
@@ -2391,7 +2437,6 @@ delivery_lines = Table(
         PostgresUUID(as_uuid=True),
         ForeignKey("pick_lines.pick_line_id"),
         nullable=False,
-        unique=True,
     ),
     Column("line_id", PostgresUUID(as_uuid=True), nullable=False),
     Column("sku_id", PostgresUUID(as_uuid=True), ForeignKey("skus.sku_id"), nullable=False),
@@ -2401,18 +2446,44 @@ delivery_lines = Table(
         "staging_movement_id",
         PostgresUUID(as_uuid=True),
         ForeignKey("stock_movements.movement_id"),
-        nullable=False,
-        unique=True,
+        nullable=True,
     ),
     Column(
         "transit_movement_id",
         PostgresUUID(as_uuid=True),
         ForeignKey("stock_movements.movement_id"),
-        nullable=False,
-        unique=True,
+        nullable=True,
+    ),
+    Column(
+        "source_exception_case_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey(
+            "delivery_exception_cases.exception_case_id",
+            name="fk_delivery_line_source_exception",
+            use_alter=True,
+        ),
+        nullable=True,
     ),
     CheckConstraint("quantity_base > 0", name="ck_delivery_lines_quantity"),
     UniqueConstraint("delivery_id", "pick_line_id", name="uq_delivery_line_pick"),
+)
+Index(
+    "uq_initial_delivery_line_pick",
+    delivery_lines.c.pick_line_id,
+    unique=True,
+    postgresql_where=delivery_lines.c.source_exception_case_id.is_(None),
+)
+Index(
+    "uq_initial_delivery_line_staging_movement",
+    delivery_lines.c.staging_movement_id,
+    unique=True,
+    postgresql_where=delivery_lines.c.staging_movement_id.is_not(None),
+)
+Index(
+    "uq_initial_delivery_line_transit_movement",
+    delivery_lines.c.transit_movement_id,
+    unique=True,
+    postgresql_where=delivery_lines.c.transit_movement_id.is_not(None),
 )
 
 delivery_evidence = Table(
@@ -2488,19 +2559,38 @@ delivery_confirmation_lines = Table(
     Column("line_id", PostgresUUID(as_uuid=True), nullable=False),
     Column("sku_id", PostgresUUID(as_uuid=True), ForeignKey("skus.sku_id"), nullable=False),
     Column("accepted_quantity_base", Numeric(18, 6), nullable=False),
+    Column("refused_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("damaged_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("short_missing_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("still_undelivered_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
     Column("unit_cost", Numeric(18, 6), nullable=False),
     Column("value_delta", Numeric(24, 6), nullable=False),
     Column(
         "outbound_movement_id",
         PostgresUUID(as_uuid=True),
         ForeignKey("stock_movements.movement_id"),
-        nullable=False,
+        nullable=True,
         unique=True,
     ),
     UniqueConstraint(
         "confirmation_id",
         "delivery_line_id",
         name="uq_delivery_confirmation_delivery_line",
+    ),
+    CheckConstraint(
+        "accepted_quantity_base >= 0 AND refused_quantity_base >= 0 "
+        "AND damaged_quantity_base >= 0 AND short_missing_quantity_base >= 0 "
+        "AND still_undelivered_quantity_base >= 0 "
+        "AND accepted_quantity_base + refused_quantity_base + damaged_quantity_base "
+        "+ short_missing_quantity_base + still_undelivered_quantity_base > 0",
+        name="ck_delivery_confirmation_line_partition",
+    ),
+    CheckConstraint(
+        "unit_cost >= 0 AND value_delta <= 0 "
+        "AND ((accepted_quantity_base = 0 AND outbound_movement_id IS NULL "
+        "AND value_delta = 0) OR (accepted_quantity_base > 0 "
+        "AND outbound_movement_id IS NOT NULL))",
+        name="ck_delivery_confirmation_line_value",
     ),
 )
 
@@ -2519,6 +2609,398 @@ delivery_confirmation_evidence = Table(
         ForeignKey("delivery_evidence.evidence_id"),
         primary_key=True,
     ),
+)
+
+delivery_line_identity_allocations = Table(
+    "delivery_line_identity_allocations",
+    metadata,
+    Column("allocation_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "delivery_line_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_lines.delivery_line_id"),
+        nullable=False,
+    ),
+    Column(
+        "pick_identity_assignment_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("pick_identity_assignments.pick_identity_assignment_id"),
+        nullable=False,
+    ),
+    Column("quantity_base", Numeric(18, 6), nullable=False),
+    CheckConstraint("quantity_base > 0", name="ck_delivery_line_identity_allocation_quantity"),
+    UniqueConstraint(
+        "delivery_line_id",
+        "pick_identity_assignment_id",
+        name="uq_delivery_line_identity_allocation",
+    ),
+)
+
+stock_movement_identity_allocations = Table(
+    "stock_movement_identity_allocations",
+    metadata,
+    Column("allocation_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "movement_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("stock_movements.movement_id"),
+        nullable=False,
+    ),
+    Column(
+        "delivery_line_identity_allocation_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_line_identity_allocations.allocation_id"),
+        nullable=False,
+    ),
+    Column("quantity_base", Numeric(18, 6), nullable=False),
+    CheckConstraint("quantity_base > 0", name="ck_stock_movement_identity_allocation_quantity"),
+    UniqueConstraint(
+        "movement_id",
+        "delivery_line_identity_allocation_id",
+        name="uq_stock_movement_identity_allocation",
+    ),
+)
+
+delivery_confirmation_identity_partitions = Table(
+    "delivery_confirmation_identity_partitions",
+    metadata,
+    Column("partition_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "confirmation_line_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_confirmation_lines.confirmation_line_id"),
+        nullable=False,
+    ),
+    Column(
+        "delivery_line_identity_allocation_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_line_identity_allocations.allocation_id"),
+        nullable=False,
+    ),
+    Column("accepted_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("refused_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("damaged_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("short_missing_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("still_undelivered_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    CheckConstraint(
+        "accepted_quantity_base >= 0 AND refused_quantity_base >= 0 "
+        "AND damaged_quantity_base >= 0 AND short_missing_quantity_base >= 0 "
+        "AND still_undelivered_quantity_base >= 0",
+        name="ck_delivery_identity_partition_nonnegative",
+    ),
+    UniqueConstraint(
+        "confirmation_line_id",
+        "delivery_line_identity_allocation_id",
+        name="uq_delivery_confirmation_identity_partition",
+    ),
+)
+
+delivery_exception_cases = Table(
+    "delivery_exception_cases",
+    metadata,
+    Column("exception_case_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "confirmation_line_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_confirmation_lines.confirmation_line_id"),
+        nullable=False,
+    ),
+    Column("exception_kind", String(30), nullable=False),
+    Column("original_quantity_base", Numeric(18, 6), nullable=False),
+    Column("initial_custody", String(30), nullable=False),
+    Column("responsible_party_type", String(20), nullable=False),
+    Column("responsible_subject", String(200), nullable=True),
+    Column("responsible_snapshot", JSONB, nullable=False, server_default="{}"),
+    Column("investigation_movement_group_id", PostgresUUID(as_uuid=True), nullable=True),
+    Column(
+        "investigation_out_movement_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("stock_movements.movement_id"),
+        nullable=True,
+    ),
+    Column(
+        "investigation_in_movement_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("stock_movements.movement_id"),
+        nullable=True,
+    ),
+    Column("opened_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("opened_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "exception_kind IN ('refused', 'damaged', 'short_missing', 'still_undelivered')",
+        name="ck_delivery_exception_case_kind",
+    ),
+    CheckConstraint("original_quantity_base > 0", name="ck_delivery_exception_original_quantity"),
+    CheckConstraint(
+        "initial_custody IN ('in_transit', 'investigation')",
+        name="ck_delivery_exception_initial_custody",
+    ),
+    CheckConstraint(
+        "responsible_party_type IN ('staff', 'carrier', 'customer', 'unknown')",
+        name="ck_delivery_exception_responsible_party",
+    ),
+    UniqueConstraint(
+        "confirmation_line_id", "exception_kind", name="uq_delivery_exception_case_kind"
+    ),
+)
+
+delivery_exception_case_evidence = Table(
+    "delivery_exception_case_evidence",
+    metadata,
+    Column(
+        "exception_case_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_exception_cases.exception_case_id"),
+        primary_key=True,
+    ),
+    Column(
+        "evidence_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_evidence.evidence_id"),
+        primary_key=True,
+    ),
+)
+
+delivery_exception_events = Table(
+    "delivery_exception_events",
+    metadata,
+    Column("exception_event_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "exception_case_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_exception_cases.exception_case_id"),
+        nullable=False,
+    ),
+    Column("event_type", String(40), nullable=False),
+    Column("quantity_base", Numeric(18, 6), nullable=False),
+    Column("source_document_type", String(50), nullable=False),
+    Column("source_document_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("from_custody", String(30), nullable=True),
+    Column("to_custody", String(30), nullable=True),
+    Column("reason", String(500), nullable=True),
+    Column("approved_by", String(200), ForeignKey("users.subject"), nullable=True),
+    Column(
+        "approval_authority_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("approval_authorities.approval_authority_id"),
+        nullable=True,
+    ),
+    Column("movement_group_id", PostgresUUID(as_uuid=True), nullable=True),
+    Column("actor_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False),
+    Column("occurred_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "event_type IN ('opened', 'return_received', 'retry_allocated', 'recovered', "
+        "'carrier_claim_resolved', 'inventory_adjustment_resolved')",
+        name="ck_delivery_exception_event_type",
+    ),
+    CheckConstraint("quantity_base > 0", name="ck_delivery_exception_event_quantity"),
+    UniqueConstraint(
+        "actor_subject",
+        "idempotency_key",
+        "exception_case_id",
+        "event_type",
+        name="uq_delivery_exception_event_actor_key",
+    ),
+)
+
+delivery_exception_event_evidence = Table(
+    "delivery_exception_event_evidence",
+    metadata,
+    Column(
+        "exception_event_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_exception_events.exception_event_id"),
+        primary_key=True,
+    ),
+    Column(
+        "evidence_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_evidence.evidence_id"),
+        primary_key=True,
+    ),
+)
+
+delivery_exception_state = Table(
+    "delivery_exception_state",
+    metadata,
+    Column(
+        "exception_case_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_exception_cases.exception_case_id"),
+        primary_key=True,
+    ),
+    Column("status", String(30), nullable=False),
+    Column("custody", String(30), nullable=False),
+    Column("open_quantity_base", Numeric(18, 6), nullable=False),
+    Column("returned_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("retry_allocated_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("resolved_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("version", Integer, nullable=False, server_default="1"),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "status IN ('open', 'partially_resolved', 'resolved')",
+        name="ck_delivery_exception_state_status",
+    ),
+    CheckConstraint(
+        "custody IN ('in_transit', 'investigation', 'quarantine', 'outbound')",
+        name="ck_delivery_exception_state_custody",
+    ),
+    CheckConstraint(
+        "open_quantity_base >= 0 AND returned_quantity_base >= 0 "
+        "AND retry_allocated_quantity_base >= 0 AND resolved_quantity_base >= 0",
+        name="ck_delivery_exception_state_quantities",
+    ),
+    CheckConstraint("version > 0", name="ck_delivery_exception_state_version"),
+)
+
+return_to_warehouse_receipts = Table(
+    "return_to_warehouse_receipts",
+    metadata,
+    Column("receipt_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "delivery_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_dispatches.delivery_id"),
+        nullable=False,
+    ),
+    Column(
+        "warehouse_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouses.warehouse_id"),
+        nullable=False,
+    ),
+    Column("received_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("received_at", DateTime(timezone=True), nullable=False),
+    Column("notes", String(2000), nullable=True),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint("received_by", "idempotency_key", name="uq_return_receipt_actor_key"),
+)
+
+return_to_warehouse_receipt_lines = Table(
+    "return_to_warehouse_receipt_lines",
+    metadata,
+    Column("receipt_line_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "receipt_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("return_to_warehouse_receipts.receipt_id"),
+        nullable=False,
+    ),
+    Column(
+        "exception_case_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_exception_cases.exception_case_id"),
+        nullable=False,
+    ),
+    Column("quantity_base", Numeric(18, 6), nullable=False),
+    Column(
+        "transit_out_movement_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("stock_movements.movement_id"),
+        nullable=False,
+        unique=True,
+    ),
+    Column(
+        "quarantine_in_movement_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("stock_movements.movement_id"),
+        nullable=False,
+        unique=True,
+    ),
+    CheckConstraint("quantity_base > 0", name="ck_return_receipt_line_quantity"),
+    UniqueConstraint("receipt_id", "exception_case_id", name="uq_return_receipt_case"),
+)
+
+investigation_resolutions = Table(
+    "investigation_resolutions",
+    metadata,
+    Column("resolution_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "exception_case_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_exception_cases.exception_case_id"),
+        nullable=False,
+    ),
+    Column("resolution_type", String(30), nullable=False),
+    Column("quantity_base", Numeric(18, 6), nullable=False),
+    Column("reason", String(500), nullable=False),
+    Column("external_reference", String(200), nullable=True),
+    Column("approved_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column(
+        "approval_authority_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("approval_authorities.approval_authority_id"),
+        nullable=True,
+    ),
+    Column("movement_group_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column(
+        "investigation_out_movement_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("stock_movements.movement_id"),
+        nullable=False,
+        unique=True,
+    ),
+    Column(
+        "quarantine_in_movement_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("stock_movements.movement_id"),
+        nullable=True,
+        unique=True,
+    ),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False),
+    Column("resolved_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "resolution_type IN ('recovery', 'carrier_claim', 'inventory_adjustment')",
+        name="ck_investigation_resolution_type",
+    ),
+    CheckConstraint("quantity_base > 0", name="ck_investigation_resolution_quantity"),
+    UniqueConstraint(
+        "approved_by", "idempotency_key", name="uq_investigation_resolution_actor_key"
+    ),
+)
+
+delivery_retry_allocations = Table(
+    "delivery_retry_allocations",
+    metadata,
+    Column("retry_allocation_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "source_exception_case_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_exception_cases.exception_case_id"),
+        nullable=False,
+    ),
+    Column(
+        "retry_delivery_line_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_lines.delivery_line_id"),
+        nullable=False,
+        unique=True,
+    ),
+    Column("quantity_base", Numeric(18, 6), nullable=False),
+    Column("allocated_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("reason", String(500), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False),
+    Column("allocated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("quantity_base > 0", name="ck_delivery_retry_allocation_quantity"),
+    UniqueConstraint(
+        "allocated_by",
+        "idempotency_key",
+        "source_exception_case_id",
+        name="uq_delivery_retry_allocation_actor_key",
+    ),
+)
+Index(
+    "ix_delivery_exception_queue",
+    delivery_exception_state.c.status,
+    delivery_exception_state.c.custody,
+    delivery_exception_state.c.updated_at,
 )
 
 document_series = Table(

@@ -1,7 +1,12 @@
 import type { components } from "@tradeflow/api-client";
+import type { DeliveryPartition } from "../components/delivery-partition-editor";
 
-export type DeliveryConfirmationCommand =
-  components["schemas"]["ConfirmDeliveryCommand"];
+export type DeliveryConfirmationCommand = Omit<
+  components["schemas"]["ConfirmDeliveryCommand"],
+  "lines"
+> & {
+  lines: DeliveryPartition[];
+};
 export type DeliveryConfirmationResponse =
   components["schemas"]["DeliveryConfirmationResponse"];
 
@@ -31,9 +36,14 @@ export type LocalDeliveryConfirmationStatus =
   | "upload_failed";
 
 export type LocalDeliveryConfirmation = DeliveryConfirmationCapture & {
+  authPaused: boolean;
   confirmationId: string;
   correlationId: string | null;
+  errorCode: string | null;
+  errorMessage: string | null;
   response: DeliveryConfirmationResponse | null;
+  replacedByConfirmationId: string | null;
+  replacesConfirmationId: string | null;
   status: LocalDeliveryConfirmationStatus;
   updatedAt: string;
 };
@@ -55,11 +65,20 @@ export type DeliveryConfirmationStore = {
     evidenceId: string,
     updatedAt: string,
   ): Promise<void>;
+  markRetryableAuth(
+    sequence: number,
+    correlationId: string,
+    updatedAt: string,
+    errorCode: string,
+    errorMessage: string,
+  ): Promise<void>;
   markState(
     sequence: number,
     status: "conflict" | "forbidden" | "upload_failed",
     correlationId: string,
     updatedAt: string,
+    errorCode?: string,
+    errorMessage?: string,
   ): Promise<void>;
   markSynced(
     sequence: number,
@@ -67,6 +86,11 @@ export type DeliveryConfirmationStore = {
     updatedAt: string,
   ): Promise<void>;
   saveAndEnqueue(
+    capture: DeliveryConfirmationCapture,
+    updatedAt: string,
+  ): Promise<LocalDeliveryConfirmation>;
+  replaceConflict(
+    confirmationId: string,
     capture: DeliveryConfirmationCapture,
     updatedAt: string,
   ): Promise<LocalDeliveryConfirmation>;
@@ -132,13 +156,45 @@ export function createMemoryDeliveryConfirmationStore(
       if (current !== undefined) {
         backing.captures.set(item.confirmationId, {
           ...current,
+          authPaused: false,
+          correlationId: null,
           evidence: clone(evidence),
+          errorCode: null,
+          errorMessage: null,
           status: statusFor(evidence),
           updatedAt,
         });
       }
     },
-    async markState(sequence, status, correlationId, updatedAt) {
+    async markRetryableAuth(
+      sequence,
+      correlationId,
+      updatedAt,
+      errorCode,
+      errorMessage,
+    ) {
+      const item = backing.outbox.get(sequence);
+      if (item === undefined) return;
+      const current = backing.captures.get(item.confirmationId);
+      if (current !== undefined) {
+        backing.captures.set(item.confirmationId, {
+          ...current,
+          authPaused: true,
+          correlationId,
+          errorCode,
+          errorMessage,
+          updatedAt,
+        });
+      }
+    },
+    async markState(
+      sequence,
+      status,
+      correlationId,
+      updatedAt,
+      errorCode = "",
+      errorMessage = "",
+    ) {
       const item = backing.outbox.get(sequence);
       if (item === undefined) return;
       if (status !== "upload_failed") backing.outbox.delete(sequence);
@@ -146,7 +202,10 @@ export function createMemoryDeliveryConfirmationStore(
       if (current !== undefined) {
         backing.captures.set(item.confirmationId, {
           ...current,
+          authPaused: false,
           correlationId,
+          errorCode: errorCode || null,
+          errorMessage: errorMessage || null,
           status,
           updatedAt,
         });
@@ -160,7 +219,10 @@ export function createMemoryDeliveryConfirmationStore(
       if (current !== undefined) {
         backing.captures.set(item.confirmationId, {
           ...current,
+          authPaused: false,
           correlationId: null,
+          errorCode: null,
+          errorMessage: null,
           response: clone(response),
           status: "confirmed",
           updatedAt,
@@ -173,9 +235,14 @@ export function createMemoryDeliveryConfirmationStore(
       if (existing !== undefined) return clone(existing);
       const value: LocalDeliveryConfirmation = {
         ...clone(capture),
+        authPaused: false,
         confirmationId,
         correlationId: null,
+        errorCode: null,
+        errorMessage: null,
         response: null,
+        replacedByConfirmationId: null,
+        replacesConfirmationId: null,
         status: statusFor(capture.evidence),
         updatedAt,
       };
@@ -188,6 +255,35 @@ export function createMemoryDeliveryConfirmationStore(
         sequence,
       });
       return clone(value);
+    },
+    async replaceConflict(confirmationId, capture, updatedAt) {
+      const current = backing.captures.get(confirmationId);
+      if (current?.status !== "conflict") {
+        throw new Error("Only a reviewed conflict can be replaced.");
+      }
+      if (capture.command.confirmation_id === confirmationId) {
+        throw new Error("A replacement requires a new confirmation identity.");
+      }
+      if (capture.deliveryId !== current.deliveryId) {
+        throw new Error("A replacement must belong to the same Delivery.");
+      }
+      if (current.replacedByConfirmationId !== null) {
+        throw new Error("This conflict already has a replacement.");
+      }
+      const replacement = await this.saveAndEnqueue(capture, updatedAt);
+      backing.captures.set(confirmationId, {
+        ...current,
+        replacedByConfirmationId: replacement.confirmationId,
+        updatedAt,
+      });
+      const saved = backing.captures.get(replacement.confirmationId);
+      if (saved !== undefined) {
+        backing.captures.set(replacement.confirmationId, {
+          ...saved,
+          replacesConfirmationId: confirmationId,
+        });
+      }
+      return clone(backing.captures.get(replacement.confirmationId)!);
     },
   };
 }

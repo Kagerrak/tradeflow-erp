@@ -311,6 +311,18 @@
       },
       "AssignedDeliveryLineResponse": {
         "properties": {
+          "delivery_line_id": {
+            "format": "uuid",
+            "title": "Delivery Line Id",
+            "type": "string"
+          },
+          "identity_positions": {
+            "items": {
+              "$ref": "#/components/schemas/DeliveryIdentityPositionResponse"
+            },
+            "title": "Identity Positions",
+            "type": "array"
+          },
           "line_id": {
             "format": "uuid",
             "title": "Line Id",
@@ -350,13 +362,15 @@
           }
         },
         "required": [
+          "delivery_line_id",
           "line_id",
           "sku_id",
           "sku_code",
           "sku_name",
           "quantity_base",
           "lot_selections",
-          "serial_numbers"
+          "serial_numbers",
+          "identity_positions"
         ],
         "title": "AssignedDeliveryLineResponse",
         "type": "object"
@@ -2162,13 +2176,98 @@
         "title": "ConfirmDeliveryCommand",
         "type": "object"
       },
+      "ConfirmationIdentityPartitionCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "accepted_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Accepted Quantity Base"
+          },
+          "damaged_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Damaged Quantity Base"
+          },
+          "delivery_line_identity_allocation_id": {
+            "format": "uuid",
+            "title": "Delivery Line Identity Allocation Id",
+            "type": "string"
+          },
+          "refused_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Refused Quantity Base"
+          },
+          "short_missing_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Short Missing Quantity Base"
+          },
+          "still_undelivered_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Still Undelivered Quantity Base"
+          }
+        },
+        "required": [
+          "delivery_line_identity_allocation_id"
+        ],
+        "title": "ConfirmationIdentityPartitionCommand",
+        "type": "object"
+      },
       "ConfirmationLineCommand": {
         "additionalProperties": false,
         "properties": {
           "accepted_quantity_base": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -2178,14 +2277,98 @@
             ],
             "title": "Accepted Quantity Base"
           },
+          "damaged_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Damaged Quantity Base"
+          },
+          "delivery_line_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Line Id"
+          },
+          "exception_details": {
+            "$ref": "#/components/schemas/DeliveryExceptionDetailsCommand"
+          },
+          "identity_partitions": {
+            "items": {
+              "$ref": "#/components/schemas/ConfirmationIdentityPartitionCommand"
+            },
+            "title": "Identity Partitions",
+            "type": "array"
+          },
           "line_id": {
-            "format": "uuid",
-            "title": "Line Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line Id"
+          },
+          "refused_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Refused Quantity Base"
+          },
+          "short_missing_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Short Missing Quantity Base"
+          },
+          "still_undelivered_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Still Undelivered Quantity Base"
           }
         },
         "required": [
-          "line_id",
           "accepted_quantity_base"
         ],
         "title": "ConfirmationLineCommand",
@@ -2198,19 +2381,51 @@
             "title": "Accepted Quantity Base",
             "type": "string"
           },
+          "damaged_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Damaged Quantity Base",
+            "type": "string"
+          },
+          "delivery_line_id": {
+            "format": "uuid",
+            "title": "Delivery Line Id",
+            "type": "string"
+          },
           "line_id": {
             "format": "uuid",
             "title": "Line Id",
             "type": "string"
           },
           "outbound_movement_id": {
-            "format": "uuid",
-            "title": "Outbound Movement Id",
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outbound Movement Id"
+          },
+          "refused_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Refused Quantity Base",
+            "type": "string"
+          },
+          "short_missing_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Short Missing Quantity Base",
             "type": "string"
           },
           "sku_id": {
             "format": "uuid",
             "title": "Sku Id",
+            "type": "string"
+          },
+          "still_undelivered_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Still Undelivered Quantity Base",
             "type": "string"
           },
           "unit_cost": {
@@ -2225,14 +2440,79 @@
           }
         },
         "required": [
+          "delivery_line_id",
           "line_id",
           "sku_id",
           "accepted_quantity_base",
+          "refused_quantity_base",
+          "damaged_quantity_base",
+          "short_missing_quantity_base",
+          "still_undelivered_quantity_base",
           "unit_cost",
           "value_delta",
           "outbound_movement_id"
         ],
         "title": "ConfirmationLineResponse",
+        "type": "object"
+      },
+      "ConfirmationQuoteCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_delivery_version": {
+            "exclusiveMinimum": 0.0,
+            "title": "Expected Delivery Version",
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ConfirmationLineCommand"
+            },
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          }
+        },
+        "required": [
+          "expected_delivery_version",
+          "lines"
+        ],
+        "title": "ConfirmationQuoteCommand",
+        "type": "object"
+      },
+      "ConfirmationQuoteResponse": {
+        "properties": {
+          "accepted_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Accepted Quantity Base",
+            "type": "string"
+          },
+          "amount_due": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount Due",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "delivery_id": {
+            "format": "uuid",
+            "title": "Delivery Id",
+            "type": "string"
+          },
+          "delivery_version": {
+            "title": "Delivery Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "delivery_id",
+          "delivery_version",
+          "accepted_quantity_base",
+          "amount_due",
+          "currency"
+        ],
+        "title": "ConfirmationQuoteResponse",
         "type": "object"
       },
       "ContactInput": {
@@ -3167,7 +3447,14 @@
             "type": "string"
           },
           "delivery_receipt": {
-            "$ref": "#/components/schemas/DeliveryReceiptResponse"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeliveryReceiptResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "lines": {
             "items": {
@@ -3187,9 +3474,16 @@
             ]
           },
           "outbox_event_id": {
-            "format": "uuid",
-            "title": "Outbox Event Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outbox Event Id"
           },
           "status": {
             "const": "confirmed",
@@ -3211,6 +3505,287 @@
           "outbox_event_id"
         ],
         "title": "DeliveryConfirmationResponse",
+        "type": "object"
+      },
+      "DeliveryExceptionDetailCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "responsible_party_type": {
+            "enum": [
+              "staff",
+              "carrier",
+              "customer",
+              "unknown"
+            ],
+            "title": "Responsible Party Type",
+            "type": "string"
+          },
+          "responsible_subject": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Responsible Subject"
+          }
+        },
+        "required": [
+          "reason",
+          "evidence_ids",
+          "responsible_party_type"
+        ],
+        "title": "DeliveryExceptionDetailCommand",
+        "type": "object"
+      },
+      "DeliveryExceptionDetailsCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "damaged": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeliveryExceptionDetailCommand"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "refused": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeliveryExceptionDetailCommand"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "short_missing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeliveryExceptionDetailCommand"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "still_undelivered": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeliveryExceptionDetailCommand"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "DeliveryExceptionDetailsCommand",
+        "type": "object"
+      },
+      "DeliveryExceptionItem": {
+        "properties": {
+          "age_days": {
+            "title": "Age Days",
+            "type": "integer"
+          },
+          "custody": {
+            "title": "Custody",
+            "type": "string"
+          },
+          "delivery_id": {
+            "format": "uuid",
+            "title": "Delivery Id",
+            "type": "string"
+          },
+          "delivery_line_id": {
+            "format": "uuid",
+            "title": "Delivery Line Id",
+            "type": "string"
+          },
+          "delivery_version": {
+            "title": "Delivery Version",
+            "type": "integer"
+          },
+          "evidence_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "exception_case_id": {
+            "format": "uuid",
+            "title": "Exception Case Id",
+            "type": "string"
+          },
+          "exception_kind": {
+            "title": "Exception Kind",
+            "type": "string"
+          },
+          "investigation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Investigation Id"
+          },
+          "open_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Open Quantity Base",
+            "type": "string"
+          },
+          "opened_at": {
+            "format": "date-time",
+            "title": "Opened At",
+            "type": "string"
+          },
+          "original_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Original Quantity Base",
+            "type": "string"
+          },
+          "responsible_party_type": {
+            "title": "Responsible Party Type",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "tracking_policy": {
+            "enum": [
+              "untracked",
+              "lot",
+              "serial"
+            ],
+            "title": "Tracking Policy",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "investigation_id",
+          "exception_case_id",
+          "delivery_id",
+          "delivery_line_id",
+          "delivery_version",
+          "tracking_policy",
+          "exception_kind",
+          "original_quantity_base",
+          "open_quantity_base",
+          "custody",
+          "status",
+          "responsible_party_type",
+          "opened_at",
+          "age_days",
+          "version",
+          "evidence_ids"
+        ],
+        "title": "DeliveryExceptionItem",
+        "type": "object"
+      },
+      "DeliveryExceptionListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DeliveryExceptionItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "DeliveryExceptionListResponse",
+        "type": "object"
+      },
+      "DeliveryIdentityPositionResponse": {
+        "properties": {
+          "delivery_line_identity_allocation_id": {
+            "format": "uuid",
+            "title": "Delivery Line Identity Allocation Id",
+            "type": "string"
+          },
+          "lot_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Code"
+          },
+          "quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity Base",
+            "type": "string"
+          },
+          "serial_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serial Number"
+          },
+          "tracking_policy": {
+            "enum": [
+              "lot",
+              "serial"
+            ],
+            "title": "Tracking Policy",
+            "type": "string"
+          }
+        },
+        "required": [
+          "delivery_line_identity_allocation_id",
+          "tracking_policy",
+          "quantity_base",
+          "lot_code",
+          "serial_number"
+        ],
+        "title": "DeliveryIdentityPositionResponse",
         "type": "object"
       },
       "DeliveryReceiptDetailResponse": {
@@ -3800,6 +4375,112 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "InvestigationResolutionCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "expected_investigation_version": {
+            "exclusiveMinimum": 0.0,
+            "title": "Expected Investigation Version",
+            "type": "integer"
+          },
+          "external_reference": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Reference"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "resolution_id": {
+            "format": "uuid",
+            "title": "Resolution Id",
+            "type": "string"
+          },
+          "resolution_type": {
+            "enum": [
+              "recovery",
+              "carrier_claim",
+              "inventory_adjustment"
+            ],
+            "title": "Resolution Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resolution_id",
+          "expected_investigation_version",
+          "resolution_type",
+          "reason",
+          "evidence_ids"
+        ],
+        "title": "InvestigationResolutionCommand",
+        "type": "object"
+      },
+      "InvestigationResolutionResponse": {
+        "properties": {
+          "custody": {
+            "enum": [
+              "quarantine",
+              "outbound"
+            ],
+            "title": "Custody",
+            "type": "string"
+          },
+          "investigation_id": {
+            "format": "uuid",
+            "title": "Investigation Id",
+            "type": "string"
+          },
+          "quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity Base",
+            "type": "string"
+          },
+          "resolution_id": {
+            "format": "uuid",
+            "title": "Resolution Id",
+            "type": "string"
+          },
+          "resolution_type": {
+            "title": "Resolution Type",
+            "type": "string"
+          },
+          "status": {
+            "const": "resolved",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resolution_id",
+          "investigation_id",
+          "resolution_type",
+          "quantity_base",
+          "status",
+          "custody"
+        ],
+        "title": "InvestigationResolutionResponse",
         "type": "object"
       },
       "LifecycleCommand": {
@@ -6067,6 +6748,212 @@
           "backorder_quantity_base"
         ],
         "title": "ReservationRetryResponse",
+        "type": "object"
+      },
+      "RetryDeliveryCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "assigned_to": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Assigned To",
+            "type": "string"
+          },
+          "expected_delivery_version": {
+            "exclusiveMinimum": 0.0,
+            "title": "Expected Delivery Version",
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "retry_delivery_id": {
+            "format": "uuid",
+            "title": "Retry Delivery Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "retry_delivery_id",
+          "expected_delivery_version",
+          "assigned_to",
+          "reason"
+        ],
+        "title": "RetryDeliveryCommand",
+        "type": "object"
+      },
+      "ReturnLineCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "damaged_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Damaged Quantity Base"
+          },
+          "delivery_line_id": {
+            "format": "uuid",
+            "title": "Delivery Line Id",
+            "type": "string"
+          },
+          "refused_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Refused Quantity Base"
+          }
+        },
+        "required": [
+          "delivery_line_id"
+        ],
+        "title": "ReturnLineCommand",
+        "type": "object"
+      },
+      "ReturnLineResponse": {
+        "properties": {
+          "custody": {
+            "const": "quarantine",
+            "title": "Custody",
+            "type": "string"
+          },
+          "delivery_line_id": {
+            "format": "uuid",
+            "title": "Delivery Line Id",
+            "type": "string"
+          },
+          "exception_case_id": {
+            "format": "uuid",
+            "title": "Exception Case Id",
+            "type": "string"
+          },
+          "exception_kind": {
+            "enum": [
+              "refused",
+              "damaged"
+            ],
+            "title": "Exception Kind",
+            "type": "string"
+          },
+          "quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity Base",
+            "type": "string"
+          }
+        },
+        "required": [
+          "delivery_line_id",
+          "exception_case_id",
+          "exception_kind",
+          "quantity_base",
+          "custody"
+        ],
+        "title": "ReturnLineResponse",
+        "type": "object"
+      },
+      "ReturnToWarehouseCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "expected_delivery_version": {
+            "exclusiveMinimum": 0.0,
+            "title": "Expected Delivery Version",
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnLineCommand"
+            },
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          },
+          "return_receipt_id": {
+            "format": "uuid",
+            "title": "Return Receipt Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "return_receipt_id",
+          "expected_delivery_version",
+          "received_at",
+          "evidence_ids",
+          "reason",
+          "lines"
+        ],
+        "title": "ReturnToWarehouseCommand",
+        "type": "object"
+      },
+      "ReturnToWarehouseResponse": {
+        "properties": {
+          "delivery_id": {
+            "format": "uuid",
+            "title": "Delivery Id",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnLineResponse"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "return_receipt_id": {
+            "format": "uuid",
+            "title": "Return Receipt Id",
+            "type": "string"
+          },
+          "status": {
+            "const": "received",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "return_receipt_id",
+          "delivery_id",
+          "status",
+          "lines"
+        ],
+        "title": "ReturnToWarehouseResponse",
         "type": "object"
       },
       "ReversePickCommand": {
@@ -8900,6 +9787,114 @@
         ]
       }
     },
+    "/v1/deliveries/{delivery_id}/confirmation-quote": {
+      "post": {
+        "operationId": "quote_delivery_confirmation_v1_deliveries__delivery_id__confirmation_quote_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "delivery_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Delivery Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmationQuoteCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmationQuoteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Quote Delivery Confirmation",
+        "tags": [
+          "delivery confirmation"
+        ]
+      }
+    },
     "/v1/deliveries/{delivery_id}/confirmations": {
       "post": {
         "operationId": "confirm_delivery_v1_deliveries__delivery_id__confirmations_post",
@@ -9387,6 +10382,492 @@
         "summary": "Complete Evidence Upload",
         "tags": [
           "delivery confirmation"
+        ]
+      }
+    },
+    "/v1/deliveries/{delivery_id}/retries": {
+      "post": {
+        "operationId": "create_retry_delivery_v1_deliveries__delivery_id__retries_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "delivery_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Delivery Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetryDeliveryCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignedDeliveryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Retry Delivery",
+        "tags": [
+          "delivery exceptions"
+        ]
+      }
+    },
+    "/v1/deliveries/{delivery_id}/return-to-warehouse-receipts": {
+      "post": {
+        "operationId": "receive_return_to_warehouse_v1_deliveries__delivery_id__return_to_warehouse_receipts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "delivery_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Delivery Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnToWarehouseCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnToWarehouseResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Receive Return To Warehouse",
+        "tags": [
+          "delivery exceptions"
+        ]
+      }
+    },
+    "/v1/delivery-exceptions": {
+      "get": {
+        "operationId": "list_delivery_exceptions_v1_delivery_exceptions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryExceptionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Delivery Exceptions",
+        "tags": [
+          "delivery exceptions"
+        ]
+      }
+    },
+    "/v1/delivery-investigations/{investigation_id}/resolutions": {
+      "post": {
+        "operationId": "resolve_delivery_investigation_v1_delivery_investigations__investigation_id__resolutions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "investigation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Investigation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvestigationResolutionCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestigationResolutionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Resolve Delivery Investigation",
+        "tags": [
+          "delivery exceptions"
         ]
       }
     },

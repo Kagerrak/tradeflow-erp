@@ -6,16 +6,28 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import type {
+  DeliveryConfirmationCapture as DeliveryConfirmationCaptureValue,
   DeliveryConfirmationStore,
+  LocalDeliveryConfirmation,
   LocalDeliveryEvidence,
 } from "../offline/delivery-confirmation-store";
 import { persistEvidenceFile } from "../offline/durable-evidence-file";
+import {
+  acceptsDeliveryQuantity,
+  createInitialPartitions,
+  DeliveryPartitionEditor,
+  exceptionOutcomes,
+  partitionsAreValid,
+} from "./delivery-partition-editor";
 
 export function DeliveryConfirmationCapture({
   delivery,
   now = () => new Date().toISOString(),
   onSaved,
   persistEvidence = persistEvidenceFile,
+  quoteCOD,
+  replacesConfirmationId,
+  replacementSource,
   store,
 }: {
   delivery: AssignedDelivery;
@@ -26,24 +38,62 @@ export function DeliveryConfirmationCapture({
     evidenceId: string,
     extension: string,
   ) => Promise<string>;
+  quoteCOD?: (input: {
+    deliveryId: string;
+    expectedDeliveryVersion: number;
+    lines: ReturnType<typeof createInitialPartitions>;
+  }) => Promise<{
+    accepted_quantity_base: string;
+    amount_due: string;
+    currency: string;
+    delivery_id: string;
+    delivery_version: number;
+  }>;
+  replacesConfirmationId?: string;
+  replacementSource?: LocalDeliveryConfirmation;
   store: DeliveryConfirmationStore;
 }) {
-  const [recipient, setRecipient] = useState(delivery.recipientName);
-  const [notes, setNotes] = useState("");
-  const [evidence, setEvidence] = useState<LocalDeliveryEvidence[]>([]);
+  const [recipient, setRecipient] = useState(
+    replacementSource?.command.recipient_name ?? delivery.recipientName,
+  );
+  const [notes, setNotes] = useState(replacementSource?.command.notes ?? "");
+  const [partitions, setPartitions] = useState(
+    () => replacementSource?.command.lines ?? createInitialPartitions(delivery),
+  );
+  const [partialQuote, setPartialQuote] = useState<{
+    amount: string;
+    currency: string;
+  } | null>(null);
+  const [evidence, setEvidence] = useState<LocalDeliveryEvidence[]>(
+    replacementSource?.evidence ?? [],
+  );
   const [cashCollected, setCashCollected] = useState(
-    delivery.collectionAmountDue ?? "",
+    replacementSource?.command.collection?.amount?.toString() ??
+      delivery.collectionAmountDue ??
+      "",
   );
   const [settlementMode, setSettlementMode] = useState<
     "cash" | "noncash" | "on_account"
-  >("cash");
+  >(
+    replacementSource?.command.on_account_conversion_id != null
+      ? "on_account"
+      : replacementSource?.command.collection?.payment_method === "cash" ||
+          replacementSource?.command.collection == null
+        ? "cash"
+        : "noncash",
+  );
   const [noncashMethod, setNoncashMethod] = useState<
     "bank_transfer" | "check" | "electronic"
   >("bank_transfer");
-  const [paymentReceiptId, setPaymentReceiptId] = useState("");
-  const [conversionId, setConversionId] = useState("");
+  const [paymentReceiptId, setPaymentReceiptId] = useState(
+    replacementSource?.command.collection?.payment_receipt_id ?? "",
+  );
+  const [conversionId, setConversionId] = useState(
+    replacementSource?.command.on_account_conversion_id ?? "",
+  );
   const [message, setMessage] = useState<string | null>(null);
   const signature = evidence.find((item) => item.kind === "signature");
+  const acceptsQuantity = acceptsDeliveryQuantity(partitions);
 
   const capture = async (kind: "photo" | "signature") => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -98,25 +148,113 @@ export function DeliveryConfirmationCapture({
       setMessage("Recipient name and signature evidence are required.");
       return;
     }
-    if (delivery.collectionRequired && delivery.collectionAmountDue === null) {
+    if (!partitionsAreValid(delivery, partitions)) {
+      setMessage("Every line outcome must equal its dispatched quantity.");
+      return;
+    }
+    for (const line of partitions) {
+      for (const [outcome, field] of exceptionOutcomes) {
+        if (quantityIsZero(line[field])) continue;
+        const detail = line.exception_details[outcome];
+        if (detail === undefined || detail.reason.trim() === "") {
+          setMessage(
+            `Enter a reason for every ${outcome.replaceAll("_", " ")} outcome.`,
+          );
+          return;
+        }
+        if (detail.evidence_ids.length === 0) {
+          setMessage(
+            `Assign a photo to every ${outcome.replaceAll("_", " ")} outcome.`,
+          );
+          return;
+        }
+      }
+    }
+    if (
+      delivery.collectionRequired &&
+      acceptsQuantity &&
+      delivery.collectionAmountDue === null
+    ) {
       setMessage(
         "The server-calculated COD due is unavailable. Refresh the Delivery before capture.",
       );
       return;
     }
+    const partialAcceptance = partitions.some(
+      (line) =>
+        line.accepted_quantity_base !==
+        delivery.lines.find(
+          (item) => item.deliveryLineId === line.delivery_line_id,
+        )?.quantityBase,
+    );
+    let collectionAmount = cashCollected;
+    let collectionCurrency = "PHP";
+    if (delivery.collectionRequired && acceptsQuantity && partialAcceptance) {
+      if (partialQuote === null) {
+        if (quoteCOD === undefined) {
+          setMessage(
+            "Connect to load the exact accepted-quantity COD due before saving.",
+          );
+          return;
+        }
+        try {
+          const quote = await quoteCOD({
+            deliveryId: delivery.deliveryId,
+            expectedDeliveryVersion: delivery.version,
+            lines: partitions,
+          });
+          if (
+            quote.delivery_id !== delivery.deliveryId ||
+            quote.delivery_version !== delivery.version ||
+            !quantitiesEqual(
+              quote.accepted_quantity_base,
+              partitions.map((line) => line.accepted_quantity_base),
+            )
+          ) {
+            setMessage(
+              "Delivery custody changed. Refresh before collecting COD.",
+            );
+            return;
+          }
+          setPartialQuote({
+            amount: quote.amount_due,
+            currency: quote.currency,
+          });
+          setCashCollected(quote.amount_due);
+          setMessage(
+            `Exact accepted-quantity due loaded: ${quote.currency} ${quote.amount_due}. Verify collection, then save again.`,
+          );
+          return;
+        } catch {
+          setMessage(
+            "Exact accepted-quantity COD due is unavailable. Reconnect and retry.",
+          );
+          return;
+        }
+      }
+      collectionAmount = partialQuote.amount;
+      collectionCurrency = partialQuote.currency;
+      if (cashCollected !== collectionAmount) {
+        setMessage(
+          `Collection must exactly match ${collectionCurrency} ${collectionAmount}.`,
+        );
+        return;
+      }
+    }
     if (
       delivery.collectionRequired &&
+      acceptsQuantity &&
       settlementMode !== "on_account" &&
-      (!isCanonicalPositiveDecimal(cashCollected) ||
-        Number(cashCollected) < Number(delivery.collectionAmountDue))
+      !isCanonicalPositiveDecimal(cashCollected)
     ) {
       setMessage(
-        `Collection must be a positive decimal covering ${delivery.collectionAmountDue}.`,
+        "Collection must be a positive decimal. The server will validate the exact accepted-quantity due.",
       );
       return;
     }
     if (
       delivery.collectionRequired &&
+      acceptsQuantity &&
       settlementMode === "noncash" &&
       paymentReceiptId.trim().length === 0
     ) {
@@ -125,6 +263,7 @@ export function DeliveryConfirmationCapture({
     }
     if (
       delivery.collectionRequired &&
+      acceptsQuantity &&
       settlementMode === "on_account" &&
       conversionId.trim().length === 0
     ) {
@@ -133,46 +272,59 @@ export function DeliveryConfirmationCapture({
     }
     const confirmationId = randomUUID();
     const capturedAt = now();
-    await store.saveAndEnqueue(
-      {
-        command: {
-          confirmation_id: confirmationId,
-          device_captured_at: capturedAt,
-          evidence_ids: evidence.map((item) => item.evidenceId),
-          expected_delivery_version: delivery.version,
-          lines: delivery.lines.map((line) => ({
-            accepted_quantity_base: line.quantityBase,
-            line_id: line.lineId,
-          })),
-          notes: notes.trim() || null,
-          recipient_name: recipient.trim(),
-          ...(delivery.collectionRequired && settlementMode !== "on_account"
-            ? {
-                collection: {
-                  amount: cashCollected,
-                  currency: "PHP",
-                  evidence: null,
-                  external_reference: null,
-                  payment_method:
-                    settlementMode === "cash" ? "cash" : noncashMethod,
-                  payment_receipt_id:
-                    settlementMode === "cash"
-                      ? randomUUID()
-                      : paymentReceiptId.trim(),
-                  received_at: capturedAt,
-                },
-              }
-            : {}),
-          ...(delivery.collectionRequired && settlementMode === "on_account"
-            ? { on_account_conversion_id: conversionId.trim() }
-            : {}),
-        },
-        deliveryId: delivery.deliveryId,
-        evidence,
-        idempotencyKey: `delivery-confirmation:${confirmationId}`,
+    const captureValue: DeliveryConfirmationCaptureValue = {
+      command: {
+        confirmation_id: confirmationId,
+        device_captured_at: capturedAt,
+        evidence_ids: evidence.map((item) => item.evidenceId),
+        expected_delivery_version: delivery.version,
+        lines: partitions.map((line) => ({
+          ...line,
+          exception_details: Object.fromEntries(
+            Object.entries(line.exception_details).filter(([outcome]) => {
+              const match = exceptionOutcomes.find(
+                ([value]) => value === outcome,
+              );
+              return match !== undefined && !quantityIsZero(line[match[1]]);
+            }),
+          ),
+        })),
+        notes: notes.trim() || null,
+        recipient_name: recipient.trim(),
+        ...(delivery.collectionRequired &&
+        acceptsQuantity &&
+        settlementMode !== "on_account"
+          ? {
+              collection: {
+                amount: collectionAmount,
+                currency: collectionCurrency,
+                evidence: null,
+                external_reference: null,
+                payment_method:
+                  settlementMode === "cash" ? "cash" : noncashMethod,
+                payment_receipt_id:
+                  settlementMode === "cash"
+                    ? randomUUID()
+                    : paymentReceiptId.trim(),
+                received_at: capturedAt,
+              },
+            }
+          : {}),
+        ...(delivery.collectionRequired &&
+        acceptsQuantity &&
+        settlementMode === "on_account"
+          ? { on_account_conversion_id: conversionId.trim() }
+          : {}),
       },
-      now(),
-    );
+      deliveryId: delivery.deliveryId,
+      evidence,
+      idempotencyKey: `delivery-confirmation:${confirmationId}`,
+    };
+    if (replacesConfirmationId === undefined) {
+      await store.saveAndEnqueue(captureValue, now());
+    } else {
+      await store.replaceConflict(replacesConfirmationId, captureValue, now());
+    }
     onSaved();
   };
 
@@ -187,7 +339,8 @@ export function DeliveryConfirmationCapture({
       {delivery.collectionRequired && (
         <View style={styles.collection}>
           <Text style={styles.help}>
-            COD due: PHP {delivery.collectionAmountDue ?? "Unavailable"}
+            Full-delivery COD quote: PHP{" "}
+            {delivery.collectionAmountDue ?? "Unavailable"}
           </Text>
           <View style={styles.actions}>
             {(["cash", "noncash", "on_account"] as const).map((value) => (
@@ -245,8 +398,8 @@ export function DeliveryConfirmationCapture({
             />
           )}
           <Text style={styles.help}>
-            Settlement and proof stay Pending Sync offline and take effect only
-            after server acknowledgement.
+            Partial outcomes are repriced from accepted quantity by the server.
+            Settlement and proof stay Pending Sync until acknowledgement.
           </Text>
         </View>
       )}
@@ -264,10 +417,94 @@ export function DeliveryConfirmationCapture({
         style={[styles.input, styles.notes]}
         value={notes}
       />
-      <Text style={styles.help}>
-        Full accepted quantity:{" "}
-        {delivery.lines.map((line) => line.quantityBase).join(" · ")}
-      </Text>
+      <DeliveryPartitionEditor
+        delivery={delivery}
+        onChange={(next) => {
+          setPartitions(next);
+          setPartialQuote(null);
+          if (
+            next.some(
+              (line) =>
+                line.accepted_quantity_base !==
+                delivery.lines.find(
+                  (item) => item.deliveryLineId === line.delivery_line_id,
+                )?.quantityBase,
+            )
+          )
+            setCashCollected("");
+        }}
+        value={partitions}
+      />
+      {partitions.map((line) =>
+        exceptionOutcomes.map(([outcome, field, label]) => {
+          if (quantityIsZero(line[field])) return null;
+          const detail = line.exception_details[outcome] ?? {
+            evidence_ids: [],
+            reason: "",
+            responsible_party_type: "unknown" as const,
+          };
+          const photos = evidence.filter((item) => item.kind === "photo");
+          const update = (next: typeof detail) =>
+            setPartitions((current) =>
+              current.map((candidate) =>
+                candidate.delivery_line_id === line.delivery_line_id
+                  ? {
+                      ...candidate,
+                      exception_details: {
+                        ...candidate.exception_details,
+                        [outcome]: next,
+                      },
+                    }
+                  : candidate,
+              ),
+            );
+          return (
+            <View
+              key={`${line.delivery_line_id}:${outcome}`}
+              style={styles.exceptionDetail}
+            >
+              <Text style={styles.eyebrow}>{label.toUpperCase()} CONTROL</Text>
+              <TextInput
+                accessibilityLabel={`${label} reason`}
+                onChangeText={(reason) => update({ ...detail, reason })}
+                placeholder="Controlled outcome reason"
+                style={styles.input}
+                value={detail.reason}
+              />
+              <View style={styles.actions}>
+                {(["carrier", "customer", "staff", "unknown"] as const).map(
+                  (party) => (
+                    <Pressable
+                      key={party}
+                      onPress={() =>
+                        update({ ...detail, responsible_party_type: party })
+                      }
+                    >
+                      <Text style={styles.link}>
+                        {detail.responsible_party_type === party ? "● " : "○ "}
+                        {party.toUpperCase()}
+                      </Text>
+                    </Pressable>
+                  ),
+                )}
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() =>
+                  update({
+                    ...detail,
+                    evidence_ids: photos.map((item) => item.evidenceId),
+                  })
+                }
+              >
+                <Text style={styles.link}>
+                  ASSIGN {photos.length} PHOTO{photos.length === 1 ? "" : "S"}
+                </Text>
+              </Pressable>
+            </View>
+          );
+        }),
+      )}
       <View style={styles.actions}>
         <Pressable
           accessibilityRole="button"
@@ -308,6 +545,28 @@ function isCanonicalPositiveDecimal(value: string): boolean {
   return /^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(value) && Number(value) > 0;
 }
 
+function quantityIsZero(value: string): boolean {
+  return /^(?:0+)(?:\.0{1,6})?$/.test(value);
+}
+
+function quantitiesEqual(total: string, parts: string[]): boolean {
+  const parse = (value: string) => {
+    const match = /^(0|[1-9]\d*)(?:\.(\d{1,6}))?$/.exec(value);
+    if (match === null) return null;
+    return (
+      BigInt(match[1] ?? "0") * 1_000_000n +
+      BigInt((match[2] ?? "").padEnd(6, "0"))
+    );
+  };
+  const target = parse(total);
+  const values = parts.map(parse);
+  return (
+    target !== null &&
+    values.every((value) => value !== null) &&
+    values.reduce<bigint>((sum, value) => sum + (value ?? 0n), 0n) === target
+  );
+}
+
 function contentTypeFor(
   value: string | undefined,
 ): LocalDeliveryEvidence["contentType"] | null {
@@ -336,6 +595,12 @@ const styles = StyleSheet.create({
     paddingLeft: 12,
   },
   error: { color: colors.red, marginTop: 10 },
+  exceptionDetail: {
+    borderLeftColor: colors.orange,
+    borderLeftWidth: 2,
+    marginTop: 16,
+    paddingLeft: 12,
+  },
   eyebrow: {
     color: colors.orange,
     fontSize: 11,

@@ -174,7 +174,21 @@ export function DeliveryConfirmationWorkspace() {
               expected_delivery_version: selected.version,
               lines: selected.lines.map((line) => ({
                 accepted_quantity_base: line.quantityBase,
-                line_id: line.lineId,
+                damaged_quantity_base: "0",
+                delivery_line_id: line.deliveryLineId,
+                exception_details: {},
+                identity_partitions: line.identityPositions.map((position) => ({
+                  accepted_quantity_base: position.quantityBase,
+                  damaged_quantity_base: "0",
+                  delivery_line_identity_allocation_id:
+                    position.deliveryLineIdentityAllocationId,
+                  refused_quantity_base: "0",
+                  short_missing_quantity_base: "0",
+                  still_undelivered_quantity_base: "0",
+                })),
+                refused_quantity_base: "0",
+                short_missing_quantity_base: "0",
+                still_undelivered_quantity_base: "0",
               })),
               notes: notes.trim() || null,
               recipient_name: recipient.trim(),

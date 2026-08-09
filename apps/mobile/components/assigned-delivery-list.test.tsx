@@ -18,6 +18,25 @@ const delivery = {
   fulfillment_order_id: "765b5ab6-7f39-4671-8561-747755641016",
   lines: [
     {
+      delivery_line_id: "8334fd3c-8940-46d3-92cf-21d081b987d4",
+      identity_positions: [
+        {
+          delivery_line_identity_allocation_id:
+            "5eea1b5f-ec21-4d1c-8888-7348f523bbbe",
+          lot_code: null,
+          quantity_base: "1.000000",
+          serial_number: "SN-001",
+          tracking_policy: "serial",
+        },
+        {
+          delivery_line_identity_allocation_id:
+            "3dbf77d4-c5c8-42f1-b40c-04e31d1f62ab",
+          lot_code: null,
+          quantity_base: "1.000000",
+          serial_number: "SN-002",
+          tracking_policy: "serial",
+        },
+      ],
       line_id: "4af0c99a-b55d-4f68-bf34-6f0805630032",
       lot_selections: [],
       quantity_base: "2.000000",
