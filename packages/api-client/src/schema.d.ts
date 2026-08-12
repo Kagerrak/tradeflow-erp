@@ -4598,6 +4598,10 @@ export interface components {
         };
         /** StockEffect */
         StockEffect: {
+            /** Expected Replacement Count */
+            expected_replacement_count: number;
+            /** Expected Reversal Count */
+            expected_reversal_count: number;
             /** Original Movement Ids */
             original_movement_ids: string[];
             /** Replacement Movement Ids */

@@ -32,7 +32,7 @@
 ## Verification evidence
 
 - `uv run ruff check apps/api/src apps/api/tests apps/worker/src` / `uv run mypy
-  apps/api/src apps/worker/src` — passed.
+apps/api/src apps/worker/src` — passed.
 - `pnpm format` / `pnpm test` / `pnpm build` / `uv build --all-packages` — passed.
 - `uv run pytest apps/api/tests/test_delivery_correction_*.py -q` — 17 passed.
 - Full Python pytest suite — 122 passed, 4 skipped.

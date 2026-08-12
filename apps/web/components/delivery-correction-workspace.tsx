@@ -2,9 +2,15 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { type components } from "@tradeflow/api-client";
 
-type Status = "pending_authorization" | "posted";
-type Queue = "pending_authorization" | "posted" | "request";
+type ApiCorrectionDetail = components["schemas"]["DeliveryCorrectionResponse"];
+type ApiCorrectionSummary = components["schemas"]["DeliveryCorrectionSummary"];
+type ApiReceiptDetail = components["schemas"]["DeliveryReceiptDetailResponse"];
+type SignedAccessResponse = components["schemas"]["SignedAccessResponse"];
+
+type Status = ApiCorrectionSummary["status"];
+type Queue = Status | "request";
 type Failure = {
   code: string;
   correlationId: string;
@@ -30,68 +36,89 @@ type CorrectionLine = {
   damaged_quantity_base: string;
   delivery_line_id: string;
   identity_positions: IdentityPosition[];
-  line_id: string;
   refused_quantity_base: string;
   short_missing_quantity_base: string;
-  sku_id: string;
   still_undelivered_quantity_base: string;
+  line_id?: string;
+  sku_id?: string;
+  unit_cost?: string;
+  value_delta?: string;
 };
-type CorrectionSummary = {
-  affected_value_base_currency: string;
-  authorized_at: string | null;
-  authorized_by: string | null;
-  base_currency: string;
-  branch_id: string;
-  correction_id: string;
-  delivery_id: string;
-  original_delivery_receipt_id: string;
-  reason: string;
-  requested_at: string;
-  requested_by: string;
-  status: Status;
-  version: number;
-  warehouse_id: string;
-};
-type CorrectionDetail = CorrectionSummary & {
-  draft_invoice_effect: {
-    original_draft_invoice_id: string;
-    replacement_draft_invoice_id: string | null;
-    reversal_draft_invoice_id: string;
-    status: "completed" | "pending";
-  };
-  evidence_ids: string[];
+type CorrectionSummary = ApiCorrectionSummary;
+type CorrectionDetail = Omit<ApiCorrectionDetail, "lines"> & {
   lines: CorrectionLine[];
-  outbox_event_id: string | null;
-  receipt_effect: {
-    original_delivery_receipt_id: string;
-    original_number: string;
-    replacement_delivery_receipt_id: string | null;
-    replacement_document_status:
-      "pending_document" | "ready" | "unavailable" | null;
-    replacement_number: string | null;
-  };
-  stock_effect: {
-    original_movement_ids: string[];
-    replacement_movement_ids: string[];
-    reversal_movement_ids: string[];
-    status: "pending" | "posted";
-  };
 };
-type ReceiptDetail = {
+type ReceiptDetail = Omit<ApiReceiptDetail, "confirmation_lines"> & {
   confirmation_lines: CorrectionLine[];
-  correction_id: string | null;
-  correction_status: "corrected" | "current" | "replacement";
-  corrects_delivery_receipt_id: string | null;
-  created_by_correction_id: string | null;
-  delivery_id: string;
-  delivery_receipt_id: string;
-  evidence_ids: string[];
-  number: string;
-  replacement_delivery_receipt_id: string | null;
-  snapshot: Record<string, unknown>;
-  status: "pending_document" | "ready" | "unavailable";
-  superseded_by_correction_id: string | null;
 };
+
+function isFailurePayload(
+  payload: SignedAccessResponse | Failure,
+): payload is Failure {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "kind" in payload &&
+    typeof payload.kind === "string" &&
+    [
+      "conflict",
+      "forbidden",
+      "unauthenticated",
+      "unavailable",
+      "validation",
+    ].includes(payload.kind)
+  );
+}
+
+function openReceiptDocument(receiptId: string): void {
+  void (async () => {
+    try {
+      const response = await fetch(`/api/delivery-receipts/${receiptId}`, {
+        cache: "no-store",
+        method: "POST",
+      });
+      const payload = (await response.json()) as SignedAccessResponse | Failure;
+      if (
+        !response.ok ||
+        !("access_url" in payload) ||
+        typeof payload.access_url !== "string"
+      ) {
+        window.alert(
+          isFailurePayload(payload)
+            ? payload.message
+            : "The receipt document could not be opened.",
+        );
+        return;
+      }
+      window.open(payload.access_url, "_blank", "noopener,noreferrer");
+    } catch {
+      window.alert("The receipt document could not be reached.");
+    }
+  })();
+}
+
+function ReceiptDocumentLink({
+  children,
+  receiptId,
+}: {
+  children: React.ReactNode;
+  receiptId: string;
+}) {
+  return (
+    <a
+      href="#"
+      onClick={(event) => {
+        event.preventDefault();
+        openReceiptDocument(receiptId);
+      }}
+      role="link"
+      tabIndex={0}
+    >
+      {children}
+    </a>
+  );
+}
+
 type LoadState =
   { kind: "loading" } | Failure | { items: CorrectionSummary[]; kind: "ready" };
 type ActionState = { kind: "idle" | "pending" | "success" } | Failure;
@@ -670,14 +697,12 @@ function RequestWorkspace({
                 </a>
               )}
               {original.replacement_delivery_receipt_id !== null && (
-                <a
-                  href={`/api/delivery-receipts/${original.replacement_delivery_receipt_id}`}
-                  rel="noreferrer"
-                  target="_blank"
+                <ReceiptDocumentLink
+                  receiptId={original.replacement_delivery_receipt_id}
                 >
                   Open replacement receipt{" "}
                   {original.replacement_delivery_receipt_id}
-                </a>
+                </ReceiptDocumentLink>
               )}
             </div>
           )}
@@ -848,13 +873,11 @@ function ChainHeader({
         >
           <span>Earlier in this immutable chain</span>
           {original.corrects_delivery_receipt_id !== null && (
-            <a
-              href={`/api/delivery-receipts/${original.corrects_delivery_receipt_id}`}
-              rel="noreferrer"
-              target="_blank"
+            <ReceiptDocumentLink
+              receiptId={original.corrects_delivery_receipt_id}
             >
               Previous receipt {original.corrects_delivery_receipt_id}
-            </a>
+            </ReceiptDocumentLink>
           )}
           {previousCorrectionId !== null && (
             <a
@@ -870,13 +893,9 @@ function ChainHeader({
           <small>
             Source · {original.correction_status.replaceAll("_", " ")}
           </small>
-          <a
-            href={`/api/delivery-receipts/${original.delivery_receipt_id}`}
-            rel="noreferrer"
-            target="_blank"
-          >
+          <ReceiptDocumentLink receiptId={original.delivery_receipt_id}>
             {original.number}
-          </a>
+          </ReceiptDocumentLink>
           <span>{original.status.replaceAll("_", " ")} · preserved</span>
         </div>
         <i aria-hidden="true">→</i>
@@ -895,13 +914,9 @@ function ChainHeader({
                 : "Assigned only if posted"}
             </strong>
           ) : (
-            <a
-              href={`/api/delivery-receipts/${replacementReceiptId}`}
-              rel="noreferrer"
-              target="_blank"
-            >
+            <ReceiptDocumentLink receiptId={replacementReceiptId}>
               {replacementNumber}
-            </a>
+            </ReceiptDocumentLink>
           )}
           <span>
             {noReplacement
@@ -976,31 +991,32 @@ function CompareLine({
           />
         ))}
       </div>
-      {proposed.identity_positions.length > 0 && (
-        <details>
-          <summary>
-            {proposed.identity_positions.length} tracked identity partitions
-          </summary>
-          {proposed.identity_positions.map((position, index) => (
-            <div
-              className="identity-row"
-              key={position.delivery_line_identity_allocation_id}
-            >
-              <strong>
-                {position.serial_number ??
-                  position.lot_code ??
-                  `Identity ${index + 1}`}
-              </strong>
-              <span>{position.quantity_base}</span>
-              <small>
-                {quantityFields
-                  .map(([field, label]) => `${label}: ${position[field]}`)
-                  .join(" · ")}
-              </small>
-            </div>
-          ))}
-        </details>
-      )}
+      {proposed.identity_positions !== undefined &&
+        proposed.identity_positions.length > 0 && (
+          <details>
+            <summary>
+              {proposed.identity_positions.length} tracked identity partitions
+            </summary>
+            {proposed.identity_positions.map((position, index) => (
+              <div
+                className="identity-row"
+                key={position.delivery_line_identity_allocation_id}
+              >
+                <strong>
+                  {position.serial_number ??
+                    position.lot_code ??
+                    `Identity ${index + 1}`}
+                </strong>
+                <span>{position.quantity_base}</span>
+                <small>
+                  {quantityFields
+                    .map(([field, label]) => `${label}: ${position[field]}`)
+                    .join(" · ")}
+                </small>
+              </div>
+            ))}
+          </details>
+        )}
     </article>
   );
 }
@@ -1062,66 +1078,58 @@ function EditableLine({
             <input
               aria-label={`${label} quantity for ${line.delivery_line_id}`}
               inputMode="decimal"
-              readOnly={line.identity_positions.length > 0}
+              readOnly={
+                line.identity_positions !== undefined &&
+                line.identity_positions.length > 0
+              }
               value={line[field]}
               onChange={(event) => onEdit(lineIndex, field, event.target.value)}
             />
           </label>
         ))}
       </div>
-      {line.identity_positions.map((position, identityIndex) => (
-        <fieldset key={position.delivery_line_identity_allocation_id}>
-          <legend>
-            {position.serial_number ?? position.lot_code} · tracked quantity{" "}
-            {position.quantity_base}
-          </legend>
-          <div className="correction-input-grid">
-            {quantityFields.map(([field, label]) => (
-              <label key={field}>
-                {label}
-                <input
-                  aria-label={`${label} quantity for ${position.serial_number ?? position.lot_code}`}
-                  inputMode="decimal"
-                  value={position[field]}
-                  onChange={(event) =>
-                    onEdit(lineIndex, field, event.target.value, identityIndex)
-                  }
-                />
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      ))}
+      {line.identity_positions !== undefined &&
+        line.identity_positions.map((position, identityIndex) => (
+          <fieldset key={position.delivery_line_identity_allocation_id}>
+            <legend>
+              {position.serial_number ?? position.lot_code} · tracked quantity{" "}
+              {position.quantity_base}
+            </legend>
+            <div className="correction-input-grid">
+              {quantityFields.map(([field, label]) => (
+                <label key={field}>
+                  {label}
+                  <input
+                    aria-label={`${label} quantity for ${position.serial_number ?? position.lot_code}`}
+                    inputMode="decimal"
+                    value={position[field]}
+                    onChange={(event) =>
+                      onEdit(
+                        lineIndex,
+                        field,
+                        event.target.value,
+                        identityIndex,
+                      )
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ))}
     </article>
   );
 }
 
 function Effects({
   detail,
-  original,
 }: {
   detail: CorrectionDetail;
   original: ReceiptDetail;
 }) {
   const pending = detail.status === "pending_authorization";
-  const expectedReversals = pending
-    ? original.confirmation_lines.reduce(
-        (count, line) =>
-          count +
-          (hasPositive(line.accepted_quantity_base) ? 1 : 0) +
-          (hasPositive(line.short_missing_quantity_base) ? 2 : 0),
-        0,
-      )
-    : detail.stock_effect.reversal_movement_ids.length;
-  const expectedReplacements = pending
-    ? detail.lines.reduce(
-        (count, line) =>
-          count +
-          (hasPositive(line.accepted_quantity_base) ? 1 : 0) +
-          (hasPositive(line.short_missing_quantity_base) ? 2 : 0),
-        0,
-      )
-    : detail.stock_effect.replacement_movement_ids.length;
+  const expectedReversals = detail.stock_effect.expected_reversal_count;
+  const expectedReplacements = detail.stock_effect.expected_replacement_count;
   const replacementInvoiceExpected = pending
     ? detail.lines.some((line) => hasPositive(line.accepted_quantity_base))
     : detail.draft_invoice_effect.replacement_draft_invoice_id !== null;
@@ -1283,7 +1291,7 @@ function commandLine(line: CorrectionLine) {
 }
 
 function enrichDetail(
-  detail: CorrectionDetail,
+  detail: ApiCorrectionDetail,
   original: ReceiptDetail,
 ): CorrectionDetail {
   return {
@@ -1292,20 +1300,25 @@ function enrichDetail(
       const source = original.confirmation_lines.find(
         (line) => line.delivery_line_id === proposal.delivery_line_id,
       );
-      if (source === undefined) return proposal;
+      if (source === undefined) return proposal as CorrectionLine;
+      const apiPositions = proposal.identity_positions as
+        IdentityPosition[] | undefined;
       return {
         ...source,
         ...proposal,
-        identity_positions: proposal.identity_positions.map((position) => {
-          const sourcePosition = source.identity_positions.find(
-            (item) =>
-              item.delivery_line_identity_allocation_id ===
-              position.delivery_line_identity_allocation_id,
-          );
-          return sourcePosition === undefined
-            ? position
-            : { ...sourcePosition, ...position };
-        }),
+        identity_positions:
+          apiPositions === undefined
+            ? source.identity_positions
+            : apiPositions.map((position) => {
+                const sourcePosition = source.identity_positions.find(
+                  (item) =>
+                    item.delivery_line_identity_allocation_id ===
+                    position.delivery_line_identity_allocation_id,
+                );
+                return sourcePosition === undefined
+                  ? position
+                  : { ...sourcePosition, ...position };
+              }),
       };
     }),
   };
@@ -1322,11 +1335,12 @@ function validProposal(original: CorrectionLine[], proposed: CorrectionLine[]) {
       return false;
     if (!quantityFields.every(([field]) => canonicalQuantity(line[field])))
       return false;
-    if (line.identity_positions.length !== source.identity_positions.length)
-      return false;
-    if (line.identity_positions.length === 0) return true;
+    const identityPositions = line.identity_positions ?? [];
+    const sourcePositions = source.identity_positions ?? [];
+    if (identityPositions.length !== sourcePositions.length) return false;
+    if (identityPositions.length === 0) return true;
     if (
-      !line.identity_positions.every(
+      !identityPositions.every(
         (position) =>
           canonicalQuantity(position.quantity_base) &&
           quantityFields.every(([field]) =>
@@ -1340,7 +1354,7 @@ function validProposal(original: CorrectionLine[], proposed: CorrectionLine[]) {
     return quantityFields.every(
       ([field]) =>
         parseScaled(line[field]) ===
-        line.identity_positions.reduce(
+        identityPositions.reduce(
           (sum, position) => sum + (parseScaled(position[field]) ?? 0n),
           0n,
         ),

@@ -94,6 +94,8 @@ const detail = {
     replacement_number: null,
   },
   stock_effect: {
+    expected_replacement_count: 1,
+    expected_reversal_count: 1,
     original_movement_ids: ["5d0678c5-1307-461c-a034-a29c8940eed9"],
     replacement_movement_ids: ["6d0678c5-1307-461c-a034-a29c8940eed9"],
     reversal_movement_ids: ["7d0678c5-1307-461c-a034-a29c8940eed9"],
@@ -144,6 +146,8 @@ test("shows posted status and counts for a posted correction", async ({
       status: "completed",
     },
     stock_effect: {
+      expected_replacement_count: 1,
+      expected_reversal_count: 1,
       original_movement_ids: ["5d0678c5-1307-461c-a034-a29c8940eed9"],
       replacement_movement_ids: ["6d0678c5-1307-461c-a034-a29c8940eed9"],
       reversal_movement_ids: ["7d0678c5-1307-461c-a034-a29c8940eed9"],
@@ -553,18 +557,69 @@ test("posted history links original and replacement receipt identities", async (
   await page.route(`**/api/delivery-corrections/${correctionId}`, (route) =>
     route.fulfill({ contentType: "application/json", json: posted }),
   );
-  await page.route(`**/api/delivery-receipts/${receiptId}`, (route) =>
-    route.fulfill({ contentType: "application/json", json: receipt }),
-  );
+  await page.route(`**/api/delivery-receipts/${receiptId}`, (route) => {
+    if (route.request().method() === "POST") {
+      return route.fulfill({
+        contentType: "application/json",
+        json: {
+          access_url: "https://documents.test/receipt-42",
+          expires_at: "2026-08-11T10:00:00Z",
+        },
+      });
+    }
+    return route.fulfill({ contentType: "application/json", json: receipt });
+  });
+  await page.route(`**/api/delivery-receipts/${replacementId}`, (route) => {
+    if (route.request().method() === "POST") {
+      return route.fulfill({
+        contentType: "application/json",
+        json: {
+          access_url: "https://documents.test/receipt-43",
+          expires_at: "2026-08-11T10:00:00Z",
+        },
+      });
+    }
+    return route.fulfill({
+      contentType: "application/json",
+      json: { ...receipt, delivery_receipt_id: replacementId },
+    });
+  });
   await page.goto("/delivery-corrections");
   await page.getByRole("button", { name: "Posted chain" }).click();
   await page.getByRole("button", { name: new RegExp(correctionId) }).click();
   await expect(
     page.getByRole("link", { name: "DR-MNL-00000042" }),
-  ).toHaveAttribute("href", `/api/delivery-receipts/${receiptId}`);
+  ).toHaveAttribute("href", "#");
   await expect(
     page.getByRole("link", { name: "DR-MNL-00000043" }),
-  ).toHaveAttribute("href", `/api/delivery-receipts/${replacementId}`);
+  ).toHaveAttribute("href", "#");
+
+  const openedUrls: string[] = [];
+  await page.exposeFunction("recordOpenedUrl", (url: string) =>
+    openedUrls.push(url),
+  );
+  await page.evaluate(() => {
+    const originalOpen = window.open;
+    window.open = (url?: string | URL, target?: string, features?: string) => {
+      if (url !== undefined && url !== null) {
+        const urlString = typeof url === "string" ? url : url.toString();
+        void (
+          window as unknown as { recordOpenedUrl: (u: string) => void }
+        ).recordOpenedUrl(urlString);
+      }
+      return originalOpen(url, target, features);
+    };
+  });
+
+  await page.getByRole("link", { name: "DR-MNL-00000042" }).click();
+  await expect
+    .poll(() => openedUrls)
+    .toContain("https://documents.test/receipt-42");
+  await page.getByRole("link", { name: "DR-MNL-00000043" }).click();
+  await expect
+    .poll(() => openedUrls)
+    .toContain("https://documents.test/receipt-43");
+
   await expect(page.getByLabel("Complete audit chain")).toContainText(
     "approver-2",
   );
@@ -642,7 +697,7 @@ test("shows sequential correction lineage and opens a linked predecessor directl
   );
   await expect(
     page.getByRole("link", { name: `Previous receipt ${priorReceiptId}` }),
-  ).toHaveAttribute("href", `/api/delivery-receipts/${priorReceiptId}`);
+  ).toHaveAttribute("href", "#");
   await expect(page.getByLabel("Receipt correction chain")).toContainText(
     correctionId,
   );
@@ -684,7 +739,7 @@ test("blocks a new proposal from a superseded receipt and links its chain head",
     page.getByRole("link", {
       name: `Open replacement receipt ${replacementId}`,
     }),
-  ).toHaveAttribute("href", `/api/delivery-receipts/${replacementId}`);
+  ).toHaveAttribute("href", "#");
   await expect(
     page.getByRole("button", { name: "Request independent approval" }),
   ).toBeDisabled();
@@ -814,6 +869,75 @@ test("receipt detail and signed access remain available to correction-role sessi
       delete process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN;
     else process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN = originalToken;
   }
+});
+
+test.describe("mobile-web", () => {
+  test.use({
+    hasTouch: true,
+    isMobile: true,
+    viewport: { height: 844, width: 390 },
+  });
+
+  test("shows correction ledger, chain, quantities, and effects responsively", async ({
+    page,
+  }) => {
+    await routeReview(page);
+    await page.goto("/delivery-corrections");
+    await expect(
+      page.getByRole("button", { name: new RegExp(correctionId) }),
+    ).toBeVisible();
+    await expect(page.locator(".correction-ledger-head")).toContainText(
+      "Requested",
+    );
+    await expect(page.locator(".correction-ledger-head")).toContainText(
+      "Value effect",
+    );
+    await page.getByRole("button", { name: new RegExp(correctionId) }).click();
+    await expect(page.getByLabel("Receipt correction chain")).toContainText(
+      "DR-MNL-00000042",
+    );
+    await expect(
+      page.getByLabel("Original and proposed quantities"),
+    ).toContainText("-1.000000");
+    await expect(page.locator(".correction-effects")).toContainText(
+      "1 reversal · 1 replacement",
+    );
+  });
+
+  test("requests a correction on a narrow viewport", async ({ page }) => {
+    await page.route(`**/api/delivery-receipts/${receiptId}`, (route) =>
+      route.fulfill({ contentType: "application/json", json: receipt }),
+    );
+    await page.route(
+      `**/api/delivery-receipts/${receiptId}/corrections`,
+      (route) =>
+        route.fulfill({
+          contentType: "application/json",
+          json: detail,
+          status: 201,
+        }),
+    );
+    await page.goto("/delivery-corrections");
+    await page.getByRole("button", { name: "Request correction" }).click();
+    await page.getByLabel("Delivery Receipt ID").fill(receiptId);
+    await page.getByRole("button", { name: "Review original" }).click();
+    await page
+      .getByLabel(`Accepted quantity for ${deliveryLineId}`)
+      .fill("1.000000");
+    await page
+      .getByLabel(`Damaged quantity for ${deliveryLineId}`)
+      .fill("1.000000");
+    await page.getByLabel("Correction reason").fill("Damaged on mobile view");
+    await page.getByLabel(/Retained proof 1/).check();
+    await page
+      .getByRole("button", { name: "Request independent approval" })
+      .click();
+    await expect(
+      page.getByRole("heading", {
+        name: "Waiting for an independent approver.",
+      }),
+    ).toBeVisible();
+  });
 });
 
 test("BFF routes normalize upstream authentication and forward command identity", async () => {
