@@ -10,6 +10,11 @@ export type PaymentReceiptStatus =
 export type PaymentOperationalState =
   | PaymentReceiptStatus
   | "insufficient"
+  | "captured"
+  | "cod_due"
+  | "converted"
+  | "reconciled"
+  | "conflicted"
   | "deadline_due"
   | "payment_hold"
   | "retry_ready";
@@ -23,6 +28,36 @@ export const paymentStateContent: Record<
     tone: "attention" | "critical" | "neutral" | "positive";
   }
 > = {
+  captured: {
+    description:
+      "COD funds and proof are captured locally or on the server but are not yet a cleared settlement.",
+    nextAction: "Sync or complete the configured method verification.",
+    title: "COD captured",
+    tone: "neutral",
+  },
+  cod_due: {
+    description:
+      "The accepted Delivery value must be settled before outbound stock can post.",
+    nextAction:
+      "Collect the exact due amount or request an On Account conversion.",
+    title: "COD due",
+    tone: "attention",
+  },
+  conflicted: {
+    description:
+      "Authoritative Delivery, payment, assignment, or credit state changed after capture.",
+    nextAction:
+      "Refresh and resolve explicitly; do not merge money automatically.",
+    title: "COD conflicted",
+    tone: "critical",
+  },
+  converted: {
+    description:
+      "A distinct authorized approver moved the exact unpaid COD value to customer credit exposure.",
+    nextAction: "Confirm the linked Delivery under the approved conversion.",
+    title: "Converted to On Account",
+    tone: "attention",
+  },
   awaiting_bank_clearance: {
     description:
       "Finance verified the check evidence. It is not cleared money until the bank confirms settlement.",
@@ -74,6 +109,14 @@ export const paymentStateContent: Record<
       "Record a new receipt with corrected evidence if payment was received.",
     title: "Evidence rejected",
     tone: "critical",
+  },
+  reconciled: {
+    description:
+      "Finance compared entrusted physical cash with the cleared COD receipt and recorded any variance.",
+    nextAction:
+      "Retain the immutable history; use adjustment or reversal for corrections.",
+    title: "Cash reconciled",
+    tone: "positive",
   },
   retry_ready: {
     description:

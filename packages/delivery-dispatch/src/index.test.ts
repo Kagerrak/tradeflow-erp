@@ -15,6 +15,7 @@ describe("Delivery Dispatch client", () => {
               items: [
                 {
                   assigned_to: "delivery-mnl",
+                  collection_amount_due: "224.00",
                   collection_required: true,
                   delivery_address: {
                     city: "Manila",
@@ -59,6 +60,7 @@ describe("Delivery Dispatch client", () => {
         expect.objectContaining({
           assignedTo: "delivery-mnl",
           collectionRequired: true,
+          collectionAmountDue: "224.00",
           evidenceRequirements: ["recipient_name", "signature"],
           lines: [
             expect.objectContaining({

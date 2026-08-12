@@ -9,6 +9,12 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 type ConfirmationResponse = {
+  collection?: {
+    amount_collected: string;
+    cash_reconciliation_status: "pending" | null;
+    payment_method: string;
+    status: string;
+  } | null;
   confirmation_id: string;
   delivery_receipt: {
     delivery_receipt_id: string;
@@ -31,6 +37,7 @@ type PendingWebConfirmation = {
     kind: "photo" | "signature";
   }>;
   idempotencyKey: string;
+  paymentReceiptId: string | null;
 };
 
 export function DeliveryConfirmationWorkspace() {
@@ -38,6 +45,15 @@ export function DeliveryConfirmationWorkspace() {
   const [selected, setSelected] = useState<AssignedDelivery | null>(null);
   const [recipient, setRecipient] = useState("");
   const [notes, setNotes] = useState("");
+  const [cashCollected, setCashCollected] = useState("");
+  const [settlementMode, setSettlementMode] = useState<
+    "cash" | "noncash" | "on_account"
+  >("cash");
+  const [noncashMethod, setNoncashMethod] = useState<
+    "bank_transfer" | "check" | "electronic"
+  >("bank_transfer");
+  const [paymentReceiptId, setPaymentReceiptId] = useState("");
+  const [conversionId, setConversionId] = useState("");
   const [signature, setSignature] = useState<File | null>(null);
   const [photos, setPhotos] = useState<File[]>([]);
   const [operation, setOperation] = useState<OperationState>({ kind: "empty" });
@@ -64,6 +80,10 @@ export function DeliveryConfirmationWorkspace() {
   const choose = (delivery: AssignedDelivery) => {
     setSelected(delivery);
     setRecipient(delivery.recipientName);
+    setCashCollected(delivery.collectionAmountDue ?? "");
+    setSettlementMode("cash");
+    setPaymentReceiptId("");
+    setConversionId("");
     setOperation({ kind: "empty" });
     setReceiptUrl(null);
     pending.current = null;
@@ -79,6 +99,27 @@ export function DeliveryConfirmationWorkspace() {
       selected === null ||
       signature === null ||
       recipient.trim().length === 0
+    )
+      return;
+    if (selected.collectionRequired && selected.collectionAmountDue === null)
+      return;
+    if (
+      selected.collectionRequired &&
+      settlementMode !== "on_account" &&
+      (!isCanonicalPositiveDecimal(cashCollected) ||
+        Number(cashCollected) < Number(selected.collectionAmountDue))
+    )
+      return;
+    if (
+      selected.collectionRequired &&
+      settlementMode === "noncash" &&
+      paymentReceiptId.trim() === ""
+    )
+      return;
+    if (
+      selected.collectionRequired &&
+      settlementMode === "on_account" &&
+      conversionId.trim() === ""
     )
       return;
     setOperation({ kind: "pending" });
@@ -101,6 +142,10 @@ export function DeliveryConfirmationWorkspace() {
           })),
         ],
         idempotencyKey: `delivery-confirmation:${confirmationId}`,
+        paymentReceiptId:
+          selected.collectionRequired && settlementMode === "cash"
+            ? crypto.randomUUID()
+            : null,
       };
       pending.current = work;
     }
@@ -133,6 +178,26 @@ export function DeliveryConfirmationWorkspace() {
               })),
               notes: notes.trim() || null,
               recipient_name: recipient.trim(),
+              ...(selected.collectionRequired && settlementMode !== "on_account"
+                ? {
+                    collection: {
+                      amount: cashCollected,
+                      currency: "PHP",
+                      evidence: null,
+                      external_reference: null,
+                      payment_method:
+                        settlementMode === "cash" ? "cash" : noncashMethod,
+                      payment_receipt_id:
+                        settlementMode === "cash"
+                          ? work.paymentReceiptId
+                          : paymentReceiptId.trim(),
+                      received_at: work.capturedAt,
+                    },
+                  }
+                : {}),
+              ...(selected.collectionRequired && settlementMode === "on_account"
+                ? { on_account_conversion_id: conversionId.trim() }
+                : {}),
             },
             idempotencyKey: work.idempotencyKey,
           }),
@@ -236,70 +301,165 @@ export function DeliveryConfirmationWorkspace() {
               <section className="delivery-capture">
                 <p className="eyebrow">PROOF OF DELIVERY</p>
                 <h2>{selected.recipientName}</h2>
-                {selected.collectionRequired ? (
-                  <State
-                    title="Collection required before confirmation"
-                    detail="COD acceptance is completed atomically in the collection workflow."
-                  />
-                ) : (
-                  <>
-                    <label>
-                      Recipient name
-                      <input
-                        aria-label="Recipient name"
-                        value={recipient}
-                        onChange={(event) =>
-                          edit(() => setRecipient(event.target.value))
-                        }
-                      />
-                    </label>
-                    <label>
-                      Signature evidence
-                      <input
-                        aria-label="Signature evidence"
-                        accept="image/jpeg,image/png,image/webp"
-                        type="file"
-                        onChange={(event) =>
-                          edit(() =>
-                            setSignature(event.target.files?.[0] ?? null),
-                          )
-                        }
-                      />
-                    </label>
-                    <label>
-                      Delivery photos
-                      <input
-                        aria-label="Delivery photos"
-                        accept="image/jpeg,image/png,image/webp"
-                        multiple
-                        type="file"
-                        onChange={(event) =>
-                          edit(() =>
-                            setPhotos(Array.from(event.target.files ?? [])),
-                          )
-                        }
-                      />
-                    </label>
-                    <label>
-                      Notes
-                      <textarea
-                        aria-label="Delivery notes"
-                        value={notes}
-                        onChange={(event) =>
-                          edit(() => setNotes(event.target.value))
-                        }
-                      />
-                    </label>
-                    <button
-                      disabled={
-                        signature === null || operation.kind === "pending"
+                <>
+                  {selected.collectionRequired && (
+                    <div className="delivery-cod">
+                      <p>
+                        COD due: PHP{" "}
+                        {selected.collectionAmountDue ?? "Unavailable"}
+                      </p>
+                      <div aria-label="COD settlement method">
+                        {(["cash", "noncash", "on_account"] as const).map(
+                          (value) => (
+                            <button
+                              aria-pressed={settlementMode === value}
+                              key={value}
+                              onClick={() =>
+                                edit(() => setSettlementMode(value))
+                              }
+                              type="button"
+                            >
+                              {value.replaceAll("_", " ")}
+                            </button>
+                          ),
+                        )}
+                      </div>
+                      {settlementMode !== "on_account" && (
+                        <label>
+                          COD amount collected
+                          <input
+                            aria-label="COD amount collected"
+                            inputMode="decimal"
+                            value={cashCollected}
+                            onChange={(event) =>
+                              edit(() => setCashCollected(event.target.value))
+                            }
+                          />
+                        </label>
+                      )}
+                      {settlementMode === "noncash" && (
+                        <>
+                          <label>
+                            Non-cash method
+                            <select
+                              aria-label="Non-cash method"
+                              value={noncashMethod}
+                              onChange={(event) =>
+                                edit(() =>
+                                  setNoncashMethod(
+                                    event.target.value as typeof noncashMethod,
+                                  ),
+                                )
+                              }
+                            >
+                              <option value="bank_transfer">
+                                Bank transfer
+                              </option>
+                              <option value="check">Check</option>
+                              <option value="electronic">Electronic</option>
+                            </select>
+                          </label>
+                          <label>
+                            Cleared Payment Receipt ID
+                            <input
+                              aria-label="Cleared Payment Receipt ID"
+                              value={paymentReceiptId}
+                              onChange={(event) =>
+                                edit(() =>
+                                  setPaymentReceiptId(event.target.value),
+                                )
+                              }
+                            />
+                          </label>
+                        </>
+                      )}
+                      {settlementMode === "on_account" && (
+                        <label>
+                          Approved On Account conversion ID
+                          <input
+                            aria-label="Approved On Account conversion ID"
+                            value={conversionId}
+                            onChange={(event) =>
+                              edit(() => setConversionId(event.target.value))
+                            }
+                          />
+                        </label>
+                      )}
+                      <small>
+                        Settlement and proof post together only after server
+                        acknowledgement.
+                      </small>
+                    </div>
+                  )}
+                  <label>
+                    Recipient name
+                    <input
+                      aria-label="Recipient name"
+                      value={recipient}
+                      onChange={(event) =>
+                        edit(() => setRecipient(event.target.value))
                       }
-                      onClick={() => void confirm()}
-                    >
-                      Confirm accepted quantity
-                    </button>
-                  </>
-                )}
+                    />
+                  </label>
+                  <label>
+                    Signature evidence
+                    <input
+                      aria-label="Signature evidence"
+                      accept="image/jpeg,image/png,image/webp"
+                      type="file"
+                      onChange={(event) =>
+                        edit(() =>
+                          setSignature(event.target.files?.[0] ?? null),
+                        )
+                      }
+                    />
+                  </label>
+                  <label>
+                    Delivery photos
+                    <input
+                      aria-label="Delivery photos"
+                      accept="image/jpeg,image/png,image/webp"
+                      multiple
+                      type="file"
+                      onChange={(event) =>
+                        edit(() =>
+                          setPhotos(Array.from(event.target.files ?? [])),
+                        )
+                      }
+                    />
+                  </label>
+                  <label>
+                    Notes
+                    <textarea
+                      aria-label="Delivery notes"
+                      value={notes}
+                      onChange={(event) =>
+                        edit(() => setNotes(event.target.value))
+                      }
+                    />
+                  </label>
+                  <button
+                    disabled={
+                      signature === null ||
+                      operation.kind === "pending" ||
+                      (selected.collectionRequired &&
+                        (selected.collectionAmountDue === null ||
+                          (settlementMode !== "on_account" &&
+                            (!isCanonicalPositiveDecimal(cashCollected) ||
+                              Number(cashCollected) <
+                                Number(selected.collectionAmountDue))) ||
+                          (settlementMode === "noncash" &&
+                            paymentReceiptId.trim() === "") ||
+                          (settlementMode === "on_account" &&
+                            conversionId.trim() === "")))
+                    }
+                    onClick={() => void confirm()}
+                  >
+                    {selected.collectionRequired
+                      ? "Confirm COD collection and delivery"
+                      : "Confirm accepted quantity"}
+                  </button>
+                </>
               </section>
             )}
           </div>
@@ -312,6 +472,10 @@ export function DeliveryConfirmationWorkspace() {
       </main>
     </div>
   );
+}
+
+function isCanonicalPositiveDecimal(value: string): boolean {
+  return /^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(value) && Number(value) > 0;
 }
 
 async function uploadEvidence(
@@ -413,6 +577,9 @@ function OperationStateView({
       <section className="delivery-state" aria-live="polite">
         <h2>Delivery confirmed</h2>
         <p>
+          {state.response.collection?.status === "cleared"
+            ? `COD ${state.response.collection.payment_method} collection of PHP ${state.response.collection.amount_collected} cleared; cash reconciliation is pending. `
+            : ""}
           {state.response.delivery_receipt.status === "ready"
             ? `Receipt ${state.response.delivery_receipt.number} is ready.`
             : state.response.delivery_receipt.status === "unavailable"

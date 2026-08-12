@@ -174,6 +174,7 @@ async def bootstrap_payment_clearance(
                     "code": "DELIVERY_STAFF",
                     "name": "Delivery Staff",
                     "capabilities": [
+                        "finance:payment-record",
                         "fulfillment:delivery-read",
                         "fulfillment:delivery-confirm",
                     ],
@@ -187,6 +188,14 @@ async def bootstrap_payment_clearance(
                     "code": "DEADLINE",
                     "name": "Payment Deadline Processor",
                     "capabilities": ["inventory:payment-deadline-process"],
+                },
+                {
+                    "code": "COD_CREDIT_APPROVER",
+                    "name": "COD Credit Approver",
+                    "capabilities": [
+                        "sales:cod-convert-on-account",
+                        "sales:credit-override",
+                    ],
                 },
             ],
             "users": [
@@ -283,6 +292,22 @@ async def bootstrap_payment_clearance(
                     "role_template_codes": ["DEADLINE"],
                     "branch_codes": ["MNL"],
                     "warehouse_codes": ["MNL-01"],
+                },
+                {
+                    "subject": "cod-credit-approver-mnl",
+                    "display_name": "Manila COD Credit Approver",
+                    "role_template_codes": ["COD_CREDIT_APPROVER"],
+                    "branch_codes": ["MNL"],
+                    "warehouse_codes": [],
+                    "approval_authorities": [
+                        {
+                            "capability": "sales:credit-override",
+                            "branch_code": "MNL",
+                            "maximum_amount": "1000.00",
+                            "maximum_percentage": None,
+                            "maker_checker_required": True,
+                        }
+                    ],
                 },
                 {
                     "subject": "finance-ceb",
@@ -798,6 +823,104 @@ async def test_transfer_requires_different_verifier_and_unique_normalized_refere
     )
     assert duplicate.status_code == 409
     assert duplicate.json()["error"]["code"] == "external_payment_reference_conflict"
+
+
+@pytest.mark.asyncio
+async def test_approved_provider_confirmation_clears_matching_electronic_reference(
+    payment_client: AsyncClient,
+    payment_settings: Settings,
+    postgres_url: str,
+) -> None:
+    fixture = await approved_prepaid_order(payment_client, payment_settings, postgres_url)
+    engine = create_async_engine(postgres_url)
+    async with engine.begin() as connection:
+        await connection.execute(
+            text(
+                "UPDATE payment_methods SET provider_confirmation_enabled = true "
+                "WHERE kind = 'electronic'"
+            )
+        )
+    await engine.dispose()
+    recorded = await record_receipt(
+        payment_client,
+        payment_settings,
+        fixture,
+        payment_method="electronic",
+        external_reference="EWALLET-9001",
+        key="record-provider-payment",
+    )
+    assert recorded.status_code == 201, recorded.text
+    confirmed = await payment_client.post(
+        f"/v1/finance/payment-receipts/{recorded.json()['payment_receipt_id']}"
+        "/provider-confirmation",
+        headers=auth(
+            payment_settings,
+            "finance-verifier",
+            **{"Idempotency-Key": "provider-confirms-payment"},
+        ),
+        json={
+            "confirmed_at": "2026-07-29T02:00:00Z",
+            "provider_reference": " ewallet-9001 ",
+            "reason": "Signed provider settlement callback accepted",
+        },
+    )
+    assert confirmed.status_code == 201, confirmed.text
+
+    engine = create_async_engine(postgres_url)
+    async with engine.begin() as connection:
+        await connection.execute(
+            text(
+                """
+                INSERT INTO role_template_capabilities(role_template_id, capability_code)
+                SELECT role_template_id, 'finance:payment-record'
+                FROM role_templates WHERE code = 'FINANCE_VERIFIER'
+                ON CONFLICT DO NOTHING
+                """
+            )
+        )
+    await engine.dispose()
+    self_recorded = await record_receipt(
+        payment_client,
+        payment_settings,
+        fixture,
+        payment_method="electronic",
+        external_reference="EWALLET-SELF-CHECK",
+        key="record-provider-payment-self-check",
+        actor="finance-verifier",
+    )
+    assert self_recorded.status_code == 201, self_recorded.text
+    self_confirmed = await payment_client.post(
+        f"/v1/finance/payment-receipts/{self_recorded.json()['payment_receipt_id']}"
+        "/provider-confirmation",
+        headers=auth(
+            payment_settings,
+            "finance-verifier",
+            **{"Idempotency-Key": "provider-self-confirms-payment"},
+        ),
+        json={
+            "confirmed_at": "2026-07-29T02:05:00Z",
+            "provider_reference": "EWALLET-SELF-CHECK",
+            "reason": "Must be independently confirmed",
+        },
+    )
+    assert self_confirmed.status_code == 409, self_confirmed.text
+    assert self_confirmed.json()["error"]["code"] == "maker_checker_violation"
+    assert confirmed.json()["status"] == "cleared"
+    engine = create_async_engine(postgres_url)
+    async with engine.connect() as connection:
+        events = list(
+            (
+                await connection.execute(
+                    text(
+                        "SELECT event_type FROM payment_receipt_events "
+                        "WHERE payment_receipt_id = :receipt_id ORDER BY occurred_at, event_type"
+                    ),
+                    {"receipt_id": recorded.json()["payment_receipt_id"]},
+                )
+            ).scalars()
+        )
+    await engine.dispose()
+    assert events == ["recorded", "cleared", "provider_confirmed"]
 
 
 @pytest.mark.asyncio

@@ -5,6 +5,7 @@ import { AssignedDeliveryList } from "./assigned-delivery-list";
 
 const delivery = {
   assigned_to: "delivery-mnl",
+  collection_amount_due: "224.00",
   collection_required: true,
   delivery_address: {
     city: "Manila",
@@ -58,7 +59,7 @@ it("hydrates an authorized Delivery snapshot for offline read-only work", async 
   ).toBeOnTheScreen();
   expect(screen.getByText("SERIAL SN-001")).toBeOnTheScreen();
   expect(
-    screen.getByText("CASH ON DELIVERY · COLLECTION REQUIRED"),
+    screen.getByText("CASH ON DELIVERY · PHP 224.00 · COLLECTION REQUIRED"),
   ).toBeOnTheScreen();
   await online.unmount();
 

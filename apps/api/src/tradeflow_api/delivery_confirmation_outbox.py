@@ -27,6 +27,10 @@ from tradeflow_api.models import (
 )
 from tradeflow_api.money import currency_quantum
 from tradeflow_api.object_storage import ObjectStorage
+from tradeflow_api.settlement_allocation import (
+    allocate_partial_line_amounts,
+    load_prior_confirmation_allocations,
+)
 
 HANDLER_NAME = "finance.draft-invoice.v1"
 RECEIPT_HANDLER_NAME = "documents.delivery-receipt.v1"
@@ -36,37 +40,6 @@ SIX_PLACES = Decimal("0.000001")
 
 def _id(kind: str, source_id: UUID | str) -> UUID:
     return uuid5(NAMESPACE_URL, f"tradeflow:{kind}:{source_id}")
-
-
-def allocate_partial_line_amounts(
-    *,
-    quantity: Decimal,
-    source_quantity: Decimal,
-    source_subtotal: Decimal,
-    source_discount: Decimal,
-    source_tax: Decimal,
-    source_total: Decimal,
-    prior_quantity: Decimal,
-    prior_subtotal: Decimal,
-    prior_discount: Decimal,
-    prior_tax: Decimal,
-    prior_total: Decimal,
-    quantum: Decimal,
-) -> tuple[Decimal, Decimal, Decimal, Decimal]:
-    ratio = quantity / source_quantity
-    if prior_quantity + quantity == source_quantity:
-        return (
-            source_subtotal - prior_subtotal,
-            source_discount - prior_discount,
-            source_tax - prior_tax,
-            source_total - prior_total,
-        )
-    return (
-        (source_subtotal * ratio).quantize(quantum, ROUND_HALF_UP),
-        (source_discount * ratio).quantize(quantum, ROUND_HALF_UP),
-        (source_tax * ratio).quantize(quantum, ROUND_HALF_UP),
-        (source_total * ratio).quantize(quantum, ROUND_HALF_UP),
-    )
 
 
 async def create_draft_invoice_for_event(
@@ -164,27 +137,18 @@ async def create_draft_invoice_for_event(
         base_unit_price = (
             cast(Decimal, line["effective_unit_price"]) / base_quantity_per_unit
         ).quantize(SIX_PLACES, ROUND_HALF_UP)
-        prior = (
-            await session.execute(
-                select(
-                    func.coalesce(func.sum(draft_invoice_lines.c.accepted_quantity_base), ZERO),
-                    func.coalesce(func.sum(draft_invoice_lines.c.subtotal), ZERO),
-                    func.coalesce(func.sum(draft_invoice_lines.c.discount_amount), ZERO),
-                    func.coalesce(func.sum(draft_invoice_lines.c.tax_amount), ZERO),
-                    func.coalesce(func.sum(draft_invoice_lines.c.line_total), ZERO),
-                )
-                .select_from(
-                    draft_invoice_lines.join(
-                        draft_invoices,
-                        draft_invoice_lines.c.draft_invoice_id == draft_invoices.c.draft_invoice_id,
-                    )
-                )
-                .where(
-                    draft_invoices.c.sales_order_revision_id == source["sales_order_revision_id"],
-                    draft_invoice_lines.c.line_id == line["line_id"],
-                )
-            )
-        ).one()
+        prior = await load_prior_confirmation_allocations(
+            session,
+            sales_order_revision_id=source["sales_order_revision_id"],
+            line_id=line["line_id"],
+            current_confirmation_id=confirmation_id,
+            source_quantity=line["quantity_base"],
+            source_subtotal=Decimal(line["calculation_snapshot"]["pre_discount_amount"]),
+            source_discount=line["allocated_discount"],
+            source_tax=line["tax_amount"],
+            source_total=line["line_total"],
+            quantum=quantum,
+        )
         line_subtotal, line_discount, line_tax, line_total = allocate_partial_line_amounts(
             quantity=quantity,
             source_quantity=line["quantity_base"],

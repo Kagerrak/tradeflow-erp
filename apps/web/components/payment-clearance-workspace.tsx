@@ -25,6 +25,26 @@ export function PaymentClearanceWorkspace() {
   const [provider, setProvider] = useState("");
   const [documentUrl, setDocumentUrl] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [conversionDeliveryId, setConversionDeliveryId] = useState("");
+  const [conversionVersion, setConversionVersion] = useState("1");
+  const [conversionReason, setConversionReason] = useState("");
+  const [conversionMessage, setConversionMessage] = useState<string | null>(
+    null,
+  );
+  const [cashReceiptId, setCashReceiptId] = useState("");
+  const [cashCounted, setCashCounted] = useState("");
+  const [cashReason, setCashReason] = useState("");
+  const [cashMessage, setCashMessage] = useState<string | null>(null);
+  const cashIdentity = useRef<{
+    fingerprint: string;
+    idempotencyKey: string;
+    reconciliationId: string;
+  } | null>(null);
+  const conversionIdentity = useRef<{
+    fingerprint: string;
+    idempotencyKey: string;
+    conversionId: string;
+  } | null>(null);
   const identity = useRef<{
     fingerprint: string;
     key: string;
@@ -168,6 +188,136 @@ export function PaymentClearanceWorkspace() {
       );
       setResult((await response.json()) as PaymentReceiptCommandState);
       await loadQueue();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const convertCOD = async () => {
+    if (
+      conversionDeliveryId.trim() === "" ||
+      conversionReason.trim() === "" ||
+      Number(conversionVersion) < 1
+    ) {
+      setConversionMessage(
+        "Delivery, current version, and approval reason are required.",
+      );
+      return;
+    }
+    const fingerprint = JSON.stringify({
+      conversionDeliveryId,
+      conversionReason,
+      conversionVersion,
+    });
+    if (conversionIdentity.current?.fingerprint !== fingerprint) {
+      conversionIdentity.current = {
+        conversionId: crypto.randomUUID(),
+        fingerprint,
+        idempotencyKey: crypto.randomUUID(),
+      };
+    }
+    setBusy(true);
+    try {
+      const response = await fetch(
+        `/api/deliveries/${conversionDeliveryId.trim()}/cod-conversion`,
+        {
+          body: JSON.stringify({
+            command: {
+              conversion_id: conversionIdentity.current.conversionId,
+              expected_delivery_version: Number(conversionVersion),
+              reason: conversionReason.trim(),
+            },
+            idempotencyKey: conversionIdentity.current.idempotencyKey,
+          }),
+          headers: { "Content-Type": "application/json" },
+          method: "POST",
+        },
+      );
+      const payload = (await response.json()) as {
+        amount?: string;
+        correlationId?: string;
+        message?: string;
+        status?: string;
+      };
+      if (response.ok) {
+        setConversionMessage(
+          `Converted PHP ${payload.amount ?? "0.00"} to On Account; the assigned driver may now confirm.`,
+        );
+        conversionIdentity.current = null;
+      } else {
+        setConversionMessage(
+          `${payload.message ?? "Conversion stopped."} · ${payload.correlationId ?? "no reference"}`,
+        );
+      }
+    } catch {
+      setConversionMessage(
+        "COD conversion service unavailable. Retry unchanged work; the command identity is retained.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reconcileCash = async () => {
+    if (
+      cashReceiptId.trim() === "" ||
+      cashCounted.trim() === "" ||
+      cashReason.trim() === ""
+    ) {
+      setCashMessage(
+        "Cash receipt, counted amount, and discrepancy reason are required.",
+      );
+      return;
+    }
+    const fingerprint = JSON.stringify({
+      cashCounted,
+      cashReason,
+      cashReceiptId,
+    });
+    if (cashIdentity.current?.fingerprint !== fingerprint) {
+      cashIdentity.current = {
+        fingerprint,
+        idempotencyKey: crypto.randomUUID(),
+        reconciliationId: crypto.randomUUID(),
+      };
+    }
+    setBusy(true);
+    try {
+      const response = await fetch(
+        `/api/payments/${cashReceiptId.trim()}/cash-reconciliation`,
+        {
+          body: JSON.stringify({
+            command: {
+              cash_reconciliation_id: cashIdentity.current.reconciliationId,
+              counted_amount: cashCounted,
+              reason: cashReason.trim(),
+              reconciled_at: new Date().toISOString(),
+            },
+            idempotencyKey: cashIdentity.current.idempotencyKey,
+          }),
+          headers: { "Content-Type": "application/json" },
+          method: "POST",
+        },
+      );
+      const payload = (await response.json()) as {
+        correlationId?: string;
+        message?: string;
+        variance_amount?: string;
+      };
+      if (response.ok) {
+        setCashMessage(
+          `Cash reconciled; recorded variance PHP ${payload.variance_amount ?? "0.00"}.`,
+        );
+        cashIdentity.current = null;
+      } else {
+        setCashMessage(
+          `${payload.message ?? "Reconciliation stopped."} · ${payload.correlationId ?? "no reference"}`,
+        );
+      }
+    } catch {
+      setCashMessage(
+        "Cash reconciliation service unavailable. Retry unchanged work; the command identity is retained.",
+      );
     } finally {
       setBusy(false);
     }
@@ -331,6 +481,94 @@ export function PaymentClearanceWorkspace() {
                   </article>
                 ))}
               </div>
+            )}
+            <div className="payment-section-head">
+              <div>
+                <span>Checker / COD exception</span>
+                <h2>Convert unpaid COD to On Account</h2>
+              </div>
+            </div>
+            <div className="payment-fields">
+              <label>
+                Delivery ID
+                <input
+                  onChange={(event) =>
+                    setConversionDeliveryId(event.target.value)
+                  }
+                  value={conversionDeliveryId}
+                />
+              </label>
+              <label>
+                Current Delivery version
+                <input
+                  inputMode="numeric"
+                  onChange={(event) => setConversionVersion(event.target.value)}
+                  value={conversionVersion}
+                />
+              </label>
+              <label className="payment-wide">
+                Credit Override reason
+                <input
+                  onChange={(event) => setConversionReason(event.target.value)}
+                  value={conversionReason}
+                />
+              </label>
+            </div>
+            <button
+              className="payment-primary"
+              disabled={busy}
+              onClick={() => void convertCOD()}
+              type="button"
+            >
+              Approve COD conversion
+            </button>
+            {conversionMessage !== null && (
+              <p className="payment-message" role="status">
+                {conversionMessage}
+              </p>
+            )}
+            <div className="payment-section-head">
+              <div>
+                <span>Finance / cash custody</span>
+                <h2>Reconcile physical COD cash</h2>
+              </div>
+            </div>
+            <div className="payment-fields">
+              <label>
+                Cash Payment Receipt ID
+                <input
+                  onChange={(event) => setCashReceiptId(event.target.value)}
+                  value={cashReceiptId}
+                />
+              </label>
+              <label>
+                Counted cash
+                <input
+                  inputMode="decimal"
+                  onChange={(event) => setCashCounted(event.target.value)}
+                  value={cashCounted}
+                />
+              </label>
+              <label className="payment-wide">
+                Reconciliation or discrepancy reason
+                <input
+                  onChange={(event) => setCashReason(event.target.value)}
+                  value={cashReason}
+                />
+              </label>
+            </div>
+            <button
+              className="payment-primary"
+              disabled={busy}
+              onClick={() => void reconcileCash()}
+              type="button"
+            >
+              Reconcile COD cash
+            </button>
+            {cashMessage !== null && (
+              <p className="payment-message" role="status">
+                {cashMessage}
+              </p>
             )}
           </div>
         </section>

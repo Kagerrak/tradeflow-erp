@@ -1783,6 +1783,137 @@ cash_reconciliation_items = Table(
     ),
 )
 
+cash_reconciliation_events = Table(
+    "cash_reconciliation_events",
+    metadata,
+    Column("cash_reconciliation_event_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "payment_receipt_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("payment_receipts.payment_receipt_id"),
+        nullable=False,
+    ),
+    Column("cash_reconciliation_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("event_type", String(20), nullable=False),
+    Column("expected_amount", Numeric(24, 6), nullable=False),
+    Column("counted_amount", Numeric(24, 6), nullable=False),
+    Column("variance_amount", Numeric(24, 6), nullable=False),
+    Column("reason", String(500), nullable=False),
+    Column("actor_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("occurred_at", DateTime(timezone=True), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    CheckConstraint(
+        "event_type IN ('reconciled','adjusted','reversed')",
+        name="ck_cash_reconciliation_events_type",
+    ),
+    CheckConstraint(
+        "expected_amount >= 0 AND counted_amount >= 0 "
+        "AND variance_amount = counted_amount - expected_amount",
+        name="ck_cash_reconciliation_events_amounts",
+    ),
+)
+
+cod_collections = Table(
+    "cod_collections",
+    metadata,
+    Column(
+        "confirmation_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_confirmations.confirmation_id"),
+        primary_key=True,
+    ),
+    Column(
+        "delivery_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_dispatches.delivery_id"),
+        nullable=False,
+        unique=True,
+    ),
+    Column(
+        "payment_receipt_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("payment_receipts.payment_receipt_id"),
+        nullable=False,
+        unique=True,
+    ),
+    Column("amount_due", Numeric(24, 6), nullable=False),
+    Column("amount_collected", Numeric(24, 6), nullable=False),
+    Column("currency", String(3), nullable=False),
+    Column("status", String(30), nullable=False),
+    Column("collected_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "amount_due > 0 AND amount_collected >= amount_due",
+        name="ck_cod_collections_sufficient",
+    ),
+    CheckConstraint(
+        "status IN ('captured','pending_verification','cleared','reconciled','reversed')",
+        name="ck_cod_collections_status",
+    ),
+    ForeignKeyConstraint(
+        ["delivery_id", "confirmation_id"],
+        ["delivery_confirmations.delivery_id", "delivery_confirmations.confirmation_id"],
+        name="fk_cod_collection_confirmation_delivery",
+    ),
+)
+
+cod_on_account_conversions = Table(
+    "cod_on_account_conversions",
+    metadata,
+    Column("conversion_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "delivery_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_dispatches.delivery_id"),
+        nullable=False,
+        unique=True,
+    ),
+    Column(
+        "confirmation_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_confirmations.confirmation_id"),
+        nullable=True,
+        unique=True,
+    ),
+    Column(
+        "commercial_approval_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("commercial_approvals.commercial_approval_id"),
+        nullable=False,
+    ),
+    Column("amount", Numeric(24, 6), nullable=False),
+    Column("currency", String(3), nullable=False),
+    Column("open_balance_snapshot", Numeric(24, 6), nullable=False),
+    Column("approved_uninvoiced_snapshot", Numeric(24, 6), nullable=False),
+    Column("credit_limit_snapshot", Numeric(24, 6), nullable=True),
+    Column("credit_excess_approved", Numeric(24, 6), nullable=False),
+    Column("reason", String(500), nullable=False),
+    Column("approved_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("status", String(20), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "amount > 0 AND open_balance_snapshot >= 0 "
+        "AND approved_uninvoiced_snapshot >= 0 AND credit_excess_approved >= 0",
+        name="ck_cod_on_account_conversion_amounts",
+    ),
+    CheckConstraint(
+        "status IN ('approved','consumed','reversed')",
+        name="ck_cod_on_account_conversion_status",
+    ),
+    CheckConstraint(
+        "(status = 'consumed' AND confirmation_id IS NOT NULL) "
+        "OR (status IN ('approved','reversed') AND confirmation_id IS NULL)",
+        name="ck_cod_on_account_conversion_confirmation",
+    ),
+    ForeignKeyConstraint(
+        ["delivery_id", "confirmation_id"],
+        ["delivery_confirmations.delivery_id", "delivery_confirmations.confirmation_id"],
+        name="fk_cod_conversion_confirmation_delivery",
+    ),
+)
+
 prepayment_coverage_events = Table(
     "prepayment_coverage_events",
     metadata,
@@ -2332,6 +2463,9 @@ delivery_confirmations = Table(
     Column("idempotency_key", String(200), nullable=False),
     Column("confirmed_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     UniqueConstraint("confirmed_by", "idempotency_key", name="uq_delivery_confirmation_actor_key"),
+    UniqueConstraint(
+        "delivery_id", "confirmation_id", name="uq_delivery_confirmation_delivery_identity"
+    ),
 )
 
 delivery_confirmation_lines = Table(

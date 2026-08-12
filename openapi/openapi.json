@@ -388,6 +388,18 @@
             "title": "Assigned To",
             "type": "string"
           },
+          "collection_amount_due": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Amount Due"
+          },
           "collection_required": {
             "title": "Collection Required",
             "type": "boolean"
@@ -457,6 +469,7 @@
           "delivery_address",
           "payment_timing_policy",
           "collection_required",
+          "collection_amount_due",
           "evidence_requirements",
           "lines"
         ],
@@ -924,6 +937,281 @@
         "title": "BranchResponse",
         "type": "object"
       },
+      "CODCollectionCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,18}|(?=[\\d.]{1,25}0*$)\\d{0,18}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Amount"
+          },
+          "currency": {
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency",
+            "type": "string"
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CollectionEvidenceCommand"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "external_reference": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Reference"
+          },
+          "payment_method": {
+            "enum": [
+              "cash",
+              "bank_transfer",
+              "check",
+              "electronic"
+            ],
+            "title": "Payment Method",
+            "type": "string"
+          },
+          "payment_receipt_id": {
+            "format": "uuid",
+            "title": "Payment Receipt Id",
+            "type": "string"
+          },
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payment_receipt_id",
+          "payment_method",
+          "amount",
+          "currency",
+          "received_at"
+        ],
+        "title": "CODCollectionCommand",
+        "type": "object"
+      },
+      "CODCollectionResponse": {
+        "properties": {
+          "amount_collected": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount Collected",
+            "type": "string"
+          },
+          "amount_due": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount Due",
+            "type": "string"
+          },
+          "application_status": {
+            "const": "unapplied",
+            "title": "Application Status",
+            "type": "string"
+          },
+          "cash_reconciliation_status": {
+            "anyOf": [
+              {
+                "const": "pending",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Reconciliation Status"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "payment_method": {
+            "title": "Payment Method",
+            "type": "string"
+          },
+          "payment_receipt_id": {
+            "format": "uuid",
+            "title": "Payment Receipt Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "cleared",
+              "pending_verification"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payment_receipt_id",
+          "amount_due",
+          "amount_collected",
+          "currency",
+          "payment_method",
+          "status",
+          "application_status",
+          "cash_reconciliation_status"
+        ],
+        "title": "CODCollectionResponse",
+        "type": "object"
+      },
+      "CODOnAccountConversionResponse": {
+        "properties": {
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "approved_by": {
+            "title": "Approved By",
+            "type": "string"
+          },
+          "conversion_id": {
+            "format": "uuid",
+            "title": "Conversion Id",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "delivery_id": {
+            "format": "uuid",
+            "title": "Delivery Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "approved",
+              "consumed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "conversion_id",
+          "delivery_id",
+          "amount",
+          "currency",
+          "status",
+          "approved_by"
+        ],
+        "title": "CODOnAccountConversionResponse",
+        "type": "object"
+      },
+      "CashReconciliationAdjustmentCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "cash_reconciliation_id": {
+            "format": "uuid",
+            "title": "Cash Reconciliation Id",
+            "type": "string"
+          },
+          "counted_amount": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,18}|(?=[\\d.]{1,25}0*$)\\d{0,18}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Counted Amount"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "reconciled_at": {
+            "format": "date-time",
+            "title": "Reconciled At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cash_reconciliation_id",
+          "counted_amount",
+          "reconciled_at",
+          "reason"
+        ],
+        "title": "CashReconciliationAdjustmentCommand",
+        "type": "object"
+      },
+      "CashReconciliationChangeResponse": {
+        "properties": {
+          "cash_reconciliation_id": {
+            "format": "uuid",
+            "title": "Cash Reconciliation Id",
+            "type": "string"
+          },
+          "counted_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Counted Amount",
+            "type": "string"
+          },
+          "event_type": {
+            "enum": [
+              "adjusted",
+              "reversed"
+            ],
+            "title": "Event Type",
+            "type": "string"
+          },
+          "payment_receipt_id": {
+            "format": "uuid",
+            "title": "Payment Receipt Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "reconciled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "variance_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Variance Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cash_reconciliation_id",
+          "payment_receipt_id",
+          "event_type",
+          "status",
+          "counted_amount",
+          "variance_amount"
+        ],
+        "title": "CashReconciliationChangeResponse",
+        "type": "object"
+      },
       "CashReconciliationCommand": {
         "additionalProperties": false,
         "properties": {
@@ -1004,6 +1292,34 @@
         "title": "CashReconciliationResponse",
         "type": "object"
       },
+      "CashReconciliationReversalCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "cash_reconciliation_id": {
+            "format": "uuid",
+            "title": "Cash Reconciliation Id",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "reversed_at": {
+            "format": "date-time",
+            "title": "Reversed At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cash_reconciliation_id",
+          "reversed_at",
+          "reason"
+        ],
+        "title": "CashReconciliationReversalCommand",
+        "type": "object"
+      },
       "CheckClearanceCommand": {
         "additionalProperties": false,
         "properties": {
@@ -1031,6 +1347,37 @@
           "reason"
         ],
         "title": "CheckClearanceCommand",
+        "type": "object"
+      },
+      "CollectionEvidenceCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "account_or_provider": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Account Or Provider",
+            "type": "string"
+          },
+          "attachment_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Attachment Ids",
+            "type": "array"
+          },
+          "reference": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_or_provider",
+          "reference"
+        ],
+        "title": "CollectionEvidenceCommand",
         "type": "object"
       },
       "CommercialApprovalCommand": {
@@ -1731,6 +2078,16 @@
       "ConfirmDeliveryCommand": {
         "additionalProperties": false,
         "properties": {
+          "collection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CODCollectionCommand"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "confirmation_id": {
             "format": "uuid",
             "title": "Confirmation Id",
@@ -1774,6 +2131,18 @@
               }
             ],
             "title": "Notes"
+          },
+          "on_account_conversion_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Account Conversion Id"
           },
           "recipient_name": {
             "maxLength": 300,
@@ -2065,6 +2434,34 @@
           "version"
         ],
         "title": "ConversionResponse",
+        "type": "object"
+      },
+      "ConvertCODOnAccountCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "conversion_id": {
+            "format": "uuid",
+            "title": "Conversion Id",
+            "type": "string"
+          },
+          "expected_delivery_version": {
+            "exclusiveMinimum": 0.0,
+            "title": "Expected Delivery Version",
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "conversion_id",
+          "expected_delivery_version",
+          "reason"
+        ],
+        "title": "ConvertCODOnAccountCommand",
         "type": "object"
       },
       "CreateCustomerCommand": {
@@ -2749,6 +3146,16 @@
       },
       "DeliveryConfirmationResponse": {
         "properties": {
+          "collection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CODCollectionResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "confirmation_id": {
             "format": "uuid",
             "title": "Confirmation Id",
@@ -2768,6 +3175,16 @@
             },
             "title": "Lines",
             "type": "array"
+          },
+          "on_account_conversion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CODOnAccountConversionResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "outbox_event_id": {
             "format": "uuid",
@@ -5397,6 +5814,35 @@
           "fulfillment_order_id"
         ],
         "title": "ProcessPaymentDeadlineCommand",
+        "type": "object"
+      },
+      "ProviderConfirmationCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmed_at": {
+            "format": "date-time",
+            "title": "Confirmed At",
+            "type": "string"
+          },
+          "provider_reference": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Provider Reference",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirmed_at",
+          "provider_reference",
+          "reason"
+        ],
+        "title": "ProviderConfirmationCommand",
         "type": "object"
       },
       "ReadyResponse": {
@@ -8318,6 +8764,142 @@
         ]
       }
     },
+    "/v1/deliveries/{delivery_id}/cod-on-account-conversions": {
+      "post": {
+        "operationId": "convert_cod_on_account_v1_deliveries__delivery_id__cod_on_account_conversions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "delivery_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Delivery Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConvertCODOnAccountCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CODOnAccountConversionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Convert Cod On Account",
+        "tags": [
+          "delivery confirmation"
+        ]
+      }
+    },
     "/v1/deliveries/{delivery_id}/confirmations": {
       "post": {
         "operationId": "confirm_delivery_v1_deliveries__delivery_id__confirmations_post",
@@ -9595,6 +10177,417 @@
           }
         ],
         "summary": "Reconcile Cash Payment",
+        "tags": [
+          "finance",
+          "fulfillment"
+        ]
+      }
+    },
+    "/v1/finance/payment-receipts/{payment_receipt_id}/cash-reconciliation/adjustments": {
+      "post": {
+        "operationId": "adjust_cash_reconciliation_v1_finance_payment_receipts__payment_receipt_id__cash_reconciliation_adjustments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payment_receipt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Payment Receipt Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CashReconciliationAdjustmentCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashReconciliationChangeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Adjust Cash Reconciliation",
+        "tags": [
+          "finance",
+          "fulfillment"
+        ]
+      }
+    },
+    "/v1/finance/payment-receipts/{payment_receipt_id}/cash-reconciliation/reversal": {
+      "post": {
+        "operationId": "reverse_cash_reconciliation_v1_finance_payment_receipts__payment_receipt_id__cash_reconciliation_reversal_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payment_receipt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Payment Receipt Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CashReconciliationReversalCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashReconciliationChangeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reverse Cash Reconciliation",
+        "tags": [
+          "finance",
+          "fulfillment"
+        ]
+      }
+    },
+    "/v1/finance/payment-receipts/{payment_receipt_id}/provider-confirmation": {
+      "post": {
+        "operationId": "confirm_provider_payment_v1_finance_payment_receipts__payment_receipt_id__provider_confirmation_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payment_receipt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Payment Receipt Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderConfirmationCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentReceiptResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Confirm Provider Payment",
         "tags": [
           "finance",
           "fulfillment"

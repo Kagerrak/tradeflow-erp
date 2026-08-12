@@ -13,14 +13,26 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import case, func, insert, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tradeflow_api.auth import AuthorizedUser, require_delivery_confirmer
+from tradeflow_api.auth import (
+    AuthorizedUser,
+    require_cod_on_account_converter,
+    require_delivery_confirmer,
+)
+from tradeflow_api.cod_settlement import calculate_cod_amount_due
 from tradeflow_api.command_receipts import get_command_replay, store_command_result
 from tradeflow_api.database import get_database_session
 from tradeflow_api.errors import AppError, error_responses
 from tradeflow_api.models import (
+    approval_authorities,
     branches,
+    cash_reconciliation_items,
+    cod_collections,
+    cod_on_account_conversions,
+    commercial_approvals,
     companies,
+    credit_exposure_entries,
     customer_accounts,
+    customer_credit_exposure,
     delivery_confirmation_evidence,
     delivery_confirmation_lines,
     delivery_confirmations,
@@ -37,6 +49,11 @@ from tradeflow_api.models import (
     inventory_valuation,
     outbox_events,
     outbox_processing_state,
+    payment_methods,
+    payment_receipt_balances,
+    payment_receipt_events,
+    payment_receipt_status,
+    payment_receipts,
     pick_identity_assignments,
     pick_lines,
     sales_order_line_revisions,
@@ -44,6 +61,7 @@ from tradeflow_api.models import (
     stock_movements,
     warehouse_stock_locations,
 )
+from tradeflow_api.money import currency_quantum
 from tradeflow_api.object_storage import ObjectStorage, UploadedPart, get_object_storage
 
 router = APIRouter(tags=["delivery confirmation"])
@@ -61,6 +79,22 @@ class ConfirmationLineCommand(CommandModel):
     accepted_quantity_base: Decimal = Field(gt=0)
 
 
+class CollectionEvidenceCommand(CommandModel):
+    account_or_provider: str = Field(min_length=1, max_length=200)
+    reference: str = Field(min_length=1, max_length=200)
+    attachment_ids: list[UUID] = Field(default_factory=list)
+
+
+class CODCollectionCommand(CommandModel):
+    payment_receipt_id: UUID
+    payment_method: Literal["cash", "bank_transfer", "check", "electronic"]
+    amount: Decimal = Field(gt=0, max_digits=24, decimal_places=6)
+    currency: str = Field(pattern=r"^[A-Z]{3}$")
+    received_at: datetime
+    external_reference: str | None = Field(default=None, max_length=200)
+    evidence: CollectionEvidenceCommand | None = None
+
+
 class ConfirmDeliveryCommand(CommandModel):
     confirmation_id: UUID
     expected_delivery_version: int = Field(gt=0)
@@ -69,6 +103,14 @@ class ConfirmDeliveryCommand(CommandModel):
     notes: str | None = Field(default=None, max_length=2000)
     evidence_ids: list[UUID] = Field(min_length=1)
     lines: list[ConfirmationLineCommand] = Field(min_length=1)
+    collection: CODCollectionCommand | None = None
+    on_account_conversion_id: UUID | None = None
+
+
+class ConvertCODOnAccountCommand(CommandModel):
+    conversion_id: UUID
+    expected_delivery_version: int = Field(gt=0)
+    reason: str = Field(min_length=1, max_length=500)
 
 
 class ConfirmationLineResponse(BaseModel):
@@ -86,6 +128,26 @@ class DeliveryReceiptResponse(BaseModel):
     status: Literal["pending_document", "ready", "unavailable"]
 
 
+class CODCollectionResponse(BaseModel):
+    payment_receipt_id: UUID
+    amount_due: Decimal
+    amount_collected: Decimal
+    currency: str
+    payment_method: str
+    status: Literal["cleared", "pending_verification"]
+    application_status: Literal["unapplied"]
+    cash_reconciliation_status: Literal["pending"] | None
+
+
+class CODOnAccountConversionResponse(BaseModel):
+    conversion_id: UUID
+    delivery_id: UUID
+    amount: Decimal
+    currency: str
+    status: Literal["approved", "consumed"]
+    approved_by: str
+
+
 class DeliveryConfirmationResponse(BaseModel):
     confirmation_id: UUID
     delivery_id: UUID
@@ -94,6 +156,8 @@ class DeliveryConfirmationResponse(BaseModel):
     lines: list[ConfirmationLineResponse]
     delivery_receipt: DeliveryReceiptResponse
     outbox_event_id: UUID
+    collection: CODCollectionResponse | None = None
+    on_account_conversion: CODOnAccountConversionResponse | None = None
 
 
 class EvidenceUploadIntent(CommandModel):
@@ -567,6 +631,7 @@ async def _delivery(
                     delivery_state.c.assigned_to,
                     delivery_state.c.version.label("delivery_version"),
                     branches.c.code.label("branch_code"),
+                    branches.c.company_id,
                     customer_accounts.c.account_number.label("customer_account_number"),
                     customer_accounts.c.legal_name.label("customer_legal_name"),
                 )
@@ -623,6 +688,470 @@ async def _validated_evidence(
             "Verified signature evidence owned by this assigned Delivery Staff user is required.",
         )
     return [cast(Mapping[str, Any], row) for row in rows]
+
+
+async def _record_cod_collection(
+    session: AsyncSession,
+    *,
+    command: CODCollectionCommand,
+    confirmation_id: UUID,
+    delivery: Mapping[str, Any],
+    amount_due: Decimal,
+    actor: AuthorizedUser,
+    correlation_id: str,
+    idempotency_key: str,
+    base_currency: str,
+) -> CODCollectionResponse:
+    if "finance:payment-record" not in actor.capabilities:
+        raise AppError(
+            403,
+            "cod_collection_capability_required",
+            "Payment recording authority is required to collect Cash on Delivery.",
+        )
+    if command.currency != base_currency:
+        raise AppError(
+            409,
+            "payment_currency_conflict",
+            "COD collection currency must match the Company Base Currency.",
+        )
+    collected = command.amount.quantize(currency_quantum(base_currency), ROUND_HALF_UP)
+    if collected < amount_due:
+        raise AppError(
+            409,
+            "cod_collection_insufficient",
+            "COD collection does not cover the exact accepted Delivery value.",
+            details={"amount_due": str(amount_due), "amount_collected": str(collected)},
+        )
+    if command.payment_method != "cash":
+        receipt = (
+            (
+                await session.execute(
+                    select(
+                        payment_receipts,
+                        payment_receipt_status.c.state,
+                        payment_receipt_balances.c.cleared_amount,
+                    )
+                    .join(
+                        payment_receipt_status,
+                        payment_receipts.c.payment_receipt_id
+                        == payment_receipt_status.c.payment_receipt_id,
+                    )
+                    .join(
+                        payment_receipt_balances,
+                        payment_receipts.c.payment_receipt_id
+                        == payment_receipt_balances.c.payment_receipt_id,
+                    )
+                    .where(payment_receipts.c.payment_receipt_id == command.payment_receipt_id)
+                    .with_for_update()
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+        if receipt is None:
+            raise AppError(
+                409,
+                "cod_payment_receipt_required",
+                "Record the non-cash COD Payment Receipt before confirmation.",
+            )
+        if (
+            receipt["customer_id"] != delivery["customer_id"]
+            or receipt["branch_id"] != delivery["branch_id"]
+            or receipt["intended_sales_order_id"] != delivery["sales_order_id"]
+            or receipt["payment_method_kind"] != command.payment_method
+            or receipt["currency"] != base_currency
+            or receipt["amount"] != collected
+        ):
+            raise AppError(
+                409,
+                "cod_payment_receipt_conflict",
+                "The COD Payment Receipt does not match this Delivery collection.",
+            )
+        if receipt["state"] != "cleared" or receipt["cleared_amount"] < amount_due:
+            raise AppError(
+                409,
+                "cod_payment_verification_required",
+                "Non-cash COD collection must clear verification before Delivery Confirmation.",
+            )
+        await session.execute(
+            insert(cod_collections).values(
+                confirmation_id=confirmation_id,
+                delivery_id=delivery["delivery_id"],
+                payment_receipt_id=command.payment_receipt_id,
+                amount_due=amount_due,
+                amount_collected=collected,
+                currency=base_currency,
+                status="cleared",
+                collected_by=actor.subject,
+            )
+        )
+        return CODCollectionResponse(
+            payment_receipt_id=command.payment_receipt_id,
+            amount_due=amount_due,
+            amount_collected=collected,
+            currency=base_currency,
+            payment_method=command.payment_method,
+            status="cleared",
+            application_status="unapplied",
+            cash_reconciliation_status=None,
+        )
+    existing_receipt = await session.scalar(
+        select(payment_receipts.c.payment_receipt_id).where(
+            payment_receipts.c.payment_receipt_id == command.payment_receipt_id
+        )
+    )
+    if existing_receipt is not None:
+        raise AppError(
+            409,
+            "cod_payment_receipt_conflict",
+            "The cash COD Payment Receipt identity is already in use.",
+        )
+    method = (
+        (
+            await session.execute(
+                select(payment_methods).where(
+                    payment_methods.c.company_id == delivery["company_id"],
+                    payment_methods.c.kind == "cash",
+                    payment_methods.c.is_active.is_(True),
+                )
+            )
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if method is None:
+        raise AppError(409, "payment_method_unavailable", "Cash is not configured and active.")
+    await session.execute(
+        insert(payment_receipts).values(
+            payment_receipt_id=command.payment_receipt_id,
+            company_id=delivery["company_id"],
+            branch_id=delivery["branch_id"],
+            customer_id=delivery["customer_id"],
+            payment_method_id=method["payment_method_id"],
+            payment_method_code=method["code"],
+            payment_method_kind=method["kind"],
+            amount=collected,
+            currency=base_currency,
+            received_at=command.received_at,
+            external_reference=None,
+            external_reference_normalized=None,
+            evidence=None,
+            intended_sales_order_id=delivery["sales_order_id"],
+            intended_fulfillment_order_id=delivery["fulfillment_order_id"],
+            recorded_by=actor.subject,
+            correlation_id=correlation_id,
+            idempotency_key=f"{idempotency_key}:cod-payment",
+        )
+    )
+    for event_type, reason in (
+        ("recorded", "COD Payment Receipt recorded with Delivery Confirmation"),
+        ("cleared", "Authorized cash COD collection clears immediately"),
+    ):
+        await session.execute(
+            insert(payment_receipt_events).values(
+                payment_receipt_event_id=uuid4(),
+                payment_receipt_id=command.payment_receipt_id,
+                event_type=event_type,
+                actor_subject=actor.subject,
+                reason=reason,
+                evidence=None,
+                source_id=confirmation_id,
+                correlation_id=correlation_id,
+                idempotency_key=f"{idempotency_key}:cod-payment:{event_type}",
+                occurred_at=command.received_at,
+            )
+        )
+    await session.execute(
+        insert(payment_receipt_status).values(
+            payment_receipt_id=command.payment_receipt_id,
+            company_id=delivery["company_id"],
+            payment_method_id=method["payment_method_id"],
+            state="cleared",
+            cleared_at=command.received_at,
+        )
+    )
+    await session.execute(
+        insert(payment_receipt_balances).values(
+            payment_receipt_id=command.payment_receipt_id,
+            cleared_amount=collected,
+        )
+    )
+    await session.execute(
+        insert(cash_reconciliation_items).values(
+            payment_receipt_id=command.payment_receipt_id,
+            status="pending",
+            expected_amount=collected,
+        )
+    )
+    await session.execute(
+        insert(cod_collections).values(
+            confirmation_id=confirmation_id,
+            delivery_id=delivery["delivery_id"],
+            payment_receipt_id=command.payment_receipt_id,
+            amount_due=amount_due,
+            amount_collected=collected,
+            currency=base_currency,
+            status="cleared",
+            collected_by=actor.subject,
+        )
+    )
+    return CODCollectionResponse(
+        payment_receipt_id=command.payment_receipt_id,
+        amount_due=amount_due,
+        amount_collected=collected,
+        currency=base_currency,
+        payment_method="cash",
+        status="cleared",
+        application_status="unapplied",
+        cash_reconciliation_status="pending",
+    )
+
+
+@router.post(
+    "/v1/deliveries/{delivery_id}/cod-on-account-conversions",
+    response_model=CODOnAccountConversionResponse,
+    status_code=201,
+    responses=error_responses(400, 401, 403, 404, 409, 422, 500),
+)
+async def convert_cod_on_account(
+    delivery_id: UUID,
+    command: ConvertCODOnAccountCommand,
+    request: Request,
+    response: Response,
+    actor: Annotated[AuthorizedUser, Depends(require_cod_on_account_converter)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    idempotency_key: Annotated[
+        str | None,
+        Header(alias="Idempotency-Key", min_length=1, max_length=200),
+    ] = None,
+) -> CODOnAccountConversionResponse:
+    if idempotency_key is None:
+        raise AppError(400, "idempotency_key_required", "Idempotency-Key is required.")
+    request_hash = sha256(
+        (
+            f"convert-cod-on-account:{delivery_id}:{actor.subject}:"
+            f"{command.model_dump_json(exclude_none=False)}"
+        ).encode()
+    ).hexdigest()
+    await session.rollback()
+    async with session.begin():
+        await _lock(session, f"delivery:{delivery_id}")
+        replay = await get_command_replay(
+            session,
+            actor_subject=actor.subject,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+        )
+        if replay is not None:
+            response.status_code = 200
+            return CODOnAccountConversionResponse.model_validate(replay)
+        delivery = await _delivery(session, delivery_id)
+        if delivery is None:
+            raise AppError(404, "delivery_not_found", "The Delivery does not exist.")
+        if delivery["branch_id"] not in actor.branch_ids:
+            raise AppError(403, "operational_scope_required", "Branch scope is required.")
+        if actor.subject == delivery["assigned_to"]:
+            raise AppError(
+                409,
+                "maker_checker_violation",
+                "Assigned Delivery Staff cannot approve their own unpaid COD conversion.",
+            )
+        if (
+            delivery["payment_timing_policy"] != "cash_on_delivery"
+            or delivery["delivery_status"] != "dispatched"
+            or delivery["delivery_version"] != command.expected_delivery_version
+        ):
+            raise AppError(
+                409,
+                "delivery_version_conflict",
+                "The Cash on Delivery shipment changed; refresh before conversion.",
+            )
+        existing_conversion = await session.scalar(
+            select(cod_on_account_conversions.c.conversion_id).where(
+                cod_on_account_conversions.c.delivery_id == delivery_id
+            )
+        )
+        if existing_conversion is not None:
+            raise AppError(
+                409,
+                "cod_on_account_conversion_exists",
+                "This Delivery already has an On Account conversion decision.",
+            )
+        lines = list(
+            (
+                await session.execute(
+                    select(
+                        delivery_lines.c.line_id,
+                        delivery_lines.c.quantity_base,
+                        sales_order_line_revisions.c.quantity_base.label("source_quantity_base"),
+                        sales_order_line_revisions.c.allocated_discount.label(
+                            "source_allocated_discount"
+                        ),
+                        sales_order_line_revisions.c.tax_amount.label("source_tax_amount"),
+                        sales_order_line_revisions.c.line_total.label("source_line_total"),
+                        sales_order_line_revisions.c.calculation_snapshot.label(
+                            "source_calculation_snapshot"
+                        ),
+                    )
+                    .join(
+                        sales_order_line_revisions,
+                        (
+                            sales_order_line_revisions.c.sales_order_revision_id
+                            == delivery["sales_order_revision_id"]
+                        )
+                        & (sales_order_line_revisions.c.line_id == delivery_lines.c.line_id),
+                    )
+                    .where(delivery_lines.c.delivery_id == delivery_id)
+                    .with_for_update()
+                )
+            ).mappings()
+        )
+        accepted: dict[UUID, Decimal] = defaultdict(lambda: ZERO)
+        for line in lines:
+            accepted[line["line_id"]] += line["quantity_base"]
+        base_currency = cast(str, await session.scalar(select(companies.c.base_currency).limit(1)))
+        amount = await calculate_cod_amount_due(
+            session,
+            sales_order_revision_id=delivery["sales_order_revision_id"],
+            lines=cast(Sequence[Mapping[str, Any]], lines),
+            accepted=accepted,
+            currency=base_currency,
+        )
+        authority = (
+            (
+                await session.execute(
+                    select(approval_authorities).where(
+                        approval_authorities.c.user_subject == actor.subject,
+                        approval_authorities.c.capability_code == "sales:credit-override",
+                        approval_authorities.c.branch_id == delivery["branch_id"],
+                    )
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+        await _lock(session, f"credit:{delivery['customer_id']}")
+        exposure = (
+            (
+                await session.execute(
+                    select(customer_credit_exposure)
+                    .where(customer_credit_exposure.c.customer_id == delivery["customer_id"])
+                    .with_for_update()
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+        customer = (
+            (
+                await session.execute(
+                    select(customer_accounts)
+                    .where(customer_accounts.c.customer_id == delivery["customer_id"])
+                    .with_for_update()
+                )
+            )
+            .mappings()
+            .one()
+        )
+        if customer["status"] != "active":
+            raise AppError(409, "customer_inactive", "The Customer Account is not active.")
+        if customer["credit_hold"]:
+            raise AppError(409, "customer_credit_hold", "The Customer Account is on Credit Hold.")
+        if not customer["payment_terms"].strip():
+            raise AppError(
+                409,
+                "payment_terms_required",
+                "On Account conversion requires Customer payment terms.",
+            )
+        open_balance = exposure["open_balance"] if exposure is not None else ZERO
+        approved_before = exposure["approved_uninvoiced"] if exposure is not None else ZERO
+        projected = open_balance + approved_before + amount
+        credit_limit = customer["credit_limit"]
+        excess = max(projected - credit_limit, ZERO) if credit_limit is not None else projected
+        if excess > ZERO and (
+            authority is None
+            or (authority["maximum_amount"] is not None and excess > authority["maximum_amount"])
+        ):
+            raise AppError(
+                403,
+                "approval_authority_required",
+                "Credit Override Approval Authority must cover the projected credit excess.",
+            )
+        commercial_approval_id = await session.scalar(
+            select(commercial_approvals.c.commercial_approval_id).where(
+                commercial_approvals.c.sales_order_revision_id
+                == delivery["sales_order_revision_id"]
+            )
+        )
+        if commercial_approval_id is None:
+            raise AppError(409, "commercial_approval_required", "Approval is unavailable.")
+        await session.execute(
+            insert(cod_on_account_conversions).values(
+                conversion_id=command.conversion_id,
+                delivery_id=delivery_id,
+                commercial_approval_id=commercial_approval_id,
+                amount=amount,
+                currency=base_currency,
+                open_balance_snapshot=open_balance,
+                approved_uninvoiced_snapshot=approved_before,
+                credit_limit_snapshot=credit_limit,
+                credit_excess_approved=excess,
+                reason=command.reason,
+                approved_by=actor.subject,
+                status="approved",
+                correlation_id=request.state.correlation_id,
+                idempotency_key=idempotency_key,
+            )
+        )
+        if exposure is None:
+            await session.execute(
+                insert(customer_credit_exposure).values(
+                    customer_id=delivery["customer_id"],
+                    open_balance=ZERO,
+                    approved_uninvoiced=amount,
+                )
+            )
+        else:
+            await session.execute(
+                update(customer_credit_exposure)
+                .where(customer_credit_exposure.c.customer_id == delivery["customer_id"])
+                .values(
+                    approved_uninvoiced=customer_credit_exposure.c.approved_uninvoiced + amount,
+                    version=customer_credit_exposure.c.version + 1,
+                    updated_at=func.now(),
+                )
+            )
+        await session.execute(
+            insert(credit_exposure_entries).values(
+                entry_id=uuid4(),
+                customer_id=delivery["customer_id"],
+                commercial_approval_id=commercial_approval_id,
+                sales_order_id=delivery["sales_order_id"],
+                component="approved_uninvoiced",
+                amount_delta=amount,
+                source_type="cod_on_account_conversion",
+                source_id=command.conversion_id,
+                actor_subject=actor.subject,
+                correlation_id=request.state.correlation_id,
+                idempotency_key=f"{idempotency_key}:credit",
+            )
+        )
+        result = CODOnAccountConversionResponse(
+            conversion_id=command.conversion_id,
+            delivery_id=delivery_id,
+            amount=amount,
+            currency=base_currency,
+            status="approved",
+            approved_by=actor.subject,
+        )
+        await store_command_result(
+            session,
+            actor_subject=actor.subject,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+            result=result,
+        )
+        return result
 
 
 async def _decrement_transit(
@@ -798,11 +1327,20 @@ async def confirm_delivery(
         if replay is not None:
             response.status_code = 200
             return DeliveryConfirmationResponse.model_validate(replay)
-        if delivery["payment_timing_policy"] == "cash_on_delivery":
+        settlement_count = int(command.collection is not None) + int(
+            command.on_account_conversion_id is not None
+        )
+        if delivery["payment_timing_policy"] == "cash_on_delivery" and settlement_count != 1:
             raise AppError(
                 409,
                 "cod_collection_required",
-                "Cash collection must be posted atomically with acceptance.",
+                "Cash on Delivery requires one collection or approved On Account conversion.",
+            )
+        if delivery["payment_timing_policy"] != "cash_on_delivery" and settlement_count != 0:
+            raise AppError(
+                409,
+                "cod_collection_not_applicable",
+                "Collection is only accepted for Cash on Delivery.",
             )
         if (
             delivery["delivery_status"] != "dispatched"
@@ -831,6 +1369,12 @@ async def confirm_delivery(
                             "source_conversion_snapshot"
                         ),
                         sales_order_line_revisions.c.effective_unit_price,
+                        sales_order_line_revisions.c.quantity_base.label("source_quantity_base"),
+                        sales_order_line_revisions.c.allocated_discount.label(
+                            "source_allocated_discount"
+                        ),
+                        sales_order_line_revisions.c.tax_amount.label("source_tax_amount"),
+                        sales_order_line_revisions.c.line_total.label("source_line_total"),
                         sales_order_line_revisions.c.calculation_snapshot.label(
                             "source_calculation_snapshot"
                         ),
@@ -895,6 +1439,75 @@ async def confirm_delivery(
                 idempotency_key=idempotency_key,
             )
         )
+        collection_response: CODCollectionResponse | None = None
+        conversion_response: CODOnAccountConversionResponse | None = None
+        amount_due = (
+            await calculate_cod_amount_due(
+                session,
+                sales_order_revision_id=delivery["sales_order_revision_id"],
+                lines=cast(Sequence[Mapping[str, Any]], lines),
+                accepted=supplied,
+                currency=base_currency,
+                current_confirmation_id=command.confirmation_id,
+            )
+            if settlement_count == 1
+            else ZERO
+        )
+        if command.collection is not None:
+            collection_response = await _record_cod_collection(
+                session,
+                command=command.collection,
+                confirmation_id=command.confirmation_id,
+                delivery=delivery,
+                amount_due=amount_due,
+                actor=actor,
+                correlation_id=request.state.correlation_id,
+                idempotency_key=idempotency_key,
+                base_currency=base_currency,
+            )
+        if command.on_account_conversion_id is not None:
+            conversion = (
+                (
+                    await session.execute(
+                        select(cod_on_account_conversions)
+                        .where(
+                            cod_on_account_conversions.c.conversion_id
+                            == command.on_account_conversion_id
+                        )
+                        .with_for_update()
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if (
+                conversion is None
+                or conversion["delivery_id"] != delivery_id
+                or conversion["status"] != "approved"
+                or conversion["amount"] != amount_due
+                or conversion["currency"] != base_currency
+                or conversion["approved_by"] == actor.subject
+            ):
+                raise AppError(
+                    409,
+                    "cod_on_account_conversion_conflict",
+                    "A distinct authorized approval for the exact unpaid COD value is required.",
+                )
+            await session.execute(
+                update(cod_on_account_conversions)
+                .where(
+                    cod_on_account_conversions.c.conversion_id == command.on_account_conversion_id
+                )
+                .values(status="consumed", confirmation_id=command.confirmation_id)
+            )
+            conversion_response = CODOnAccountConversionResponse(
+                conversion_id=command.on_account_conversion_id,
+                delivery_id=delivery_id,
+                amount=amount_due,
+                currency=base_currency,
+                status="consumed",
+                approved_by=conversion["approved_by"],
+            )
         response_lines: dict[tuple[UUID, UUID], dict[str, Any]] = {}
         sku_totals: dict[UUID, Decimal] = defaultdict(lambda: ZERO)
         for line in lines:
@@ -1128,6 +1741,8 @@ async def confirm_delivery(
                 status="pending_document",
             ),
             outbox_event_id=event_id,
+            collection=collection_response,
+            on_account_conversion=conversion_response,
         )
         await store_command_result(
             session,

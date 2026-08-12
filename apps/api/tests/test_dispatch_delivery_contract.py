@@ -184,6 +184,7 @@ async def test_supervisor_dispatches_a_picked_order_to_assigned_delivery_staff(
                 },
                 "payment_timing_policy": "prepaid",
                 "collection_required": False,
+                "collection_amount_due": None,
                 "evidence_requirements": ["recipient_name", "signature"],
                 "lines": [
                     {

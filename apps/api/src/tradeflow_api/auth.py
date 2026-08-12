@@ -350,6 +350,12 @@ async def require_cash_reconciler(
     return require_capability(user, "finance:cash-reconcile")
 
 
+async def require_cod_on_account_converter(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "sales:cod-convert-on-account")
+
+
 async def require_payment_projection_rebuilder(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:
