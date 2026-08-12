@@ -10,7 +10,6 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 from sqlalchemy import case, delete, exists, func, insert, or_, select, text, update
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +25,13 @@ from tradeflow_api.auth import (
 from tradeflow_api.command_receipts import get_command_replay, store_command_result
 from tradeflow_api.database import get_database_session
 from tradeflow_api.errors import AppError, error_responses
+from tradeflow_api.inventory_projection_service import (
+    AvailabilityIdentity,
+    acquire_projection_rebuild_lock,
+    acquire_sku_warehouse_lock,
+    apply_availability_delta,
+    apply_valuation_delta,
+)
 from tradeflow_api.models import (
     barcode_mappings,
     companies,
@@ -732,28 +738,8 @@ async def post_opening_stock(
         "unit_conversion_id": "" if conversion_id is None else str(conversion_id),
     }
 
-    await session.execute(
-        text("SELECT pg_advisory_xact_lock_shared(hashtext('inventory-projection-rebuild'))")
-    )
-    await session.execute(
-        text("SELECT pg_advisory_xact_lock(hashtext(:stock_key))"),
-        {"stock_key": f"{command.sku_id}:{command.warehouse_id}"},
-    )
-    current = (
-        (
-            await session.execute(
-                select(inventory_valuation).where(
-                    inventory_valuation.c.sku_id == command.sku_id,
-                    inventory_valuation.c.warehouse_id == command.warehouse_id,
-                )
-            )
-        )
-        .mappings()
-        .one_or_none()
-    )
-    next_quantity = quantity_base + (current["quantity_on_hand"] if current else Decimal("0"))
-    next_value = value_delta + (current["inventory_value"] if current else Decimal("0"))
-    next_average = (next_value / next_quantity).quantize(SIX_PLACES, ROUND_HALF_UP)
+    await acquire_projection_rebuild_lock(session, shared=True)
+    await acquire_sku_warehouse_lock(session, command.sku_id, command.warehouse_id)
     movement_id = uuid4()
     try:
         lot_identity_id: UUID | None = None
@@ -841,49 +827,26 @@ async def post_opening_stock(
                     expiration_date=command.expiration_date,
                 )
             )
-        await session.execute(
-            pg_insert(inventory_availability)
-            .values(
-                sku_id=command.sku_id,
-                warehouse_id=command.warehouse_id,
-                location_id=command.location_id,
+        await apply_availability_delta(
+            session,
+            sku_id=command.sku_id,
+            warehouse_id=command.warehouse_id,
+            location_id=command.location_id,
+            quantity=quantity_base,
+            identity=AvailabilityIdentity(
                 identity_key=identity_key,
                 lot_code=command.lot_code,
                 serial_numbers=sorted(command.serial_numbers),
                 expiration_date=command.expiration_date,
-                on_hand=quantity_base,
-                reserved=Decimal("0"),
-            )
-            .on_conflict_do_update(
-                index_elements=[
-                    "sku_id",
-                    "warehouse_id",
-                    "location_id",
-                    "identity_key",
-                ],
-                set_={
-                    "on_hand": inventory_availability.c.on_hand + quantity_base,
-                    "expiration_date": command.expiration_date,
-                },
-            )
+            ),
         )
-        await session.execute(
-            pg_insert(inventory_valuation)
-            .values(
-                sku_id=command.sku_id,
-                warehouse_id=command.warehouse_id,
-                quantity_on_hand=next_quantity,
-                inventory_value=next_value,
-                moving_average_unit_cost=next_average,
-            )
-            .on_conflict_do_update(
-                index_elements=["sku_id", "warehouse_id"],
-                set_={
-                    "quantity_on_hand": next_quantity,
-                    "inventory_value": next_value,
-                    "moving_average_unit_cost": next_average,
-                },
-            )
+        valuation = await apply_valuation_delta(
+            session,
+            sku_id=command.sku_id,
+            warehouse_id=command.warehouse_id,
+            quantity_delta=quantity_base,
+            value_delta=value_delta,
+            allow_create=True,
         )
         result = OpeningStockResponse(
             movement_id=movement_id,
@@ -892,7 +855,7 @@ async def post_opening_stock(
             location_id=command.location_id,
             quantity_base=quantity_base,
             value_delta=value_delta,
-            moving_average_unit_cost=next_average,
+            moving_average_unit_cost=valuation.moving_average_unit_cost,
             base_currency=base_currency,
             source_reference=command.source_reference,
             entered_unit=command.unit_code,
@@ -1396,80 +1359,24 @@ async def rebuild_projections(
                     else f"lot:{identity['lot_code']}"
                 )
                 identity_quantity = cast(Decimal, identity["movement_identity_quantity"])
-                identity_serials = [identity["serial_number"]] if is_serial else []
-                expiration = (
-                    identity["serial_expiration_date"]
-                    if is_serial
-                    else identity["lot_expiration_date"]
+                await apply_availability_delta(
+                    session,
+                    sku_id=movement["sku_id"],
+                    warehouse_id=movement["warehouse_id"],
+                    location_id=movement["location_id"],
+                    quantity=identity_quantity if incoming else -identity_quantity,
+                    identity=AvailabilityIdentity(
+                        identity_key=identity_key,
+                        lot_code=None if is_serial else identity["lot_code"],
+                        serial_numbers=[identity["serial_number"]] if is_serial else [],
+                        expiration_date=(
+                            identity["serial_expiration_date"]
+                            if is_serial
+                            else identity["lot_expiration_date"]
+                        ),
+                    ),
+                    conflict_code="inventory_projection_rebuild_conflict",
                 )
-                if incoming:
-                    await session.execute(
-                        pg_insert(inventory_availability)
-                        .values(
-                            sku_id=movement["sku_id"],
-                            warehouse_id=movement["warehouse_id"],
-                            location_id=movement["location_id"],
-                            identity_key=identity_key,
-                            lot_code=None if is_serial else identity["lot_code"],
-                            serial_numbers=identity_serials,
-                            expiration_date=expiration,
-                            on_hand=identity_quantity,
-                            reserved=Decimal("0"),
-                        )
-                        .on_conflict_do_update(
-                            index_elements=[
-                                "sku_id",
-                                "warehouse_id",
-                                "location_id",
-                                "identity_key",
-                            ],
-                            set_={
-                                "on_hand": inventory_availability.c.on_hand + identity_quantity,
-                                "serial_numbers": identity_serials,
-                                "expiration_date": expiration,
-                            },
-                        )
-                    )
-                else:
-                    identity_position = (
-                        (
-                            await session.execute(
-                                select(inventory_availability)
-                                .where(
-                                    inventory_availability.c.sku_id == movement["sku_id"],
-                                    inventory_availability.c.warehouse_id
-                                    == movement["warehouse_id"],
-                                    inventory_availability.c.location_id == movement["location_id"],
-                                    inventory_availability.c.identity_key == identity_key,
-                                )
-                                .with_for_update()
-                            )
-                        )
-                        .mappings()
-                        .one_or_none()
-                    )
-                    if (
-                        identity_position is None
-                        or identity_position["on_hand"] < identity_quantity
-                    ):
-                        raise AppError(
-                            409,
-                            "inventory_projection_rebuild_conflict",
-                            "Tracked movement identity history cannot be reconciled.",
-                        )
-                    await session.execute(
-                        update(inventory_availability)
-                        .where(
-                            inventory_availability.c.sku_id == movement["sku_id"],
-                            inventory_availability.c.warehouse_id == movement["warehouse_id"],
-                            inventory_availability.c.location_id == movement["location_id"],
-                            inventory_availability.c.identity_key == identity_key,
-                        )
-                        .values(
-                            on_hand=inventory_availability.c.on_hand - identity_quantity,
-                            serial_numbers=[] if is_serial else identity_position["serial_numbers"],
-                        )
-                    )
         elif serials and movement["movement_leg"] != "opening_in":
             serial_numbers = sorted(serial["serial_number"] for serial in serials)
             if incoming and movement["movement_leg"] in {
@@ -1477,18 +1384,18 @@ async def rebuild_projections(
                 "dispatch_transit_in",
             }:
                 for serial in serials:
-                    await session.execute(
-                        pg_insert(inventory_availability).values(
-                            sku_id=movement["sku_id"],
-                            warehouse_id=movement["warehouse_id"],
-                            location_id=movement["location_id"],
+                    await apply_availability_delta(
+                        session,
+                        sku_id=movement["sku_id"],
+                        warehouse_id=movement["warehouse_id"],
+                        location_id=movement["location_id"],
+                        quantity=Decimal("1"),
+                        identity=AvailabilityIdentity(
                             identity_key=f"serial:{serial['serial_number']}",
-                            lot_code=None,
                             serial_numbers=[serial["serial_number"]],
                             expiration_date=serial["expiration_date"],
-                            on_hand=Decimal("1"),
-                            reserved=Decimal("0"),
-                        )
+                        ),
+                        conflict_code="inventory_projection_rebuild_conflict",
                     )
             elif incoming:
                 source_positions = (
@@ -1508,35 +1415,32 @@ async def rebuild_projections(
                     .one_or_none()
                 )
                 if source_positions is None:
-                    await session.execute(
-                        insert(inventory_availability).values(
-                            sku_id=movement["sku_id"],
-                            warehouse_id=movement["warehouse_id"],
-                            location_id=movement["location_id"],
+                    await apply_availability_delta(
+                        session,
+                        sku_id=movement["sku_id"],
+                        warehouse_id=movement["warehouse_id"],
+                        location_id=movement["location_id"],
+                        quantity=movement["quantity_base"],
+                        identity=AvailabilityIdentity(
                             identity_key=f"serial:{movement['movement_group_id']}",
-                            lot_code=None,
                             serial_numbers=serial_numbers,
                             expiration_date=serials[0]["expiration_date"],
-                            on_hand=movement["quantity_base"],
-                            reserved=Decimal("0"),
-                        )
+                        ),
+                        conflict_code="inventory_projection_rebuild_conflict",
                     )
                 else:
-                    await session.execute(
-                        update(inventory_availability)
-                        .where(
-                            inventory_availability.c.sku_id == movement["sku_id"],
-                            inventory_availability.c.warehouse_id == movement["warehouse_id"],
-                            inventory_availability.c.location_id == movement["location_id"],
-                            inventory_availability.c.identity_key
-                            == source_positions["identity_key"],
-                        )
-                        .values(
-                            on_hand=inventory_availability.c.on_hand + movement["quantity_base"],
-                            serial_numbers=sorted(
-                                set(source_positions["serial_numbers"]) | set(serial_numbers)
-                            ),
-                        )
+                    await apply_availability_delta(
+                        session,
+                        sku_id=movement["sku_id"],
+                        warehouse_id=movement["warehouse_id"],
+                        location_id=movement["location_id"],
+                        quantity=movement["quantity_base"],
+                        identity=AvailabilityIdentity(
+                            identity_key=source_positions["identity_key"],
+                            serial_numbers=serial_numbers,
+                            merge_serials=True,
+                        ),
+                        conflict_code="inventory_projection_rebuild_conflict",
                     )
             else:
                 positions: list[dict[str, Any]] = [
@@ -1572,24 +1476,22 @@ async def rebuild_projections(
                             "Serial movement history cannot be reconciled.",
                         )
                     position = positions[position_index]
-                    remaining_serials = sorted(set(position["serial_numbers"]) - {serial_number})
-                    await session.execute(
-                        update(inventory_availability)
-                        .where(
-                            inventory_availability.c.sku_id == movement["sku_id"],
-                            inventory_availability.c.warehouse_id == movement["warehouse_id"],
-                            inventory_availability.c.location_id == movement["location_id"],
-                            inventory_availability.c.identity_key == position["identity_key"],
-                        )
-                        .values(
-                            on_hand=inventory_availability.c.on_hand - Decimal("1"),
-                            serial_numbers=remaining_serials,
-                        )
+                    await apply_availability_delta(
+                        session,
+                        sku_id=movement["sku_id"],
+                        warehouse_id=movement["warehouse_id"],
+                        location_id=movement["location_id"],
+                        quantity=-Decimal("1"),
+                        identity=AvailabilityIdentity(
+                            identity_key=position["identity_key"],
+                            serial_numbers=[serial_number],
+                        ),
+                        conflict_code="inventory_projection_rebuild_conflict",
                     )
                     positions[position_index] = {
                         **position,
                         "on_hand": position["on_hand"] - Decimal("1"),
-                        "serial_numbers": remaining_serials,
+                        "serial_numbers": sorted(set(position["serial_numbers"]) - {serial_number}),
                     }
         else:
             serial_expiration = serials[0]["expiration_date"] if serials else None
@@ -1601,70 +1503,29 @@ async def rebuild_projections(
                 else ""
             )
             expiration = lot["expiration_date"] if lot else serial_expiration
-            await session.execute(
-                pg_insert(inventory_availability)
-                .values(
-                    sku_id=movement["sku_id"],
-                    warehouse_id=movement["warehouse_id"],
-                    location_id=movement["location_id"],
+            await apply_availability_delta(
+                session,
+                sku_id=movement["sku_id"],
+                warehouse_id=movement["warehouse_id"],
+                location_id=movement["location_id"],
+                quantity=signed_quantity,
+                identity=AvailabilityIdentity(
                     identity_key=identity_key,
                     lot_code=lot["lot_code"] if lot else None,
                     serial_numbers=[serial["serial_number"] for serial in serials],
                     expiration_date=expiration,
-                    on_hand=signed_quantity,
-                    reserved=Decimal("0"),
                 )
-                .on_conflict_do_update(
-                    index_elements=[
-                        "sku_id",
-                        "warehouse_id",
-                        "location_id",
-                        "identity_key",
-                    ],
-                    set_={
-                        "on_hand": inventory_availability.c.on_hand + signed_quantity,
-                        "expiration_date": expiration,
-                    },
-                )
+                if identity_key
+                else None,
+                conflict_code="inventory_projection_rebuild_conflict",
             )
-        current = (
-            (
-                await session.execute(
-                    select(inventory_valuation).where(
-                        inventory_valuation.c.sku_id == movement["sku_id"],
-                        inventory_valuation.c.warehouse_id == movement["warehouse_id"],
-                    )
-                )
-            )
-            .mappings()
-            .one_or_none()
-        )
-        quantity = signed_quantity + (current["quantity_on_hand"] if current else Decimal("0"))
-        value = movement["value_delta"] + (current["inventory_value"] if current else Decimal("0"))
-        average = (
-            (value / quantity).quantize(SIX_PLACES, ROUND_HALF_UP)
-            if quantity != Decimal("0")
-            else current["moving_average_unit_cost"]
-            if current
-            else Decimal("0")
-        )
-        await session.execute(
-            pg_insert(inventory_valuation)
-            .values(
-                sku_id=movement["sku_id"],
-                warehouse_id=movement["warehouse_id"],
-                quantity_on_hand=quantity,
-                inventory_value=value,
-                moving_average_unit_cost=average,
-            )
-            .on_conflict_do_update(
-                index_elements=["sku_id", "warehouse_id"],
-                set_={
-                    "quantity_on_hand": quantity,
-                    "inventory_value": value,
-                    "moving_average_unit_cost": average,
-                },
-            )
+        await apply_valuation_delta(
+            session,
+            sku_id=movement["sku_id"],
+            warehouse_id=movement["warehouse_id"],
+            quantity_delta=signed_quantity,
+            value_delta=movement["value_delta"],
+            allow_create=True,
         )
     await session.execute(
         text(

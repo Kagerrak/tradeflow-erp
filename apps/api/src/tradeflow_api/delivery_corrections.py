@@ -11,7 +11,6 @@ from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy import exists, func, insert, select, text, update
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,6 +23,13 @@ from tradeflow_api.auth import (
 from tradeflow_api.command_receipts import get_command_replay, store_command_result
 from tradeflow_api.database import get_database_session
 from tradeflow_api.errors import AppError, error_responses
+from tradeflow_api.inventory_projection_service import (
+    AvailabilityIdentity,
+    acquire_projection_rebuild_lock,
+    acquire_sku_warehouse_lock,
+    apply_availability_delta,
+    apply_valuation_delta,
+)
 from tradeflow_api.models import (
     approval_authorities,
     companies,
@@ -51,8 +57,6 @@ from tradeflow_api.models import (
     document_series_number_audit,
     draft_invoice_lines,
     draft_invoices,
-    inventory_availability,
-    inventory_valuation,
     lot_identities,
     outbox_events,
     outbox_processing_state,
@@ -1046,23 +1050,12 @@ async def _add_untracked_position(
 ) -> None:
     if quantity == ZERO:
         return
-    await session.execute(
-        pg_insert(inventory_availability)
-        .values(
-            sku_id=sku_id,
-            warehouse_id=warehouse_id,
-            location_id=location_id,
-            identity_key="",
-            lot_code=None,
-            serial_numbers=[],
-            expiration_date=None,
-            on_hand=quantity,
-            reserved=ZERO,
-        )
-        .on_conflict_do_update(
-            index_elements=["sku_id", "warehouse_id", "location_id", "identity_key"],
-            set_={"on_hand": inventory_availability.c.on_hand + quantity},
-        )
+    await apply_availability_delta(
+        session,
+        sku_id=sku_id,
+        warehouse_id=warehouse_id,
+        location_id=location_id,
+        quantity=quantity,
     )
 
 
@@ -1122,27 +1115,19 @@ async def _add_identity_position(
     if quantity == ZERO:
         return
     identity_key, lot_code, serials, expiration = _identity_values(identity)
-    await session.execute(
-        pg_insert(inventory_availability)
-        .values(
-            sku_id=sku_id,
-            warehouse_id=warehouse_id,
-            location_id=location_id,
+    await apply_availability_delta(
+        session,
+        sku_id=sku_id,
+        warehouse_id=warehouse_id,
+        location_id=location_id,
+        quantity=quantity,
+        identity=AvailabilityIdentity(
             identity_key=identity_key,
             lot_code=lot_code,
             serial_numbers=serials,
             expiration_date=expiration,
-            on_hand=quantity,
-            reserved=ZERO,
-        )
-        .on_conflict_do_update(
-            index_elements=["sku_id", "warehouse_id", "location_id", "identity_key"],
-            set_={
-                "on_hand": inventory_availability.c.on_hand + quantity,
-                "serial_numbers": serials,
-                "expiration_date": expiration,
-            },
-        )
+        ),
+        conflict_code="delivery_correction_inventory_conflict",
     )
 
 
@@ -1158,40 +1143,18 @@ async def _remove_identity_position(
     if quantity == ZERO:
         return
     identity_key, _, serials, _ = _identity_values(identity)
-    position = (
-        (
-            await session.execute(
-                select(inventory_availability)
-                .where(
-                    inventory_availability.c.sku_id == sku_id,
-                    inventory_availability.c.warehouse_id == warehouse_id,
-                    inventory_availability.c.location_id == location_id,
-                    inventory_availability.c.identity_key == identity_key,
-                )
-                .with_for_update()
-            )
-        )
-        .mappings()
-        .one_or_none()
-    )
-    if position is None or position["on_hand"] < quantity:
-        raise AppError(
-            409,
-            "delivery_correction_inventory_conflict",
-            "Tracked correction custody is no longer available.",
-        )
-    await session.execute(
-        update(inventory_availability)
-        .where(
-            inventory_availability.c.sku_id == sku_id,
-            inventory_availability.c.warehouse_id == warehouse_id,
-            inventory_availability.c.location_id == location_id,
-            inventory_availability.c.identity_key == identity_key,
-        )
-        .values(
-            on_hand=inventory_availability.c.on_hand - quantity,
-            serial_numbers=sorted(set(position["serial_numbers"]) - set(serials)),
-        )
+    await apply_availability_delta(
+        session,
+        sku_id=sku_id,
+        warehouse_id=warehouse_id,
+        location_id=location_id,
+        quantity=-quantity,
+        identity=AvailabilityIdentity(
+            identity_key=identity_key,
+            serial_numbers=serials,
+        ),
+        conflict_code="delivery_correction_inventory_conflict",
+        conflict_message="Tracked correction custody is no longer available.",
     )
 
 
@@ -1228,33 +1191,14 @@ async def _remove_untracked_position(
 ) -> None:
     if quantity == ZERO:
         return
-    row = (
-        await session.execute(
-            select(inventory_availability.c.on_hand)
-            .where(
-                inventory_availability.c.sku_id == sku_id,
-                inventory_availability.c.warehouse_id == warehouse_id,
-                inventory_availability.c.location_id == location_id,
-                inventory_availability.c.identity_key == "",
-            )
-            .with_for_update()
-        )
-    ).one_or_none()
-    if row is None or row.on_hand < quantity:
-        raise AppError(
-            409,
-            "delivery_correction_inventory_conflict",
-            "Correction custody is no longer available.",
-        )
-    await session.execute(
-        update(inventory_availability)
-        .where(
-            inventory_availability.c.sku_id == sku_id,
-            inventory_availability.c.warehouse_id == warehouse_id,
-            inventory_availability.c.location_id == location_id,
-            inventory_availability.c.identity_key == "",
-        )
-        .values(on_hand=inventory_availability.c.on_hand - quantity)
+    await apply_availability_delta(
+        session,
+        sku_id=sku_id,
+        warehouse_id=warehouse_id,
+        location_id=location_id,
+        quantity=-quantity,
+        conflict_code="delivery_correction_inventory_conflict",
+        conflict_message="Correction custody is no longer available.",
     )
 
 
@@ -1340,9 +1284,7 @@ async def _post_correction(
     correlation_id: str,
     approval_authority_id: UUID,
 ) -> tuple[UUID | None, UUID]:
-    await session.execute(
-        text("SELECT pg_advisory_xact_lock_shared(hashtext('inventory-projection-rebuild'))")
-    )
+    await acquire_projection_rebuild_lock(session, shared=True)
     location_rows = (
         await session.execute(
             select(
@@ -1381,6 +1323,8 @@ async def _post_correction(
         .all()
     )
     lines = [dict(row) for row in line_rows]
+    for sku_id in {line["sku_id"] for line in lines}:
+        await acquire_sku_warehouse_lock(session, sku_id, correction["warehouse_id"])
     source_correction_id = cast(
         UUID | None,
         await session.scalar(
@@ -1783,26 +1727,6 @@ async def _post_correction(
                 replacement_in_id,
             )
     for sku_id in {line["sku_id"] for line in lines}:
-        valuation = (
-            (
-                await session.execute(
-                    select(inventory_valuation)
-                    .where(
-                        inventory_valuation.c.sku_id == sku_id,
-                        inventory_valuation.c.warehouse_id == correction["warehouse_id"],
-                    )
-                    .with_for_update()
-                )
-            )
-            .mappings()
-            .one_or_none()
-        )
-        if valuation is None:
-            raise AppError(
-                409,
-                "delivery_correction_inventory_conflict",
-                f"SKU valuation is not initialized for warehouse {correction['warehouse_id']}.",
-            )
         sku_lines = [line for line in lines if line["sku_id"] == sku_id]
         quantity_delta = sum(
             (
@@ -1823,24 +1747,14 @@ async def _post_correction(
             ),
             ZERO,
         )
-        new_quantity = valuation["quantity_on_hand"] + quantity_delta
-        new_value = valuation["inventory_value"] + value_delta
-        new_mac = (
-            (new_value / new_quantity).quantize(SIX_PLACES, ROUND_HALF_UP)
-            if new_quantity
-            else valuation["moving_average_unit_cost"]
-        )
-        await session.execute(
-            update(inventory_valuation)
-            .where(
-                inventory_valuation.c.sku_id == sku_id,
-                inventory_valuation.c.warehouse_id == correction["warehouse_id"],
-            )
-            .values(
-                quantity_on_hand=new_quantity,
-                inventory_value=new_value,
-                moving_average_unit_cost=new_mac,
-            )
+        await apply_valuation_delta(
+            session,
+            sku_id=sku_id,
+            warehouse_id=correction["warehouse_id"],
+            quantity_delta=quantity_delta,
+            value_delta=value_delta,
+            allow_create=False,
+            missing_code="delivery_correction_inventory_conflict",
         )
 
     evidence_ids = list(

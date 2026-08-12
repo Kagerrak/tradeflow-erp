@@ -65,7 +65,10 @@ workflow linked to the original Delivery Confirmation, stock movements, and
 Delivery Receipt. A requester proposes one complete corrected quantity and
 tracked-identity partition, and a different eligible approver posts it against
 the current receipt-chain head. It does not edit an issued receipt, Proof of
-Delivery, stock movement, or Draft Invoice source.
+Delivery, stock movement, or Draft Invoice source. Stock and valuation
+projection effects are applied through the shared inventory-projection service;
+the fulfillment module does not write `inventory_availability` or
+`inventory_valuation` rows directly.
 
 **Replacement Delivery Receipt**: A new Branch-numbered immutable receipt
 issued when a posted Delivery Correction retains accepted quantity. It links

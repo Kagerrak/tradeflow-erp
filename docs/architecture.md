@@ -168,12 +168,11 @@ maker-checker control, reverses and replaces stock at the original outbound
 unit cost, replaces only an unposted Draft Invoice source, and issues a newly
 numbered receipt when corrected accepted quantity remains. It never edits the
 original Confirmation, evidence, receipt, number, movement, or invoice source.
-The fulfillment module currently posts correction stock effects and updates
-`inventory_availability`/`inventory_valuation` projections inside the same
-transaction; this is a deliberate short-term coupling while the slice
-stabilizes, and will move into a shared inventory-projection service so
-opening-stock, delivery, and correction posting share one canonical
-implementation.
+The `inventory_availability`/`inventory_valuation` projection tables are owned
+by a shared inventory-projection service that opening-stock posting, projection
+rebuilds, and delivery corrections call inside their transactions. The service
+enforces the canonical lock hierarchy and moving-average valuation math so that
+no domain module writes projection rows directly.
 
 Reservations commit quantity without prematurely assigning lot or serial
 identity. Picking assigns required identities. Expiration-controlled stock uses
