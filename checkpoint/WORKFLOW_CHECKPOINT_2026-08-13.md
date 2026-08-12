@@ -3,7 +3,7 @@
 - Date: August 13, 2026
 - Phase: Issue #14 release integration candidate prepared
 - Branch: `feat/order-to-delivery-release`
-- Commit: `3146c3d`
+- Commit: `430ba80`
 - Base: `main`
 - PR: #33 — https://github.com/Kagerrak/tradeflow-erp/pull/33
 - PR chain integrated: #15 → #16 → #17 → #18 → #19 → #20 → #21 → #22 → #23 → #24 →
@@ -77,7 +77,20 @@
   layer (PR #31).
 - #27 — Frontend/BFF polish for delivery corrections (PR #32).
 
-## Next dependency-ready issue
+## Merged
+
+- #24 — Collect and reconcile Cash on Delivery (merged to
+  `feat/offline-delivery-confirmation`).
+- #25 — Resolve Delivery Exceptions without losing custody (merged to
+  `feat/cod-collection-reconciliation`).
+- #29 — Correct an issued Delivery Receipt immutably (merged to
+  `feat/delivery-exception-custody`).
+
+## In progress
+
+- #14 — Release integration via PR #33 (`feat/order-to-delivery-release` →
+  `main`). Currently draft; GitHub Actions run `31629484496` is pending after
+  the latest docs commit.
 
 - **#14 — Rebuild, reconcile, and release the complete order-to-delivery slice.**
   The integrated branch is now a candidate for this milestone. Remaining work is
@@ -86,9 +99,5 @@
 
 ## Decisions needed from user
 
-- Whether to merge the stacked PR chain (#24 → #25 → #29 → #30 → #31 → #32) in
-  order, or merge the single release integration PR #33 once reviewed.
-- Whether to run a production-like migration/reconciliation smoke test before
-  release.
-- Whether any remaining #14 acceptance criteria should be deferred (e.g., native
-  iOS/Android device journeys, operational runbook exercises).
+- Approval to mark PR #33 ready for review and merge it into `main` once CI run
+  `31629484496` completes green.
