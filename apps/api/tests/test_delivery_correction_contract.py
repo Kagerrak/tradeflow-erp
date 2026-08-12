@@ -9,7 +9,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from test_delivery_confirmation_contract import (
     FakeObjectStorage,
     dispatched_prepaid_delivery,
@@ -38,6 +38,10 @@ from test_tracked_stock_picking_contract import (
     approved_tracked_order,
 )
 from tradeflow_api.config import Settings
+from tradeflow_api.delivery_confirmation_outbox import (
+    create_corrected_draft_invoices_for_event,
+    render_corrected_delivery_receipt_for_event,
+)
 from tradeflow_worker.worker import poll_delivery_confirmation_outbox
 
 
@@ -4299,5 +4303,407 @@ async def test_receipt_access_scopes_allow_correction_operators_by_branch_and_wa
     )
     assert unassigned_response.status_code == 403, unassigned_response.text
     assert unassigned_response.json()["error"]["code"] == "delivery_assignment_required"
+
+    await engine.dispose()
+
+
+async def _ensure_warehouse_scoped_authority(
+    postgres_url: str,
+    subject: str,
+    branch_id: str,
+    warehouse_id: str,
+    maximum_amount: Decimal,
+) -> None:
+    engine = create_async_engine(postgres_url)
+    async with engine.begin() as connection:
+        await connection.execute(
+            text(
+                """
+                INSERT INTO approval_authorities(
+                  approval_authority_id, user_subject, capability_code,
+                  branch_id, warehouse_id, maximum_amount, maker_checker_required
+                ) VALUES (
+                  :authority_id, :subject, 'fulfillment:delivery-correction-authorize',
+                  :branch_id, :warehouse_id, :maximum_amount, true
+                )
+                """
+            ),
+            {
+                "authority_id": uuid4(),
+                "subject": subject,
+                "branch_id": branch_id,
+                "warehouse_id": warehouse_id,
+                "maximum_amount": maximum_amount,
+            },
+        )
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_delivery_correction_authorization_matrix(
+    confirmation_client: AsyncClient,
+    confirmation_settings: Settings,
+    fake_storage: FakeObjectStorage,
+    postgres_url: str,
+) -> None:
+    """Exercise the authorization boundary for every combination of capability,
+    branch/warehouse scope, approval authority grain, and approval limit.
+    """
+    fixture, confirmation = await _confirm_fully_accepted_delivery(
+        confirmation_client,
+        confirmation_settings,
+        postgres_url,
+    )
+    receipt_id = confirmation["delivery_receipt"]["delivery_receipt_id"]
+    engine = create_async_engine(postgres_url)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    assert await poll_delivery_confirmation_outbox(
+        {"database_session_factory": factory, "object_storage": fake_storage}
+    ) == {"completed": 1, "failed": 0}
+
+    correction_id = str(uuid4())
+    requested = await confirmation_client.post(
+        f"/v1/delivery-receipts/{receipt_id}/corrections",
+        headers=auth(
+            confirmation_settings,
+            "warehouse-supervisor-mnl",
+            **{"Idempotency-Key": "matrix-correction-request"},
+        ),
+        json={
+            "correction_id": correction_id,
+            "reason": "Authorization matrix test.",
+            "evidence_ids": [confirmation["evidence_id"]],
+            "lines": [
+                {
+                    "delivery_line_id": confirmation["lines"][0]["delivery_line_id"],
+                    "accepted_quantity_base": "1.000000",
+                    "refused_quantity_base": "1.000000",
+                    "damaged_quantity_base": "0.000000",
+                    "short_missing_quantity_base": "0.000000",
+                    "still_undelivered_quantity_base": "0.000000",
+                    "identity_positions": [],
+                }
+            ],
+        },
+    )
+    assert requested.status_code == 201, requested.text
+
+    async def authorize_as(user: str, key: str) -> object:
+        return await confirmation_client.post(
+            f"/v1/delivery-corrections/{correction_id}/authorization",
+            headers=auth(
+                confirmation_settings,
+                user,
+                **{"Idempotency-Key": key},
+            ),
+            json={"expected_correction_version": 1},
+        )
+
+    # Requester cannot authorize their own proposal.
+    self_auth = await authorize_as("warehouse-supervisor-mnl", "matrix-self-authorization")
+    assert self_auth.status_code == 403, self_auth.text
+    assert self_auth.json()["error"]["code"] == "maker_checker_violation"
+
+    # Capable user whose approval limit is below the affected value is rejected.
+    low_limit = await authorize_as("delivery-correction-checker-low-mnl", "matrix-low-limit")
+    assert low_limit.status_code == 403, low_limit.text
+    assert low_limit.json()["error"]["code"] == "approval_authority_required"
+
+    # Capable user from a different branch/warehouse is rejected at scope.
+    wrong_branch = await authorize_as("delivery-correction-checker-ceb", "matrix-wrong-branch")
+    assert wrong_branch.status_code == 403, wrong_branch.text
+    assert wrong_branch.json()["error"]["code"] == "operational_scope_required"
+
+    # User without the authorizer capability is rejected at capability.
+    no_capability = await authorize_as("delivery-mnl", "matrix-no-capability")
+    assert no_capability.status_code == 403, no_capability.text
+    assert no_capability.json()["error"]["code"] == "capability_required"
+
+    # Warehouse-scoped authority for the wrong warehouse is rejected.
+    await _ensure_correction_user(
+        postgres_url,
+        "correction-warehouse-wrong-mnl",
+        str(fixture["branch_id"]),
+        str(fixture["warehouse_id"]),
+    )
+    async with engine.connect() as connection:
+        wrong_warehouse_id = await connection.scalar(
+            text("SELECT warehouse_id FROM warehouses WHERE code = 'CEB-01'")
+        )
+    assert wrong_warehouse_id is not None
+    await _ensure_warehouse_scoped_authority(
+        postgres_url,
+        "correction-warehouse-wrong-mnl",
+        str(fixture["branch_id"]),
+        str(wrong_warehouse_id),
+        Decimal("1000.00"),
+    )
+    wrong_warehouse_auth = await authorize_as(
+        "correction-warehouse-wrong-mnl", "matrix-wrong-warehouse-scope"
+    )
+    assert wrong_warehouse_auth.status_code == 403, wrong_warehouse_auth.text
+    assert wrong_warehouse_auth.json()["error"]["code"] == "approval_authority_required"
+
+    # Warehouse-scoped authority for the matching warehouse succeeds.
+    await _ensure_correction_user(
+        postgres_url,
+        "correction-warehouse-scoped-mnl",
+        str(fixture["branch_id"]),
+        str(fixture["warehouse_id"]),
+    )
+    await _ensure_warehouse_scoped_authority(
+        postgres_url,
+        "correction-warehouse-scoped-mnl",
+        str(fixture["branch_id"]),
+        str(fixture["warehouse_id"]),
+        Decimal("1000.00"),
+    )
+    scoped_auth = await authorize_as(
+        "correction-warehouse-scoped-mnl", "matrix-matching-warehouse-scope"
+    )
+    assert scoped_auth.status_code == 200, scoped_auth.text
+    assert scoped_auth.json()["status"] == "posted"
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_correction_outbox_handlers_are_idempotent_and_recover_from_transient_failure(
+    confirmation_client: AsyncClient,
+    confirmation_settings: Settings,
+    fake_storage: FakeObjectStorage,
+    postgres_url: str,
+) -> None:
+    """Correction outbox handlers deduplicate replays and recover after a storage failure."""
+    _, confirmation = await _confirm_fully_accepted_delivery(
+        confirmation_client,
+        confirmation_settings,
+        postgres_url,
+    )
+    receipt_id = confirmation["delivery_receipt"]["delivery_receipt_id"]
+    engine = create_async_engine(postgres_url)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    assert await poll_delivery_confirmation_outbox(
+        {"database_session_factory": factory, "object_storage": fake_storage}
+    ) == {"completed": 1, "failed": 0}
+
+    correction_id = str(uuid4())
+    requested = await confirmation_client.post(
+        f"/v1/delivery-receipts/{receipt_id}/corrections",
+        headers=auth(
+            confirmation_settings,
+            "warehouse-supervisor-mnl",
+            **{"Idempotency-Key": "outbox-correction-request"},
+        ),
+        json={
+            "correction_id": correction_id,
+            "reason": "Outbox idempotency test.",
+            "evidence_ids": [confirmation["evidence_id"]],
+            "lines": [
+                {
+                    "delivery_line_id": confirmation["lines"][0]["delivery_line_id"],
+                    "accepted_quantity_base": "1.000000",
+                    "refused_quantity_base": "1.000000",
+                    "damaged_quantity_base": "0.000000",
+                    "short_missing_quantity_base": "0.000000",
+                    "still_undelivered_quantity_base": "0.000000",
+                    "identity_positions": [],
+                }
+            ],
+        },
+    )
+    assert requested.status_code == 201, requested.text
+
+    authorized = await confirmation_client.post(
+        f"/v1/delivery-corrections/{correction_id}/authorization",
+        headers=auth(
+            confirmation_settings,
+            "delivery-correction-checker-mnl",
+            **{"Idempotency-Key": "outbox-correction-authorize"},
+        ),
+        json={"expected_correction_version": 1},
+    )
+    assert authorized.status_code == 200, authorized.text
+    outbox_event_id = UUID(authorized.json()["outbox_event_id"])
+
+    # Simulate a transient storage failure on the first poll attempt.
+    fake_storage.fail_puts = 1
+    first_poll = await poll_delivery_confirmation_outbox(
+        {"database_session_factory": factory, "object_storage": fake_storage}
+    )
+    assert first_poll == {"completed": 0, "failed": 1}
+
+    async with engine.connect() as connection:
+        document = dict(
+            (
+                await connection.execute(
+                    text(
+                        """
+                        SELECT status
+                        FROM delivery_receipt_documents
+                        WHERE delivery_receipt_id = :receipt_id
+                        """
+                    ),
+                    {
+                        "receipt_id": authorized.json()["receipt_effect"][
+                            "replacement_delivery_receipt_id"
+                        ]
+                    },
+                )
+            )
+            .mappings()
+            .one()
+        )
+        correction_handler_count = await connection.scalar(
+            text(
+                """
+                SELECT count(*)
+                FROM outbox_handler_receipts
+                WHERE outbox_event_id = :event_id
+                  AND handler_name IN (
+                    'finance.delivery-correction.v1',
+                    'documents.delivery-correction-receipt.v1'
+                  )
+                """
+            ),
+            {"event_id": outbox_event_id},
+        )
+    assert document["status"] == "pending_document"
+    # The whole event transaction rolls back on failure, so no partial receipts.
+    assert correction_handler_count == 0
+
+    # Replay after fixing the failure should complete exactly once.
+    async with engine.begin() as connection:
+        await connection.execute(
+            text("UPDATE outbox_processing_state SET available_at = now() WHERE status = 'failed'")
+        )
+    second_poll = await poll_delivery_confirmation_outbox(
+        {"database_session_factory": factory, "object_storage": fake_storage}
+    )
+    assert second_poll == {"completed": 1, "failed": 0}
+
+    async with engine.connect() as connection:
+        final_correction_handler_count = await connection.scalar(
+            text(
+                """
+                SELECT count(*)
+                FROM outbox_handler_receipts
+                WHERE outbox_event_id = :event_id
+                  AND handler_name IN (
+                    'finance.delivery-correction.v1',
+                    'documents.delivery-correction-receipt.v1'
+                  )
+                """
+            ),
+            {"event_id": outbox_event_id},
+        )
+    assert final_correction_handler_count == 2
+
+    async with engine.begin() as connection:
+        session = AsyncSession(bind=connection, expire_on_commit=False)
+        first_invoice_id = await create_corrected_draft_invoices_for_event(session, outbox_event_id)
+        replayed_invoice_id = await create_corrected_draft_invoices_for_event(
+            session, outbox_event_id
+        )
+        assert replayed_invoice_id == first_invoice_id
+
+        first_receipt_id = await render_corrected_delivery_receipt_for_event(
+            session, outbox_event_id, fake_storage
+        )
+        replayed_receipt_id = await render_corrected_delivery_receipt_for_event(
+            session, outbox_event_id, fake_storage
+        )
+        assert replayed_receipt_id == first_receipt_id
+
+    # A final poll finds no remaining work.
+    final_poll = await poll_delivery_confirmation_outbox(
+        {"database_session_factory": factory, "object_storage": fake_storage}
+    )
+    assert final_poll == {"completed": 0, "failed": 0}
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_correction_projections_reconcile_after_rebuild(
+    confirmation_client: AsyncClient,
+    confirmation_settings: Settings,
+    fake_storage: FakeObjectStorage,
+    postgres_url: str,
+) -> None:
+    """After a posted correction, rebuilding inventory projections from source
+    movements reproduces the same availability and valuation snapshot.
+    """
+    fixture, confirmation = await _confirm_fully_accepted_delivery(
+        confirmation_client,
+        confirmation_settings,
+        postgres_url,
+    )
+    receipt_id = confirmation["delivery_receipt"]["delivery_receipt_id"]
+    engine = create_async_engine(postgres_url)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    assert await poll_delivery_confirmation_outbox(
+        {"database_session_factory": factory, "object_storage": fake_storage}
+    ) == {"completed": 1, "failed": 0}
+
+    correction_id = str(uuid4())
+    requested = await confirmation_client.post(
+        f"/v1/delivery-receipts/{receipt_id}/corrections",
+        headers=auth(
+            confirmation_settings,
+            "warehouse-supervisor-mnl",
+            **{"Idempotency-Key": "reconcile-correction-request"},
+        ),
+        json={
+            "correction_id": correction_id,
+            "reason": "Reconcile projections after rebuild.",
+            "evidence_ids": [confirmation["evidence_id"]],
+            "lines": [
+                {
+                    "delivery_line_id": confirmation["lines"][0]["delivery_line_id"],
+                    "accepted_quantity_base": "1.000000",
+                    "refused_quantity_base": "1.000000",
+                    "damaged_quantity_base": "0.000000",
+                    "short_missing_quantity_base": "0.000000",
+                    "still_undelivered_quantity_base": "0.000000",
+                    "identity_positions": [],
+                }
+            ],
+        },
+    )
+    assert requested.status_code == 201, requested.text
+
+    authorized = await confirmation_client.post(
+        f"/v1/delivery-corrections/{correction_id}/authorization",
+        headers=auth(
+            confirmation_settings,
+            "delivery-correction-checker-mnl",
+            **{"Idempotency-Key": "reconcile-correction-authorize"},
+        ),
+        json={"expected_correction_version": 1},
+    )
+    assert authorized.status_code == 200, authorized.text
+
+    async def availability_snapshot() -> list[dict[str, object]]:
+        response = await confirmation_client.get(
+            "/v1/inventory/availability",
+            headers=auth(confirmation_settings, "warehouse-supervisor-mnl"),
+        )
+        assert response.status_code == 200, response.text
+        return [
+            item for item in response.json()["items"] if item["sku_id"] == str(fixture["sku_id"])
+        ]
+
+    before = await availability_snapshot()
+    assert before
+
+    rebuild = await confirmation_client.post(
+        "/v1/inventory/projections/rebuild",
+        headers=auth(confirmation_settings, "warehouse-supervisor-mnl"),
+    )
+    assert rebuild.status_code == 200, rebuild.text
+
+    after = await availability_snapshot()
+    assert after == before
 
     await engine.dispose()
