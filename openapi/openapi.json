@@ -220,6 +220,20 @@
               }
             ],
             "title": "Maximum Percentage"
+          },
+          "warehouse_code": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "minLength": 1,
+                "pattern": "^[A-Z][A-Z0-9_-]{1,29}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warehouse Code"
           }
         },
         "required": [
@@ -271,6 +285,20 @@
               }
             ],
             "title": "Maximum Percentage"
+          },
+          "warehouse_code": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "minLength": 1,
+                "pattern": "^[A-Z][A-Z0-9_-]{1,29}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warehouse Code"
           }
         },
         "required": [

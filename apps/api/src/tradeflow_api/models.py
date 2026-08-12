@@ -212,6 +212,12 @@ approval_authorities = Table(
         ForeignKey("branches.branch_id"),
         nullable=False,
     ),
+    Column(
+        "warehouse_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouses.warehouse_id"),
+        nullable=True,
+    ),
     Column("maximum_amount", Numeric(18, 2), nullable=True),
     Column("maximum_percentage", Numeric(9, 6), nullable=True),
     Column(
@@ -220,12 +226,25 @@ approval_authorities = Table(
         nullable=False,
         server_default="true",
     ),
-    UniqueConstraint(
-        "user_subject",
-        "capability_code",
-        "branch_id",
-        name="uq_approval_authority_assignment",
-    ),
+)
+
+Index(
+    "uq_approval_authority_branch",
+    approval_authorities.c.user_subject,
+    approval_authorities.c.capability_code,
+    approval_authorities.c.branch_id,
+    unique=True,
+    postgresql_where=approval_authorities.c.warehouse_id.is_(None),
+)
+
+Index(
+    "uq_approval_authority_warehouse",
+    approval_authorities.c.user_subject,
+    approval_authorities.c.capability_code,
+    approval_authorities.c.branch_id,
+    approval_authorities.c.warehouse_id,
+    unique=True,
+    postgresql_where=approval_authorities.c.warehouse_id.is_not(None),
 )
 
 customer_accounts = Table(

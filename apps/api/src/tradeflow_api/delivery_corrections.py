@@ -10,7 +10,7 @@ from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
-from sqlalchemy import exists, func, insert, select, text, update
+from sqlalchemy import exists, func, insert, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -2169,6 +2169,10 @@ async def authorize_delivery_correction(
                         approval_authorities.c.capability_code
                         == "fulfillment:delivery-correction-authorize",
                         approval_authorities.c.branch_id == correction["branch_id"],
+                        or_(
+                            approval_authorities.c.warehouse_id.is_(None),
+                            approval_authorities.c.warehouse_id == correction["warehouse_id"],
+                        ),
                     )
                 )
             )

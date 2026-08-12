@@ -1231,6 +1231,8 @@ export interface components {
             maximum_amount?: number | string | null;
             /** Maximum Percentage */
             maximum_percentage?: number | string | null;
+            /** Warehouse Code */
+            warehouse_code?: string | null;
         };
         /** ApprovalAuthorityInput */
         "ApprovalAuthorityInput-Output": {
@@ -1247,6 +1249,8 @@ export interface components {
             maximum_amount?: string | null;
             /** Maximum Percentage */
             maximum_percentage?: string | null;
+            /** Warehouse Code */
+            warehouse_code?: string | null;
         };
         /** AssignDeliveryCommand */
         AssignDeliveryCommand: {

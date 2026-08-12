@@ -193,7 +193,7 @@ async def test_populated_delivery_correction_history_refuses_downgrade_without_d
             .mappings()
             .one()
         )
-    assert preserved["version_num"] == "0015"
+    assert preserved["version_num"] == "0016"
     assert preserved["correction_id"] == UUID(correction_id)
     assert preserved["number"] == authorized.json()["receipt_effect"]["original_number"]
     assert preserved["snapshot"]["delivery_id"] == confirmation["delivery_id"]
@@ -273,7 +273,7 @@ async def test_upgrade_preserves_legacy_invoice_rounding_and_correction_reverses
             await connection.execute(
                 text("ALTER TABLE draft_invoices ENABLE TRIGGER trg_draft_invoices_immutable")
             )
-        await asyncio.to_thread(command.upgrade, config, "0015")
+        await asyncio.to_thread(command.upgrade, config, "head")
 
         async with engine.connect() as connection:
             legacy = dict(

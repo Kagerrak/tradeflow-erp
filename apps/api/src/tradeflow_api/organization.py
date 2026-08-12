@@ -70,6 +70,12 @@ class RoleTemplateInput(CommandModel):
 class ApprovalAuthorityInput(CommandModel):
     capability: str = Field(min_length=1, max_length=100)
     branch_code: str = Field(pattern=r"^[A-Z][A-Z0-9_-]{1,29}$")
+    warehouse_code: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=30,
+        pattern=r"^[A-Z][A-Z0-9_-]{1,29}$",
+    )
     maximum_amount: Decimal | None = Field(default=None, ge=0, max_digits=18, decimal_places=2)
     maximum_percentage: Decimal | None = Field(
         default=None,
@@ -656,6 +662,10 @@ async def configure_user(
             )
         ).all()
         warehouse_ids = {row.code: row.warehouse_id for row in warehouse_rows}
+        branch_id_to_code = {row.branch_id: row.code for row in branch_rows}
+        warehouse_branch_map = {
+            row.code: branch_id_to_code[row.branch_id] for row in warehouse_rows
+        }
         if set(role_ids) != set(command.role_template_codes):
             raise invalid_assignment("Assignment references an unknown or inactive Role Template.")
         if set(branch_ids) != set(command.branch_codes):
@@ -692,6 +702,31 @@ async def configure_user(
                 raise invalid_assignment(
                     "Approval Authority requires the matching Branch assignment."
                 )
+            authority_warehouse_id = None
+            if authority.warehouse_code is not None:
+                if authority.warehouse_code not in warehouse_ids:
+                    raise invalid_assignment("Approval Authority references an unknown Warehouse.")
+                authority_warehouse_id = warehouse_ids[authority.warehouse_code]
+                if warehouse_branch_map[authority.warehouse_code] != authority.branch_code:
+                    raise invalid_assignment(
+                        "Approval Authority Warehouse must belong to its Branch."
+                    )
+                if authority.warehouse_code not in command.warehouse_codes:
+                    raise invalid_assignment(
+                        "Approval Authority requires the matching Warehouse assignment."
+                    )
+            await session.execute(
+                insert(approval_authorities).values(
+                    approval_authority_id=uuid4(),
+                    user_subject=subject,
+                    capability_code=authority.capability,
+                    branch_id=branch_ids[authority.branch_code],
+                    warehouse_id=authority_warehouse_id,
+                    maximum_amount=authority.maximum_amount,
+                    maximum_percentage=authority.maximum_percentage,
+                    maker_checker_required=authority.maker_checker_required,
+                )
+            )
 
         for role_template_id in role_ids.values():
             await session.execute(
@@ -714,18 +749,6 @@ async def configure_user(
                     warehouse_id=warehouse_id,
                 )
             )
-        for authority in command.approval_authorities:
-            await session.execute(
-                insert(approval_authorities).values(
-                    approval_authority_id=uuid4(),
-                    user_subject=subject,
-                    capability_code=authority.capability,
-                    branch_id=branch_ids[authority.branch_code],
-                    maximum_amount=authority.maximum_amount,
-                    maximum_percentage=authority.maximum_percentage,
-                    maker_checker_required=authority.maker_checker_required,
-                )
-            )
 
         result = UserConfigurationResponse(
             subject=subject,
@@ -737,7 +760,11 @@ async def configure_user(
             warehouse_codes=sorted(set(command.warehouse_codes)),
             approval_authorities=sorted(
                 command.approval_authorities,
-                key=lambda authority: (authority.capability, authority.branch_code),
+                key=lambda authority: (
+                    authority.capability,
+                    authority.branch_code,
+                    authority.warehouse_code or "",
+                ),
             ),
             version=version,
         )
@@ -1159,6 +1186,7 @@ async def bootstrap_organization(
 
         branch_ids: dict[str, UUID] = {}
         warehouse_ids: dict[str, UUID] = {}
+        warehouse_branch_map: dict[str, str] = {}
         branch_responses: list[BranchResponse] = []
         for branch in command.branches:
             if branch.code in branch_ids:
@@ -1179,6 +1207,7 @@ async def bootstrap_organization(
                     raise invalid_assignment(f"Warehouse code '{warehouse.code}' is duplicated.")
                 warehouse_id = uuid4()
                 warehouse_ids[warehouse.code] = warehouse_id
+                warehouse_branch_map[warehouse.code] = branch.code
                 await session.execute(
                     insert(warehouses).values(
                         warehouse_id=warehouse_id,
@@ -1290,12 +1319,30 @@ async def bootstrap_organization(
                     raise invalid_assignment(
                         f"Approval Authority references unknown Branch '{authority.branch_code}'."
                     ) from error
+                authority_warehouse_id = None
+                if authority.warehouse_code is not None:
+                    try:
+                        authority_warehouse_id = warehouse_ids[authority.warehouse_code]
+                    except KeyError as error:
+                        raise invalid_assignment(
+                            "Approval Authority references unknown Warehouse "
+                            f"'{authority.warehouse_code}'."
+                        ) from error
+                    if warehouse_branch_map[authority.warehouse_code] != authority.branch_code:
+                        raise invalid_assignment(
+                            "Approval Authority Warehouse must belong to its Branch."
+                        )
+                    if authority.warehouse_code not in configured_user.warehouse_codes:
+                        raise invalid_assignment(
+                            "Approval Authority requires the matching Warehouse assignment."
+                        )
                 await session.execute(
                     insert(approval_authorities).values(
                         approval_authority_id=uuid4(),
                         user_subject=configured_user.subject,
                         capability_code=authority.capability,
                         branch_id=authority_branch_id,
+                        warehouse_id=authority_warehouse_id,
                         maximum_amount=authority.maximum_amount,
                         maximum_percentage=authority.maximum_percentage,
                         maker_checker_required=authority.maker_checker_required,

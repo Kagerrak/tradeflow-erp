@@ -348,3 +348,140 @@ async def test_database_rejects_correction_movement_and_invoice_economic_corrupt
             await connection.execute(movement_insert, swapped_values)
             await connection.execute(effect_insert, swapped_values)
     await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_database_rejects_out_of_warehouse_correction_authorization(
+    confirmation_client: AsyncClient,
+    confirmation_settings: Settings,
+    fake_storage: FakeObjectStorage,
+    postgres_url: str,
+) -> None:
+    _, confirmation = await _confirm_fully_accepted_delivery(
+        confirmation_client,
+        confirmation_settings,
+        postgres_url,
+    )
+    receipt_id = confirmation["delivery_receipt"]["delivery_receipt_id"]
+    engine = create_async_engine(postgres_url)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    assert await poll_delivery_confirmation_outbox(
+        {"database_session_factory": factory, "object_storage": fake_storage}
+    ) == {"completed": 1, "failed": 0}
+
+    correction_id = uuid4()
+    requested = await confirmation_client.post(
+        f"/v1/delivery-receipts/{receipt_id}/corrections",
+        headers=auth(
+            confirmation_settings,
+            "warehouse-supervisor-mnl",
+            **{"Idempotency-Key": "out-of-warehouse-auth-request"},
+        ),
+        json={
+            "correction_id": str(correction_id),
+            "reason": "One accepted unit must be corrected to refused.",
+            "evidence_ids": [confirmation["evidence_id"]],
+            "lines": [
+                {
+                    "delivery_line_id": confirmation["lines"][0]["delivery_line_id"],
+                    "accepted_quantity_base": "1.000000",
+                    "refused_quantity_base": "1.000000",
+                    "damaged_quantity_base": "0.000000",
+                    "short_missing_quantity_base": "0.000000",
+                    "still_undelivered_quantity_base": "0.000000",
+                    "identity_positions": [],
+                }
+            ],
+        },
+    )
+    assert requested.status_code == 201, requested.text
+
+    async with engine.connect() as connection:
+        correction = dict(
+            (
+                await connection.execute(
+                    text(
+                        """
+                        SELECT branch_id, warehouse_id, requested_by,
+                               affected_value_base_currency
+                        FROM delivery_corrections
+                        WHERE correction_id = :correction_id
+                        """
+                    ),
+                    {"correction_id": correction_id},
+                )
+            )
+            .mappings()
+            .one()
+        )
+        other_warehouse_id = (
+            await connection.execute(
+                text("SELECT warehouse_id FROM warehouses WHERE code = 'CEB-01'")
+            )
+        ).scalar_one()
+
+    await engine.dispose()
+
+    # Seal the proposal directly so the trigger reaches the warehouse-scope check.
+    seal_engine = create_async_engine(postgres_url)
+    async with seal_engine.begin() as connection:
+        await connection.execute(
+            text(
+                """
+                UPDATE delivery_corrections
+                   SET sealed_at = now()
+                 WHERE correction_id = :correction_id
+                   AND sealed_at IS NULL
+                """
+            ),
+            {"correction_id": correction_id},
+        )
+
+    authority_id = uuid4()
+    test_engine = create_async_engine(postgres_url)
+    async with test_engine.begin() as connection:
+        await connection.execute(
+            text(
+                """
+                INSERT INTO approval_authorities(
+                  approval_authority_id, user_subject, capability_code,
+                  branch_id, warehouse_id, maximum_amount, maker_checker_required
+                ) VALUES (
+                  :authority_id, 'delivery-correction-checker-mnl',
+                  'fulfillment:delivery-correction-authorize', :branch_id,
+                  :warehouse_id, :maximum_amount, true
+                )
+                """
+            ),
+            {
+                "authority_id": authority_id,
+                "branch_id": correction["branch_id"],
+                "warehouse_id": other_warehouse_id,
+                "maximum_amount": correction["affected_value_base_currency"],
+            },
+        )
+
+    with pytest.raises(
+        DBAPIError,
+        match="Delivery Correction authorization violates maker-checker authority",
+    ):
+        async with test_engine.begin() as connection:
+            await connection.execute(
+                text(
+                    """
+                    INSERT INTO delivery_correction_authorizations(
+                      correction_id, authorized_by, approval_authority_id,
+                      idempotency_key, correlation_id
+                    ) VALUES (
+                      :correction_id, 'delivery-correction-checker-mnl',
+                      :authority_id, :key, 'out-of-warehouse-auth-test'
+                    )
+                    """
+                ),
+                {
+                    "correction_id": correction_id,
+                    "authority_id": authority_id,
+                    "key": str(uuid4()),
+                },
+            )
+    await test_engine.dispose()
