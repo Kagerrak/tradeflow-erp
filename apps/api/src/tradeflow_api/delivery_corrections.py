@@ -11,7 +11,6 @@ from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy import exists, func, insert, or_, select, text, update
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncSession
 

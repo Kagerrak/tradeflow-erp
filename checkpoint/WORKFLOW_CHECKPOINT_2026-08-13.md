@@ -32,7 +32,7 @@
 ## Verification evidence
 
 - `uv run ruff check apps/api/src/tradeflow_api/delivery_corrections.py
-  apps/api/tests/test_delivery_correction_*.py` — passed.
+apps/api/tests/test_delivery_correction_*.py` — passed.
 - `uv run mypy apps/api/src/tradeflow_api/delivery_corrections.py` — passed.
 - `uv run pytest apps/api/tests/test_delivery_correction_*.py -q` — 17 passed.
 - Full Python pytest suite — 122 passed, 4 skipped.
