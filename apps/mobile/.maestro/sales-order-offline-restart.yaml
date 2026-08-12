@@ -1,0 +1,22 @@
+appId: com.tradeflow.erp
+name: Sales Order draft survives a native process restart
+---
+- launchApp:
+    clearState: true
+- tapOn: "Open sales order draft"
+- tapOn: "Select MNL-SALES-001"
+- tapOn: "Select delivery address DELIVERY"
+- tapOn: "Select COLA-330 in EA"
+- toggleAirplaneMode
+- tapOn: "Sales Order quantity"
+- inputText: "3.000000"
+- tapOn: "SAVE OFFLINE DRAFT"
+- assertVisible: "Pending Sync"
+- stopApp
+- launchApp
+- tapOn: "Open sales order draft"
+- assertVisible: "Pending Sync"
+- assertVisible: "The command and idempotency key are stored durably on this device."
+- toggleAirplaneMode
+- tapOn: "RETRY SYNC"
+- assertVisible: "Draft acknowledged by TradeFlow"

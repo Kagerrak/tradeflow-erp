@@ -45,4 +45,3 @@ transaction commits.
 - projection rebuild is tested and operationally documented;
 - financial and inventory policy changes are effective-dated, not retroactively
   applied without an explicit controlled recalculation.
-

@@ -29,6 +29,7 @@ The product has three delivery surfaces:
 - [Cross-platform strategy](./docs/platform-strategy.md)
 - [Delivery roadmap](./docs/delivery/implementation-plan.md)
 - [Testing strategy](./docs/testing-strategy.md)
+- [Local development](./docs/development.md)
 - [ADR-0001: immutable operational ledgers](./docs/adr/0001-immutable-operational-ledgers.md)
 - [ADR-0002: assign tracked stock identities at pick](./docs/adr/0002-assign-tracked-stock-identities-at-pick.md)
 - [ADR-0003: moving-average inventory valuation by warehouse](./docs/adr/0003-moving-average-inventory-valuation-by-warehouse.md)
@@ -45,6 +46,7 @@ The product has three delivery surfaces:
 - [ADR-0014: issue immutable branch-numbered delivery receipts](./docs/adr/0014-immutable-branch-numbered-delivery-receipts.md)
 - [ADR-0015: authorize by capability, scope, and limits](./docs/adr/0015-capability-scope-and-limit-authorization.md)
 - [ADR-0016: clear payments by method-specific evidence](./docs/adr/0016-method-specific-payment-clearance.md)
+- [ADR-0017: correct delivery receipts by linked reversal and replacement](./docs/adr/0017-correct-delivery-receipts-by-linked-reversal.md)
 
 ## Portfolio-ready outcome
 

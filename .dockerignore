@@ -1,0 +1,9 @@
+.DS_Store
+.env
+.git
+.next
+.venv
+coverage
+node_modules
+
+*.log

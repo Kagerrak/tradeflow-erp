@@ -1,0 +1,132 @@
+.dispatch-app {
+  min-height: 100svh;
+  background: var(--paper-50);
+}
+
+.dispatch-workspace {
+  display: grid;
+  gap: var(--space-2xl);
+  border-top: 1px solid var(--ink-950);
+  padding: var(--space-xl) 0 var(--space-3xl);
+}
+
+.dispatch-manifest h2,
+.dispatch-state h2 {
+  max-width: 18ch;
+  margin-bottom: var(--space-md);
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 4rem);
+  font-weight: 480;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.dispatch-manifest > p,
+.dispatch-state > p,
+.dispatch-handoff label {
+  color: var(--ink-650);
+}
+
+.dispatch-manifest article {
+  display: grid;
+  gap: var(--space-xs);
+  border-top: 1px solid var(--paper-300);
+  padding: var(--space-md) 0;
+}
+
+.dispatch-manifest article strong {
+  overflow: hidden;
+  font-family: monospace;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+}
+
+.dispatch-manifest article span {
+  color: var(--ink-500);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dispatch-handoff {
+  display: grid;
+  align-content: start;
+  gap: var(--space-md);
+  border-left: 1px solid var(--paper-300);
+  padding-left: var(--space-xl);
+}
+
+.dispatch-custody {
+  display: grid;
+  align-items: center;
+  gap: var(--space-md);
+  border-top: 1px solid var(--ink-950);
+  border-bottom: 1px solid var(--paper-300);
+  padding: var(--space-xl) 0;
+  grid-template-columns: 1fr auto 1fr;
+}
+
+.dispatch-custody strong:last-child {
+  color: var(--orange-600);
+  text-align: right;
+}
+
+.dispatch-handoff label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dispatch-handoff input {
+  min-height: 3rem;
+  border: 1px solid var(--paper-300);
+  border-radius: 0;
+  outline: none;
+  background: var(--paper-100);
+  color: var(--ink-950);
+  font: inherit;
+  padding: 0 var(--space-md);
+}
+
+.dispatch-handoff input:focus {
+  border-color: var(--orange-600);
+}
+
+.dispatch-handoff button,
+.dispatch-state button {
+  min-height: 3rem;
+  border: 1px solid var(--ink-950);
+  border-radius: 0;
+  background: var(--ink-950);
+  color: var(--paper-50);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.dispatch-handoff button:disabled {
+  border-color: var(--paper-300);
+  background: var(--paper-300);
+  color: var(--ink-500);
+  cursor: not-allowed;
+}
+
+.dispatch-state {
+  min-height: 24rem;
+  border-top: 1px solid var(--ink-950);
+  padding: var(--space-2xl) 0;
+}
+
+.dispatch-state-positive {
+  border-top-color: var(--green-700);
+}
+
+.dispatch-state-critical {
+  border-top-color: var(--red-700);
+}
+
+@media (min-width: 64rem) {
+  .dispatch-workspace {
+    grid-template-columns: minmax(0, 1.15fr) minmax(22rem, 0.85fr);
+  }
+}

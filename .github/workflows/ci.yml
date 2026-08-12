@@ -1,0 +1,153 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres@sha256:f8e2cc2a36ddb8700e639570f0bc70d0c1495951ba61df903a015dc87db07d02
+        env:
+          POSTGRES_DB: tradeflow_test
+          POSTGRES_USER: tradeflow
+          POSTGRES_PASSWORD: tradeflow
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U tradeflow -d tradeflow_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+      redis:
+        image: redis@sha256:8096655e437712b07503796fb64d81359256cfcff0ab29d95a7da72863786efb
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      TRADEFLOW_ENVIRONMENT: testing
+      TRADEFLOW_TEST_DATABASE_URL: postgresql+asyncpg://tradeflow:tradeflow@localhost:5433/tradeflow_test
+      TRADEFLOW_DATABASE_URL: postgresql+asyncpg://tradeflow:tradeflow@localhost:5433/tradeflow_test
+      TRADEFLOW_AUTH_ISSUER: https://identity.test
+      TRADEFLOW_AUTH_AUDIENCE: tradeflow-api
+      TRADEFLOW_AUTH_TEST_SECRET: ci-test-secret-with-at-least-32-characters
+      TRADEFLOW_TELEMETRY_ENABLED: "false"
+      TRADEFLOW_WORKER_ENVIRONMENT: testing
+      TRADEFLOW_WORKER_REDIS_URL: redis://localhost:6380/0
+      TRADEFLOW_WORKER_TELEMETRY_ENABLED: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.7.0
+          run_install: false
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.13"
+          enable-cache: true
+
+      - name: Install TypeScript dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Python dependencies
+        run: uv sync --all-packages --dev --frozen
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter @tradeflow/web exec playwright install --with-deps chromium
+
+      - name: Verify migrations
+        run: |
+          uv run alembic -c apps/api/alembic.ini upgrade head
+          uv run alembic -c apps/api/alembic.ini downgrade base
+          uv run alembic -c apps/api/alembic.ini upgrade head
+
+      - name: Verify generated OpenAPI client
+        run: |
+          pnpm openapi:generate
+          git diff --exit-code -- openapi/openapi.json packages/api-client/src/schema.d.ts
+
+      - name: Format
+        run: pnpm format
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Validate Expo project
+        run: pnpm --filter @tradeflow/mobile run doctor
+
+      - name: Start private object storage
+        run: |
+          docker run --detach --name tradeflow-minio \
+            --publish 9000:9000 \
+            --env MINIO_ROOT_USER=tradeflow \
+            --env MINIO_ROOT_PASSWORD=tradeflow-local-only \
+            minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e \
+            server /data
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:9000/minio/health/ready > /dev/null; then
+              break
+            fi
+            if [ "$attempt" = 30 ]; then
+              docker logs tradeflow-minio
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Test
+        run: pnpm test
+
+      - name: Test authenticated web and mobile shells against the real stack
+        run: |
+          uv run python scripts/clear_test_database.py
+          export TRADEFLOW_REAL_STACK_BOOTSTRAP_TOKEN="$(uv run python scripts/create_test_token.py --subject bootstrapper --name Bootstrapper --capability organization:bootstrap)"
+          export TRADEFLOW_REAL_STACK_SALES_TOKEN="$(uv run python scripts/create_test_token.py --subject sales-mnl --name 'Local Platform Operator' --capability platform:read --capability platform:write)"
+          export TRADEFLOW_REAL_STACK_CEB_TOKEN="$(uv run python scripts/create_test_token.py --subject sales-ceb --name 'Cebu Sales')"
+          export TRADEFLOW_REAL_STACK_ADMIN_TOKEN="$(uv run python scripts/create_test_token.py --subject operations-admin --name 'Operations Admin')"
+          export TRADEFLOW_REAL_STACK_CREDIT_TOKEN="$(uv run python scripts/create_test_token.py --subject credit-manager --name 'Credit Manager')"
+          export TRADEFLOW_WEB_TEST_ACCESS_TOKEN="$TRADEFLOW_REAL_STACK_SALES_TOKEN"
+          export TRADEFLOW_REAL_STACK_ACCESS_TOKEN="$TRADEFLOW_WEB_TEST_ACCESS_TOKEN"
+          export TRADEFLOW_REAL_STACK_FORBIDDEN_TOKEN="$(uv run python scripts/create_test_token.py --capability catalog:read)"
+          export TRADEFLOW_REAL_STACK_API_URL="http://127.0.0.1:8000"
+          export TRADEFLOW_REAL_STACK=1
+          export TRADEFLOW_TELEMETRY_ENABLED=true
+          uv run uvicorn tradeflow_api.main:app --app-dir apps/api/src --host 127.0.0.1 --port 8000 > /tmp/tradeflow-api.log 2>&1 &
+          api_pid=$!
+          trap 'kill "$api_pid"; cat /tmp/tradeflow-api.log' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8000/health/ready > /dev/null; then
+              break
+            fi
+            if [ "$attempt" = 30 ]; then
+              exit 1
+            fi
+            sleep 1
+          done
+          uv run pytest apps/api/tests/test_black_box_platform.py apps/api/tests/test_black_box_organization_customer.py apps/api/tests/test_black_box_catalog_inventory.py apps/api/tests/test_black_box_sales.py
+          pnpm --filter @tradeflow/web test:integration
+          pnpm --filter @tradeflow/mobile test:integration
+
+      - name: Build
+        run: pnpm build

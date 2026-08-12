@@ -38,17 +38,40 @@ reference.
 User other than the recorder that a non-cash Payment Receipt has cleared.
 
 **External Payment Reference**: A provider, bank, or check reference that must
-be unique among active receipts for one Company and Payment Method.
+be unique among active receipts for one Company and Payment Method. Pending
+Verification and Cleared receipts are active; Rejected and Reversed receipts
+retain the reference as immutable history but do not prevent its authorized
+reuse.
 
 **Customer Prepayment**: A Cleared Payment retained as unapplied value until the
 related Delivery's Invoice posts.
+
+**Prepayment Coverage Designation**: The reservation of Cleared, Unapplied
+Payment value for one exact Fulfillment Order Reservation Generation. It proves
+coverage for Pick Release without allocating the payment to an Invoice, and the
+same value cannot cover another active generation at the same time.
 
 **COD Payment Receipt**: A Payment Receipt captured for the accepted quantities
 of a Cash on Delivery shipment. It remains unapplied until the related Invoice
 posts.
 
 **Cash Reconciliation**: The controlled comparison and settlement of physical
-cash collected by an authorized delivery user against COD Payment Receipts.
+cash entrusted to an authorized collection user against the Cleared cash
+Payment Receipts for which that user is accountable. A discrepancy requires a
+reasoned resolution; reconciliation neither clears a receipt nor allocates it
+to an Invoice.
+
+**Rejected Payment Receipt**: A recorded receipt whose submitted evidence did
+not establish cleared funds. Rejection preserves the original receipt and
+evidence and contributes no Cleared Payment.
+
+**Payment Reversal**: An immutable negation of a previously Cleared Payment
+when the bank, provider, or later control determines that the funds did not
+remain cleared. It preserves and links to the original Payment Receipt.
+
+**Refund**: A separate authorized outbound return of money previously received
+from a customer. It does not reject, reverse, edit, or erase the original
+Payment Receipt.
 
 **Payment Method**: The channel used to receive funds, such as cash, bank
 transfer, check, card, or e-wallet. It is distinct from Payment Timing Policy.

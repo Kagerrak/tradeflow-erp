@@ -1,19 +1,48 @@
 # Fulfillment domain language
 
-**Fulfillment Order**: The instruction assigning eligible sales-order demand to
-one Warehouse. Fulfilling a Sales Order from multiple Warehouses requires a
-separate Fulfillment Order for each Warehouse.
+**Reservation Generation**: The exact Warehouse-specific set of sales-order
+line quantities created by one successful reservation or re-reservation. A
+release closes that generation; any later reservation creates a new generation.
 
-Only reserved sales-order quantity is eligible for a Fulfillment Order.
+**Fulfillment Order**: The instruction assigning one active Reservation
+Generation to one Warehouse. Fulfilling a Sales Order from multiple Warehouses
+requires a separate Fulfillment Order for each Warehouse, and Backorder Demand
+is never included.
+
+**Reserved Value**: The approved order payable value allocated to a Fulfillment
+Order's reserved quantities under the Sales Order's immutable Calculation
+Snapshot. It excludes Backorder Demand and is not recalculated from current
+prices.
+
+**Released Quantity**: Reserved quantity authorized by Pick Release for one
+Fulfillment Order line. It never exceeds that line's active Reserved Quantity.
 
 **Pick Release**: Authorization for warehouse staff to begin picking a
-Fulfillment Order. A Prepaid order requires sufficient cleared Customer
-Prepayment before Pick Release.
+Fulfillment Order's Released Quantity. It does not assign physical identities.
+A Prepaid Fulfillment Order requires active Prepayment Coverage Designations
+whose total equals or exceeds that exact Reservation Generation's Reserved
+Value; partial coverage does not authorize partial Pick Release.
 
 **Pick**: The act of identifying and moving reserved goods for dispatch.
 Picking assigns required Lot Identities or Serial Identities.
 Expiration-controlled stock defaults to FEFO; selecting another eligible lot
 requires an authorized reason.
+
+**Pick Assignment**: Association of exact Base Stocking Unit quantity with
+every Lot Identity or Serial Identity required by Tracking Policy before a Pick
+posts. Each Serial Identity satisfies exactly one Base Stocking Unit.
+
+**Partial Pick**: A posted Pick smaller than Released Quantity. Posted quantity
+is in Dispatch Staging while the remainder stays released and reserved; it is
+not silently backordered or completed.
+
+**Pick Conflict**: Server rejection because released or reserved quantity,
+identity eligibility, or authoritative Pick state changed after selection. It
+requires refresh and explicit reconciliation, never automatic merging.
+
+**Pick Reversal**: An authorized, reasoned immutable transfer linked to an
+undispatched Pick that returns its exact quantity and identities from Dispatch
+Staging. It does not edit the original Pick.
 
 **Dispatch**: The release of picked goods to a delivery run or carrier,
 transferring quantity from Dispatch Staging to In Transit.
@@ -33,7 +62,18 @@ never-reused Delivery Receipt number and audits voided or skipped numbers.
 
 **Delivery Correction**: An authorized, reasoned reversal and replacement
 workflow linked to the original Delivery Confirmation, stock movements, and
-Delivery Receipt. It does not edit an issued receipt.
+Delivery Receipt. A requester proposes one complete corrected quantity and
+tracked-identity partition, and a different eligible approver posts it against
+the current receipt-chain head. It does not edit an issued receipt, Proof of
+Delivery, stock movement, or Draft Invoice source. Stock and valuation
+projection effects are applied through the shared inventory-projection service;
+the fulfillment module does not write `inventory_availability` or
+`inventory_valuation` rows directly.
+
+**Replacement Delivery Receipt**: A new Branch-numbered immutable receipt
+issued when a posted Delivery Correction retains accepted quantity. It links
+bidirectionally to the prior receipt; the prior number and customer-readable
+document remain valid historical records marked as corrected.
 
 **Proof of Delivery**: Evidence of receipt such as recipient name, signature,
 photo, timestamp, or delivery exception.
