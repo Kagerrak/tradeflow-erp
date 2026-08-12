@@ -3,8 +3,9 @@
 - Date: August 13, 2026
 - Phase: Issue #14 release integration candidate prepared
 - Branch: `feat/order-to-delivery-release`
-- Commit: `cf999dc`
+- Commit: `4fb3e79`
 - Base: `main`
+- PR: #33 — https://github.com/Kagerrak/tradeflow-erp/pull/33
 - PR chain integrated: #15 → #16 → #17 → #18 → #19 → #20 → #21 → #22 → #23 → #24 →
   #25 → #29 → #30 → #31 → #32
 
