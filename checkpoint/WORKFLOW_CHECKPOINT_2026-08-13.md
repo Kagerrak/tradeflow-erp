@@ -1,11 +1,10 @@
 # TradeFlow workflow checkpoint
 
 - Date: August 13, 2026
-- Phase: Issue #14 release integration candidate prepared
-- Branch: `feat/order-to-delivery-release`
-- Commit: `430ba80`
-- Base: `main`
-- PR: #33 — https://github.com/Kagerrak/tradeflow-erp/pull/33
+- Phase: Issue #14 shipped — order-to-delivery release complete
+- Branch: `main`
+- Commit: `b016f7c`
+- Release PR: #33 — https://github.com/Kagerrak/tradeflow-erp/pull/33
 - PR chain integrated: #15 → #16 → #17 → #18 → #19 → #20 → #21 → #22 → #23 → #24 →
   #25 → #29 → #30 → #31 → #32
 
@@ -55,7 +54,7 @@
 - `pnpm build` / `uv build --all-packages` — passed.
 - `git diff --check` — passed.
 - GitHub Actions CI for PR #33 — completed successfully
-  (run `31628402650`, https://github.com/Kagerrak/tradeflow-erp/actions/runs/31628402650).
+  (run `31630189380`, https://github.com/Kagerrak/tradeflow-erp/actions/runs/31630189380).
 
 ## Closed / ready for review
 
@@ -85,19 +84,40 @@
   `feat/cod-collection-reconciliation`).
 - #29 — Correct an issued Delivery Receipt immutably (merged to
   `feat/delivery-exception-custody`).
+- #33 — Order-to-delivery release integration (merged to `main`).
 
-## In progress
+## Shipped
 
-- #14 — Release integration via PR #33 (`feat/order-to-delivery-release` →
-  `main`). Currently draft; GitHub Actions run `31629484496` is pending after
-  the latest docs commit.
+- #1 — Platform foundation and order-to-delivery (PRD).
+- #2 — Boot a secured cross-platform TradeFlow shell (PR #15).
+- #3 — Configure organization scope and onboard a Customer Account (PR #16).
+- #4 — Receive traceable opening stock and query availability (PR #17).
+- #5 — Capture and synchronize a priced Sales Order draft (PR #18).
+- #6 — Commercially approve and partially reserve a Sales Order (PR #19).
+- #7 — Clear payment and enforce Prepaid reservation deadlines (PR #20).
+- #8 — Pick tracked stock into Dispatch Staging (PR #21).
+- #9 — Dispatch stock and assign a mobile Delivery (PR #22).
+- #10 — Confirm an accepted Delivery from offline proof (PR #23).
+- #11 — Collect and reconcile Cash on Delivery (PR #24).
+- #12 — Resolve Delivery Exceptions without losing custody (PR #25).
+- #13 — Correct an issued Delivery Receipt immutably (PR #29).
+- #14 — Rebuild, reconcile, and release the complete order-to-delivery slice
+  (PR #33).
+- #26 — Extract delivery-correction inventory projection updates into shared
+  inventory service (PR #30).
+- #27 — Frontend/BFF polish for delivery corrections (PR #32).
+- #28 — Enforce warehouse scope for correction authorizations at the DB trigger
+  layer (PR #31).
 
-- **#14 — Rebuild, reconcile, and release the complete order-to-delivery slice.**
-  The integrated branch is now a candidate for this milestone. Remaining work is
-  final merge approval, a production-like migration smoke test, and monitoring CI
-  on PR #33.
+## Residual risks and follow-ups
 
-## Decisions needed from user
+- Native iOS/Android real-device journeys should be verified in staging.
+- Operational runbook exercises for projection rebuild and outbox replay should
+  be performed in staging.
+- Node engine mismatch (CI on Node 20 vs. `package.json` `>=22`) should be
+  aligned before production.
 
-- Approval to mark PR #33 ready for review and merge it into `main` once CI run
-  `31629484496` completes green.
+## Next issue
+
+- Procurement inbound receipts and landed cost, or Finance invoice posting and
+  customer statements, depending on product priority.
