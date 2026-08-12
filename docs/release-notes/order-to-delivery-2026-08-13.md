@@ -46,7 +46,7 @@ authorization.
 
 ## Verification evidence
 
-All gates passed on `feat/order-to-delivery-release` at commit `4438f12`:
+All gates passed on `feat/order-to-delivery-release` at commit `3146c3d`:
 
 - `uv run ruff check apps/api/src apps/api/tests apps/worker/src` — passed.
 - `uv run ruff format --check .` — passed.
@@ -55,10 +55,12 @@ All gates passed on `feat/order-to-delivery-release` at commit `4438f12`:
 - `pnpm lint` — passed.
 - `pnpm typecheck` — passed.
 - `pnpm test` — passed.
-  - Full Python pytest suite: **122 passed, 4 skipped**.
+  - Full Python pytest suite: **125 passed, 4 skipped**.
   - Playwright delivery-corrections spec: **38 passed** (chromium + mobile-web).
 - `pnpm build` / `uv build --all-packages` — passed.
 - `git diff --check` — passed.
+- GitHub Actions CI for PR #33 — completed successfully
+  (run `31628402650`, https://github.com/Kagerrak/tradeflow-erp/actions/runs/31628402650).
 
 ## Deployment steps
 

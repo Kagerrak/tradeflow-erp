@@ -3,7 +3,7 @@
 - Date: August 13, 2026
 - Phase: Issue #14 release integration candidate prepared
 - Branch: `feat/order-to-delivery-release`
-- Commit: `e292839`
+- Commit: `3146c3d`
 - Base: `main`
 - PR: #33 — https://github.com/Kagerrak/tradeflow-erp/pull/33
 - PR chain integrated: #15 → #16 → #17 → #18 → #19 → #20 → #21 → #22 → #23 → #24 →
@@ -54,6 +54,8 @@
   - Playwright delivery-corrections spec: **38 passed** (chromium + mobile-web).
 - `pnpm build` / `uv build --all-packages` — passed.
 - `git diff --check` — passed.
+- GitHub Actions CI for PR #33 — completed successfully
+  (run `31628402650`, https://github.com/Kagerrak/tradeflow-erp/actions/runs/31628402650).
 
 ## Closed / ready for review
 
