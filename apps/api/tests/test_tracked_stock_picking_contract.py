@@ -342,6 +342,9 @@ async def approved_tracked_order(
     conversions: list[dict[str, object]] | None = None,
     selling_unit: str = "EA",
     order_quantity: str = "2.000000",
+    selling_unit_price: str = "100.000000",
+    selling_unit_floor_price: str = "80.000000",
+    opening_unit_cost: str = "10.000000",
 ) -> dict[str, object]:
     organization = await bootstrap_payment_clearance(client, settings)
     branch = organization["branches"][0]
@@ -398,8 +401,8 @@ async def approved_tracked_order(
                     {
                         "sku_id": sku["sku_id"],
                         "unit_code": selling_unit,
-                        "list_unit_price": "100.000000",
-                        "floor_unit_price": "80.000000",
+                        "list_unit_price": selling_unit_price,
+                        "floor_unit_price": selling_unit_floor_price,
                         "tax_code_version_id": tax["tax_code_version_id"],
                     }
                 ],
@@ -445,7 +448,7 @@ async def approved_tracked_order(
                 "location_id": location_ids[location_code],
                 "quantity": stock_entry["quantity"],
                 "unit_code": stock_entry.get("unit_code", "EA"),
-                "unit_cost": "10.000000",
+                "unit_cost": opening_unit_cost,
                 "source_reference": key.upper(),
                 "lot_code": stock_entry.get("lot_code"),
                 "serial_numbers": stock_entry.get("serial_numbers", []),

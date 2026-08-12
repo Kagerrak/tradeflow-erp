@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from decimal import ROUND_FLOOR, Decimal
+from dataclasses import dataclass
+from decimal import ROUND_FLOOR, ROUND_HALF_UP, Decimal
 from uuid import UUID
 
 ZERO_MINOR_UNIT_CURRENCIES = {
@@ -33,6 +34,40 @@ def currency_quantum(currency: str) -> Decimal:
     if currency in FOUR_MINOR_UNIT_CURRENCIES:
         return Decimal("0.0001")
     return Decimal("0.01")
+
+
+@dataclass(frozen=True)
+class ScaledInvoiceLineAmounts:
+    subtotal: Decimal
+    discount: Decimal
+    tax: Decimal
+    total: Decimal
+
+
+def scale_invoice_line_amounts(
+    *,
+    source_quantity: Decimal,
+    replacement_quantity: Decimal,
+    source_subtotal: Decimal,
+    source_discount: Decimal,
+    source_tax: Decimal,
+    quantum: Decimal,
+) -> ScaledInvoiceLineAmounts:
+    """Scale one immutable invoice line and keep its rounded accounting equation exact."""
+    if source_quantity <= 0:
+        raise ValueError("A positive source invoice quantity is required.")
+    if replacement_quantity < 0:
+        raise ValueError("Replacement invoice quantity cannot be negative.")
+    ratio = replacement_quantity / source_quantity
+    subtotal = (source_subtotal * ratio).quantize(quantum, ROUND_HALF_UP)
+    discount = (source_discount * ratio).quantize(quantum, ROUND_HALF_UP)
+    tax = (source_tax * ratio).quantize(quantum, ROUND_HALF_UP)
+    return ScaledInvoiceLineAmounts(
+        subtotal=subtotal,
+        discount=discount,
+        tax=tax,
+        total=subtotal - discount + tax,
+    )
 
 
 def allocate_largest_remainder(

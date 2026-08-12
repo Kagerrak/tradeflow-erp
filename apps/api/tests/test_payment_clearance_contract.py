@@ -166,6 +166,8 @@ async def bootstrap_payment_clearance(
                         "fulfillment:fefo-override",
                         "fulfillment:return-receive",
                         "fulfillment:delivery-retry",
+                        "fulfillment:delivery-correction-request",
+                        "fulfillment:delivery-correction-authorize",
                         "inventory:read",
                         "inventory:post",
                         "inventory:rebuild",
@@ -256,6 +258,61 @@ async def bootstrap_payment_clearance(
                         {
                             "capability": "inventory:investigation-resolve",
                             "branch_code": "MNL",
+                            "maximum_amount": "1000.00",
+                            "maximum_percentage": None,
+                            "maker_checker_required": True,
+                        },
+                        {
+                            "capability": "fulfillment:delivery-correction-authorize",
+                            "branch_code": "MNL",
+                            "maximum_amount": "1000.00",
+                            "maximum_percentage": None,
+                            "maker_checker_required": True,
+                        },
+                    ],
+                },
+                {
+                    "subject": "delivery-correction-checker-mnl",
+                    "display_name": "Manila Delivery Correction Checker",
+                    "role_template_codes": ["WAREHOUSE_SUPERVISOR"],
+                    "branch_codes": ["MNL"],
+                    "warehouse_codes": ["MNL-01"],
+                    "approval_authorities": [
+                        {
+                            "capability": "fulfillment:delivery-correction-authorize",
+                            "branch_code": "MNL",
+                            "maximum_amount": "1000.00",
+                            "maximum_percentage": None,
+                            "maker_checker_required": True,
+                        }
+                    ],
+                },
+                {
+                    "subject": "delivery-correction-checker-low-mnl",
+                    "display_name": "Low-Authority Manila Delivery Correction Checker",
+                    "role_template_codes": ["WAREHOUSE_SUPERVISOR"],
+                    "branch_codes": ["MNL"],
+                    "warehouse_codes": ["MNL-01"],
+                    "approval_authorities": [
+                        {
+                            "capability": "fulfillment:delivery-correction-authorize",
+                            "branch_code": "MNL",
+                            "maximum_amount": "1.00",
+                            "maximum_percentage": None,
+                            "maker_checker_required": True,
+                        }
+                    ],
+                },
+                {
+                    "subject": "delivery-correction-checker-ceb",
+                    "display_name": "Cebu Delivery Correction Checker",
+                    "role_template_codes": ["WAREHOUSE_SUPERVISOR"],
+                    "branch_codes": ["CEB"],
+                    "warehouse_codes": ["CEB-01"],
+                    "approval_authorities": [
+                        {
+                            "capability": "fulfillment:delivery-correction-authorize",
+                            "branch_code": "CEB",
                             "maximum_amount": "1000.00",
                             "maximum_percentage": None,
                             "maker_checker_required": True,

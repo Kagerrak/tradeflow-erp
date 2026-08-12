@@ -32,7 +32,9 @@
   resolution, concurrent confirmation, and idempotent retries;
 - one immutable delivery receipt per confirmation, branch-series uniqueness,
   number non-reuse and gap audit, stable retry identity, evidence linkage, and
-  correction reversal/replacement;
+  maker-checker correction reversal/replacement, tracked-identity preservation,
+  original-cost valuation, Draft Invoice source replacement, and receipt-chain
+  rendering;
 - capability plus branch/warehouse scope checks, approval limits, configurable
   role templates, maker-checker separation, assignment boundaries, and
   administrator non-escalation;

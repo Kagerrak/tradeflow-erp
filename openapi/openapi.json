@@ -490,6 +490,21 @@
         "title": "AssignedDeliveryResponse",
         "type": "object"
       },
+      "AuthorizeDeliveryCorrection": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_correction_version": {
+            "exclusiveMinimum": 0.0,
+            "title": "Expected Correction Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_correction_version"
+        ],
+        "title": "AuthorizeDeliveryCorrection",
+        "type": "object"
+      },
       "AvailabilityItem": {
         "properties": {
           "available": {
@@ -2744,6 +2759,280 @@
         "title": "ConvertCODOnAccountCommand",
         "type": "object"
       },
+      "CorrectionIdentityPosition-Input": {
+        "additionalProperties": false,
+        "properties": {
+          "accepted_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Accepted Quantity Base"
+          },
+          "damaged_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Damaged Quantity Base"
+          },
+          "delivery_line_identity_allocation_id": {
+            "format": "uuid",
+            "title": "Delivery Line Identity Allocation Id",
+            "type": "string"
+          },
+          "refused_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Refused Quantity Base"
+          },
+          "short_missing_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Short Missing Quantity Base"
+          },
+          "still_undelivered_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Still Undelivered Quantity Base"
+          }
+        },
+        "required": [
+          "delivery_line_identity_allocation_id",
+          "accepted_quantity_base",
+          "refused_quantity_base",
+          "damaged_quantity_base",
+          "short_missing_quantity_base",
+          "still_undelivered_quantity_base"
+        ],
+        "title": "CorrectionIdentityPosition",
+        "type": "object"
+      },
+      "CorrectionIdentityPosition-Output": {
+        "additionalProperties": false,
+        "properties": {
+          "accepted_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+            "title": "Accepted Quantity Base",
+            "type": "string"
+          },
+          "damaged_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+            "title": "Damaged Quantity Base",
+            "type": "string"
+          },
+          "delivery_line_identity_allocation_id": {
+            "format": "uuid",
+            "title": "Delivery Line Identity Allocation Id",
+            "type": "string"
+          },
+          "refused_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+            "title": "Refused Quantity Base",
+            "type": "string"
+          },
+          "short_missing_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+            "title": "Short Missing Quantity Base",
+            "type": "string"
+          },
+          "still_undelivered_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+            "title": "Still Undelivered Quantity Base",
+            "type": "string"
+          }
+        },
+        "required": [
+          "delivery_line_identity_allocation_id",
+          "accepted_quantity_base",
+          "refused_quantity_base",
+          "damaged_quantity_base",
+          "short_missing_quantity_base",
+          "still_undelivered_quantity_base"
+        ],
+        "title": "CorrectionIdentityPosition",
+        "type": "object"
+      },
+      "CorrectionLine-Input": {
+        "additionalProperties": false,
+        "properties": {
+          "accepted_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Accepted Quantity Base"
+          },
+          "damaged_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Damaged Quantity Base"
+          },
+          "delivery_line_id": {
+            "format": "uuid",
+            "title": "Delivery Line Id",
+            "type": "string"
+          },
+          "identity_positions": {
+            "items": {
+              "$ref": "#/components/schemas/CorrectionIdentityPosition-Input"
+            },
+            "title": "Identity Positions",
+            "type": "array"
+          },
+          "refused_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Refused Quantity Base"
+          },
+          "short_missing_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Short Missing Quantity Base"
+          },
+          "still_undelivered_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Still Undelivered Quantity Base"
+          }
+        },
+        "required": [
+          "delivery_line_id",
+          "accepted_quantity_base",
+          "refused_quantity_base",
+          "damaged_quantity_base",
+          "short_missing_quantity_base",
+          "still_undelivered_quantity_base"
+        ],
+        "title": "CorrectionLine",
+        "type": "object"
+      },
+      "CorrectionLine-Output": {
+        "additionalProperties": false,
+        "properties": {
+          "accepted_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+            "title": "Accepted Quantity Base",
+            "type": "string"
+          },
+          "damaged_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+            "title": "Damaged Quantity Base",
+            "type": "string"
+          },
+          "delivery_line_id": {
+            "format": "uuid",
+            "title": "Delivery Line Id",
+            "type": "string"
+          },
+          "identity_positions": {
+            "items": {
+              "$ref": "#/components/schemas/CorrectionIdentityPosition-Output"
+            },
+            "title": "Identity Positions",
+            "type": "array"
+          },
+          "refused_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+            "title": "Refused Quantity Base",
+            "type": "string"
+          },
+          "short_missing_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+            "title": "Short Missing Quantity Base",
+            "type": "string"
+          },
+          "still_undelivered_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+            "title": "Still Undelivered Quantity Base",
+            "type": "string"
+          }
+        },
+        "required": [
+          "delivery_line_id",
+          "accepted_quantity_base",
+          "refused_quantity_base",
+          "damaged_quantity_base",
+          "short_missing_quantity_base",
+          "still_undelivered_quantity_base"
+        ],
+        "title": "CorrectionLine",
+        "type": "object"
+      },
       "CreateCustomerCommand": {
         "additionalProperties": false,
         "properties": {
@@ -3507,6 +3796,283 @@
         "title": "DeliveryConfirmationResponse",
         "type": "object"
       },
+      "DeliveryCorrectionList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DeliveryCorrectionSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "DeliveryCorrectionList",
+        "type": "object"
+      },
+      "DeliveryCorrectionResponse": {
+        "properties": {
+          "affected_value_base_currency": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Affected Value Base Currency",
+            "type": "string"
+          },
+          "authorized_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authorized At"
+          },
+          "authorized_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authorized By"
+          },
+          "base_currency": {
+            "title": "Base Currency",
+            "type": "string"
+          },
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "confirmation_id": {
+            "format": "uuid",
+            "title": "Confirmation Id",
+            "type": "string"
+          },
+          "correction_id": {
+            "format": "uuid",
+            "title": "Correction Id",
+            "type": "string"
+          },
+          "delivery_id": {
+            "format": "uuid",
+            "title": "Delivery Id",
+            "type": "string"
+          },
+          "draft_invoice_effect": {
+            "$ref": "#/components/schemas/DraftInvoiceEffect"
+          },
+          "evidence_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CorrectionLine-Output"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "original_delivery_receipt_id": {
+            "format": "uuid",
+            "title": "Original Delivery Receipt Id",
+            "type": "string"
+          },
+          "outbox_event_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outbox Event Id"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "receipt_effect": {
+            "$ref": "#/components/schemas/ReceiptEffect"
+          },
+          "requested_at": {
+            "format": "date-time",
+            "title": "Requested At",
+            "type": "string"
+          },
+          "requested_by": {
+            "title": "Requested By",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending_authorization",
+              "posted"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "stock_effect": {
+            "$ref": "#/components/schemas/StockEffect"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction_id",
+          "original_delivery_receipt_id",
+          "confirmation_id",
+          "delivery_id",
+          "branch_id",
+          "warehouse_id",
+          "status",
+          "version",
+          "reason",
+          "requested_by",
+          "requested_at",
+          "authorized_by",
+          "authorized_at",
+          "affected_value_base_currency",
+          "base_currency",
+          "evidence_ids",
+          "lines",
+          "stock_effect",
+          "draft_invoice_effect",
+          "receipt_effect",
+          "outbox_event_id"
+        ],
+        "title": "DeliveryCorrectionResponse",
+        "type": "object"
+      },
+      "DeliveryCorrectionSummary": {
+        "properties": {
+          "affected_value_base_currency": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Affected Value Base Currency",
+            "type": "string"
+          },
+          "authorized_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authorized At"
+          },
+          "authorized_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authorized By"
+          },
+          "base_currency": {
+            "title": "Base Currency",
+            "type": "string"
+          },
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "correction_id": {
+            "format": "uuid",
+            "title": "Correction Id",
+            "type": "string"
+          },
+          "delivery_id": {
+            "format": "uuid",
+            "title": "Delivery Id",
+            "type": "string"
+          },
+          "original_delivery_receipt_id": {
+            "format": "uuid",
+            "title": "Original Delivery Receipt Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "requested_at": {
+            "format": "date-time",
+            "title": "Requested At",
+            "type": "string"
+          },
+          "requested_by": {
+            "title": "Requested By",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending_authorization",
+              "posted"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction_id",
+          "original_delivery_receipt_id",
+          "delivery_id",
+          "branch_id",
+          "warehouse_id",
+          "status",
+          "version",
+          "reason",
+          "requested_by",
+          "requested_at",
+          "authorized_by",
+          "authorized_at",
+          "affected_value_base_currency",
+          "base_currency"
+        ],
+        "title": "DeliveryCorrectionSummary",
+        "type": "object"
+      },
       "DeliveryExceptionDetailCommand": {
         "additionalProperties": false,
         "properties": {
@@ -3790,6 +4356,59 @@
       },
       "DeliveryReceiptDetailResponse": {
         "properties": {
+          "confirmation_lines": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Confirmation Lines",
+            "type": "array"
+          },
+          "correction_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correction Id"
+          },
+          "correction_status": {
+            "enum": [
+              "current",
+              "corrected",
+              "replacement"
+            ],
+            "title": "Correction Status",
+            "type": "string"
+          },
+          "corrects_delivery_receipt_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corrects Delivery Receipt Id"
+          },
+          "created_by_correction_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Correction Id"
+          },
           "delivery_id": {
             "format": "uuid",
             "title": "Delivery Id",
@@ -3800,9 +4419,29 @@
             "title": "Delivery Receipt Id",
             "type": "string"
           },
+          "evidence_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
           "number": {
             "title": "Number",
             "type": "string"
+          },
+          "replacement_delivery_receipt_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replacement Delivery Receipt Id"
           },
           "snapshot": {
             "additionalProperties": true,
@@ -3817,6 +4456,18 @@
             ],
             "title": "Status",
             "type": "string"
+          },
+          "superseded_by_correction_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded By Correction Id"
           }
         },
         "required": [
@@ -3824,7 +4475,15 @@
           "delivery_id",
           "number",
           "snapshot",
-          "status"
+          "status",
+          "correction_status",
+          "correction_id",
+          "created_by_correction_id",
+          "superseded_by_correction_id",
+          "corrects_delivery_receipt_id",
+          "replacement_delivery_receipt_id",
+          "confirmation_lines",
+          "evidence_ids"
         ],
         "title": "DeliveryReceiptDetailResponse",
         "type": "object"
@@ -4008,6 +4667,48 @@
           "lines"
         ],
         "title": "DispatchResponse",
+        "type": "object"
+      },
+      "DraftInvoiceEffect": {
+        "properties": {
+          "original_draft_invoice_id": {
+            "format": "uuid",
+            "title": "Original Draft Invoice Id",
+            "type": "string"
+          },
+          "replacement_draft_invoice_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replacement Draft Invoice Id"
+          },
+          "reversal_draft_invoice_id": {
+            "format": "uuid",
+            "title": "Reversal Draft Invoice Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "completed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "original_draft_invoice_id",
+          "reversal_draft_invoice_id",
+          "replacement_draft_invoice_id"
+        ],
+        "title": "DraftInvoiceEffect",
         "type": "object"
       },
       "ErrorDetail": {
@@ -6549,6 +7250,67 @@
         "title": "ReadyResponse",
         "type": "object"
       },
+      "ReceiptEffect": {
+        "properties": {
+          "original_delivery_receipt_id": {
+            "format": "uuid",
+            "title": "Original Delivery Receipt Id",
+            "type": "string"
+          },
+          "original_number": {
+            "title": "Original Number",
+            "type": "string"
+          },
+          "replacement_delivery_receipt_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replacement Delivery Receipt Id"
+          },
+          "replacement_document_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pending_document",
+                  "ready",
+                  "unavailable"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replacement Document Status"
+          },
+          "replacement_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replacement Number"
+          }
+        },
+        "required": [
+          "original_delivery_receipt_id",
+          "original_number",
+          "replacement_delivery_receipt_id",
+          "replacement_number",
+          "replacement_document_status"
+        ],
+        "title": "ReceiptEffect",
+        "type": "object"
+      },
       "RecordPaymentReceiptCommand": {
         "additionalProperties": false,
         "properties": {
@@ -6645,6 +7407,47 @@
           "received_at"
         ],
         "title": "RecordPaymentReceiptCommand",
+        "type": "object"
+      },
+      "RequestDeliveryCorrection": {
+        "additionalProperties": false,
+        "properties": {
+          "correction_id": {
+            "format": "uuid",
+            "title": "Correction Id",
+            "type": "string"
+          },
+          "evidence_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CorrectionLine-Input"
+            },
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction_id",
+          "reason",
+          "evidence_ids",
+          "lines"
+        ],
+        "title": "RequestDeliveryCorrection",
         "type": "object"
       },
       "ReservationLineResponse": {
@@ -7856,6 +8659,50 @@
           "barcodes"
         ],
         "title": "SkuResponse",
+        "type": "object"
+      },
+      "StockEffect": {
+        "properties": {
+          "original_movement_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Original Movement Ids",
+            "type": "array"
+          },
+          "replacement_movement_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Replacement Movement Ids",
+            "type": "array"
+          },
+          "reversal_movement_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Reversal Movement Ids",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "posted"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "original_movement_ids",
+          "reversal_movement_ids",
+          "replacement_movement_ids"
+        ],
+        "title": "StockEffect",
         "type": "object"
       },
       "TaxCodeVersionResponse": {
@@ -10653,6 +11500,319 @@
         ]
       }
     },
+    "/v1/delivery-corrections": {
+      "get": {
+        "operationId": "list_delivery_corrections_v1_delivery_corrections_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pending_authorization",
+                    "posted"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryCorrectionList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Delivery Corrections",
+        "tags": [
+          "delivery corrections"
+        ]
+      }
+    },
+    "/v1/delivery-corrections/{correction_id}": {
+      "get": {
+        "operationId": "get_delivery_correction_v1_delivery_corrections__correction_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "correction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Correction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryCorrectionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Delivery Correction",
+        "tags": [
+          "delivery corrections"
+        ]
+      }
+    },
+    "/v1/delivery-corrections/{correction_id}/authorization": {
+      "post": {
+        "operationId": "authorize_delivery_correction_v1_delivery_corrections__correction_id__authorization_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "correction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Correction Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "pattern": ".*\\S.*",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorizeDeliveryCorrection"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryCorrectionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Authorize Delivery Correction",
+        "tags": [
+          "delivery corrections"
+        ]
+      }
+    },
     "/v1/delivery-exceptions": {
       "get": {
         "operationId": "list_delivery_exceptions_v1_delivery_exceptions_get",
@@ -11064,6 +12224,143 @@
         "summary": "Access Delivery Receipt",
         "tags": [
           "delivery confirmation"
+        ]
+      }
+    },
+    "/v1/delivery-receipts/{receipt_id}/corrections": {
+      "post": {
+        "operationId": "request_delivery_correction_v1_delivery_receipts__receipt_id__corrections_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "receipt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Receipt Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "pattern": ".*\\S.*",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestDeliveryCorrection"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryCorrectionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Request Delivery Correction",
+        "tags": [
+          "delivery corrections"
         ]
       }
     },

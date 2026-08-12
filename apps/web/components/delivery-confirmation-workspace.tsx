@@ -275,6 +275,7 @@ export function DeliveryConfirmationWorkspace() {
         <nav aria-label="Delivery navigation">
           <Link href="/dispatch">Dispatch</Link>
           <strong>Deliver</strong>
+          <Link href="/delivery-corrections">Corrections</Link>
         </nav>
         <span>Proof of delivery / live</span>
       </header>

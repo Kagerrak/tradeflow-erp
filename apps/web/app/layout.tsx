@@ -2,6 +2,7 @@ import "@fontsource-variable/ibm-plex-sans";
 import "@fontsource-variable/newsreader";
 import "./customer.css";
 import "./delivery-confirmation.css";
+import "./delivery-corrections.css";
 import "./delivery-exceptions.css";
 import "./dispatch.css";
 import "./inventory.css";

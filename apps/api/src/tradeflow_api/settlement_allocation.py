@@ -32,18 +32,18 @@ def allocate_partial_line_amounts(
 ) -> tuple[Decimal, Decimal, Decimal, Decimal]:
     ratio = quantity / source_quantity
     if prior_quantity + quantity == source_quantity:
-        return (
-            source_subtotal - prior_subtotal,
-            source_discount - prior_discount,
-            source_tax - prior_tax,
-            source_total - prior_total,
-        )
-    return (
-        (source_subtotal * ratio).quantize(quantum, ROUND_HALF_UP),
-        (source_discount * ratio).quantize(quantum, ROUND_HALF_UP),
-        (source_tax * ratio).quantize(quantum, ROUND_HALF_UP),
-        (source_total * ratio).quantize(quantum, ROUND_HALF_UP),
-    )
+        subtotal = source_subtotal - prior_subtotal
+        discount = source_discount - prior_discount
+        tax = source_tax - prior_tax
+    else:
+        subtotal = (source_subtotal * ratio).quantize(quantum, ROUND_HALF_UP)
+        discount = (source_discount * ratio).quantize(quantum, ROUND_HALF_UP)
+        tax = (source_tax * ratio).quantize(quantum, ROUND_HALF_UP)
+    # Derive the total from the rounded accounting components. Historical callers
+    # still supply source/prior totals so allocation replay retains its stable API,
+    # but new immutable rows must never encode a second, conflicting rounding path.
+    del source_total, prior_total
+    return subtotal, discount, tax, subtotal - discount + tax
 
 
 async def load_prior_confirmation_allocations(

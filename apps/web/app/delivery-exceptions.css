@@ -18,9 +18,13 @@
 }
 .exception-header nav {
   display: flex;
+  align-items: center;
   gap: 24px;
 }
 .exception-header nav a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
   color: inherit;
   text-decoration: none;
 }
@@ -206,6 +210,10 @@
   }
   .exception-header > span {
     display: none;
+  }
+  .exception-header nav {
+    gap: clamp(10px, 3vw, 18px);
+    font-size: 13px;
   }
   .exception-intro,
   .exception-workspace {

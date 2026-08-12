@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
-from sqlalchemy import delete, exists, func, insert, or_, select, text, update
+from sqlalchemy import case, delete, exists, func, insert, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.exc import IntegrityError
@@ -1124,7 +1124,41 @@ async def rebuild_projections(
         (
             await session.execute(
                 select(stock_movements)
-                .order_by(stock_movements.c.posted_at, stock_movements.c.movement_id)
+                .order_by(
+                    stock_movements.c.posted_at,
+                    case(
+                        (
+                            stock_movements.c.movement_leg == "correction_accepted_reversal_in",
+                            10,
+                        ),
+                        (
+                            stock_movements.c.movement_leg
+                            == "correction_exception_reversal_investigation_out",
+                            20,
+                        ),
+                        (
+                            stock_movements.c.movement_leg
+                            == "correction_exception_reversal_transit_in",
+                            30,
+                        ),
+                        (
+                            stock_movements.c.movement_leg == "correction_accepted_replacement_out",
+                            40,
+                        ),
+                        (
+                            stock_movements.c.movement_leg
+                            == "correction_exception_replacement_transit_out",
+                            50,
+                        ),
+                        (
+                            stock_movements.c.movement_leg
+                            == "correction_exception_replacement_investigation_in",
+                            60,
+                        ),
+                        else_=0,
+                    ),
+                    stock_movements.c.movement_id,
+                )
                 .where(stock_movements.c.warehouse_id.in_(warehouse_ids))
             )
         )
@@ -1348,6 +1382,9 @@ async def rebuild_projections(
             "exception_investigation_in",
             "return_quarantine_in",
             "recovery_quarantine_in",
+            "correction_accepted_reversal_in",
+            "correction_exception_reversal_transit_in",
+            "correction_exception_replacement_investigation_in",
         }
         signed_quantity = movement["quantity_base"] if incoming else -movement["quantity_base"]
         if movement_identities:
@@ -1687,7 +1724,8 @@ async def rebuild_projections(
                   WHERE event.event_type = 'retry_allocated'), 0) AS retry_quantity,
                 coalesce(sum(event.quantity_base) FILTER (
                   WHERE event.event_type IN (
-                    'recovered','carrier_claim_resolved','inventory_adjustment_resolved'
+                    'recovered','carrier_claim_resolved','inventory_adjustment_resolved',
+                    'superseded_by_correction'
                   )), 0) AS resolved_quantity,
                 coalesce(sum(event.quantity_base) FILTER (
                   WHERE event.event_type <> 'opened'), 0) AS closed_quantity,

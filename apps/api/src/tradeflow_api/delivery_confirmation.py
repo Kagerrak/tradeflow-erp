@@ -17,6 +17,7 @@ from tradeflow_api.auth import (
     AuthorizedUser,
     require_cod_on_account_converter,
     require_delivery_confirmer,
+    require_delivery_receipt_reader,
 )
 from tradeflow_api.cod_settlement import calculate_cod_amount_due
 from tradeflow_api.command_receipts import get_command_replay, store_command_result
@@ -269,6 +270,14 @@ class DeliveryReceiptDetailResponse(BaseModel):
     number: str
     snapshot: dict[str, object]
     status: Literal["pending_document", "ready", "unavailable"]
+    correction_status: Literal["current", "corrected", "replacement"]
+    correction_id: UUID | None
+    created_by_correction_id: UUID | None
+    superseded_by_correction_id: UUID | None
+    corrects_delivery_receipt_id: UUID | None
+    replacement_delivery_receipt_id: UUID | None
+    confirmation_lines: list[dict[str, object]]
+    evidence_ids: list[UUID]
 
 
 async def _authorize_assigned_delivery(
@@ -618,11 +627,29 @@ async def _authorized_receipt(
     )
     if receipt is None:
         raise AppError(404, "delivery_receipt_not_found", "Delivery Receipt does not exist.")
-    await _authorize_assigned_delivery(
-        session,
-        delivery_id=receipt["delivery_id"],
-        actor=actor,
+    delivery = await _delivery(session, receipt["delivery_id"])
+    if delivery is None:
+        raise AppError(404, "delivery_not_found", "The Delivery does not exist.")
+    if delivery["branch_id"] not in actor.branch_ids:
+        raise AppError(
+            403,
+            "operational_scope_required",
+            "Branch Operational Scope is required.",
+        )
+    correction_reader = bool(
+        {
+            "fulfillment:delivery-correction-request",
+            "fulfillment:delivery-correction-authorize",
+        }.intersection(actor.capabilities)
     )
+    if delivery["assigned_to"] != actor.subject and not (
+        correction_reader and delivery["warehouse_id"] in actor.warehouse_ids
+    ):
+        raise AppError(
+            403,
+            "delivery_assignment_required",
+            "The Delivery must be assigned to this user or within the correction review scope.",
+        )
     return cast(Mapping[str, Any], receipt)
 
 
@@ -633,7 +660,7 @@ async def _authorized_receipt(
 )
 async def get_delivery_receipt(
     delivery_receipt_id: UUID,
-    actor: Annotated[AuthorizedUser, Depends(require_delivery_confirmer)],
+    actor: Annotated[AuthorizedUser, Depends(require_delivery_receipt_reader)],
     session: Annotated[AsyncSession, Depends(get_database_session)],
 ) -> DeliveryReceiptDetailResponse:
     receipt = await _authorized_receipt(
@@ -641,12 +668,16 @@ async def get_delivery_receipt(
         delivery_receipt_id=delivery_receipt_id,
         actor=actor,
     )
+    from tradeflow_api.delivery_corrections import delivery_receipt_correction_context
+
+    correction_context = await delivery_receipt_correction_context(session, receipt)
     return DeliveryReceiptDetailResponse(
         delivery_receipt_id=delivery_receipt_id,
         delivery_id=receipt["delivery_id"],
         number=receipt["number"],
         snapshot=dict(receipt["snapshot"]),
         status=receipt["document_status"],
+        **correction_context,
     )
 
 
@@ -657,7 +688,7 @@ async def get_delivery_receipt(
 )
 async def access_delivery_receipt(
     delivery_receipt_id: UUID,
-    actor: Annotated[AuthorizedUser, Depends(require_delivery_confirmer)],
+    actor: Annotated[AuthorizedUser, Depends(require_delivery_receipt_reader)],
     session: Annotated[AsyncSession, Depends(get_database_session)],
     storage: Annotated[ObjectStorage, Depends(get_object_storage)],
 ) -> SignedAccessResponse:

@@ -465,6 +465,7 @@ async def dispatched_prepaid_delivery(
     postgres_url: str,
     *,
     payment_timing_policy: str = "prepaid",
+    unit_cost: str = "0",
 ) -> tuple[dict[str, object], str]:
     fixture = await approved_prepaid_order(
         client,
@@ -496,7 +497,9 @@ async def dispatched_prepaid_delivery(
                   actor_subject, correlation_id, idempotency_key,
                   movement_group_id, movement_leg)
                 SELECT :movement_id, :sku_id, :warehouse_id, location_id,
-                  'opening_stock', 2.000000, 0, 0, 'PHP', 'TEST-SEED', 'EA',
+                  'opening_stock', 2.000000, :unit_cost,
+                  2.000000 * CAST(:unit_cost AS numeric),
+                  'PHP', 'TEST-SEED', 'EA',
                   '{"source":"contract-seed","factor":"1.000000"}'::jsonb,
                   'sales-mnl', 'confirmation-contract', :idempotency_key,
                   :movement_group_id, 'opening_in'
@@ -509,6 +512,22 @@ async def dispatched_prepaid_delivery(
                 "movement_group_id": str(uuid4()),
                 "movement_id": str(uuid4()),
                 "sku_id": fixture["sku_id"],
+                "unit_cost": unit_cost,
+                "warehouse_id": fixture["warehouse_id"],
+            },
+        )
+        await connection.execute(
+            text(
+                """
+                UPDATE inventory_valuation
+                SET inventory_value = quantity_on_hand * CAST(:unit_cost AS numeric),
+                    moving_average_unit_cost = CAST(:unit_cost AS numeric)
+                WHERE sku_id = :sku_id AND warehouse_id = :warehouse_id
+                """
+            ),
+            {
+                "sku_id": fixture["sku_id"],
+                "unit_cost": unit_cost,
                 "warehouse_id": fixture["warehouse_id"],
             },
         )

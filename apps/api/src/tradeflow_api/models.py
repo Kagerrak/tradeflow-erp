@@ -531,7 +531,7 @@ stock_movements = Table(
     Column("idempotency_key", String(200), nullable=False, unique=True),
     Column("posted_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     Column("movement_group_id", PostgresUUID(as_uuid=True), nullable=False),
-    Column("movement_leg", String(40), nullable=False),
+    Column("movement_leg", String(64), nullable=False),
     Column(
         "reversal_of_movement_id",
         PostgresUUID(as_uuid=True),
@@ -541,7 +541,7 @@ stock_movements = Table(
     CheckConstraint(
         "movement_type IN ('opening_stock', 'pick', 'pick_reversal', 'dispatch', "
         "'delivery_confirmation', 'delivery_exception', 'return_to_warehouse', "
-        "'investigation_resolution')",
+        "'investigation_resolution', 'delivery_correction')",
         name="ck_stock_movements_type",
     ),
     CheckConstraint(
@@ -561,7 +561,14 @@ stock_movements = Table(
         "AND movement_leg IN ('return_transit_out', 'return_quarantine_in')) "
         "OR (movement_type = 'investigation_resolution' "
         "AND movement_leg IN ('recovery_investigation_out', 'recovery_quarantine_in', "
-        "'carrier_claim_investigation_out', 'inventory_adjustment_investigation_out'))",
+        "'carrier_claim_investigation_out', 'inventory_adjustment_investigation_out')) "
+        "OR (movement_type = 'delivery_correction' AND movement_leg IN "
+        "('correction_accepted_reversal_in', "
+        "'correction_exception_reversal_transit_in', "
+        "'correction_exception_reversal_investigation_out', "
+        "'correction_accepted_replacement_out', "
+        "'correction_exception_replacement_transit_out', "
+        "'correction_exception_replacement_investigation_in'))",
         name="ck_stock_movements_leg",
     ),
     CheckConstraint("quantity_base > 0", name="ck_stock_movements_quantity_positive"),
@@ -2199,7 +2206,6 @@ pick_lines = Table(
         PostgresUUID(as_uuid=True),
         ForeignKey("stock_movements.movement_id"),
         nullable=False,
-        unique=True,
     ),
     Column(
         "staging_movement_id",
@@ -2705,6 +2711,12 @@ delivery_exception_cases = Table(
         ForeignKey("delivery_confirmation_lines.confirmation_line_id"),
         nullable=False,
     ),
+    Column(
+        "correction_line_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_correction_lines.correction_line_id", use_alter=True),
+        nullable=True,
+    ),
     Column("exception_kind", String(30), nullable=False),
     Column("original_quantity_base", Numeric(18, 6), nullable=False),
     Column("initial_custody", String(30), nullable=False),
@@ -2740,9 +2752,20 @@ delivery_exception_cases = Table(
         "responsible_party_type IN ('staff', 'carrier', 'customer', 'unknown')",
         name="ck_delivery_exception_responsible_party",
     ),
-    UniqueConstraint(
-        "confirmation_line_id", "exception_kind", name="uq_delivery_exception_case_kind"
-    ),
+)
+Index(
+    "uq_delivery_exception_original_case_kind",
+    delivery_exception_cases.c.confirmation_line_id,
+    delivery_exception_cases.c.exception_kind,
+    unique=True,
+    postgresql_where=delivery_exception_cases.c.correction_line_id.is_(None),
+)
+Index(
+    "uq_delivery_exception_correction_case_kind",
+    delivery_exception_cases.c.correction_line_id,
+    delivery_exception_cases.c.exception_kind,
+    unique=True,
+    postgresql_where=delivery_exception_cases.c.correction_line_id.is_not(None),
 )
 
 delivery_exception_case_evidence = Table(
@@ -2793,7 +2816,8 @@ delivery_exception_events = Table(
     Column("occurred_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     CheckConstraint(
         "event_type IN ('opened', 'return_received', 'retry_allocated', 'recovered', "
-        "'carrier_claim_resolved', 'inventory_adjustment_resolved')",
+        "'carrier_claim_resolved', 'inventory_adjustment_resolved', "
+        "'superseded_by_correction')",
         name="ck_delivery_exception_event_type",
     ),
     CheckConstraint("quantity_base > 0", name="ck_delivery_exception_event_quantity"),
@@ -3003,6 +3027,228 @@ Index(
     delivery_exception_state.c.updated_at,
 )
 
+delivery_corrections = Table(
+    "delivery_corrections",
+    metadata,
+    Column("correction_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "original_delivery_receipt_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_receipts.delivery_receipt_id", use_alter=True),
+        nullable=False,
+        unique=True,
+    ),
+    Column(
+        "delivery_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_dispatches.delivery_id"),
+        nullable=False,
+    ),
+    Column(
+        "confirmation_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_confirmations.confirmation_id"),
+        nullable=False,
+    ),
+    Column(
+        "branch_id", PostgresUUID(as_uuid=True), ForeignKey("branches.branch_id"), nullable=False
+    ),
+    Column(
+        "warehouse_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouses.warehouse_id"),
+        nullable=False,
+    ),
+    Column("reason", String(500), nullable=False),
+    Column("requested_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False),
+    Column("base_currency", String(3), nullable=False),
+    Column("affected_inventory_value", Numeric(24, 6), nullable=False),
+    Column("affected_draft_invoice_value", Numeric(24, 6), nullable=False),
+    Column("affected_value_base_currency", Numeric(24, 6), nullable=False),
+    Column(
+        "original_draft_invoice_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("draft_invoices.draft_invoice_id", use_alter=True),
+        nullable=False,
+    ),
+    Column("reversal_draft_invoice_id", PostgresUUID(as_uuid=True), nullable=False, unique=True),
+    Column("replacement_draft_invoice_id", PostgresUUID(as_uuid=True), nullable=True, unique=True),
+    Column("requested_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("sealed_at", DateTime(timezone=True), nullable=True),
+    UniqueConstraint("requested_by", "idempotency_key", name="uq_delivery_correction_actor_key"),
+    CheckConstraint("btrim(reason) <> ''", name="ck_delivery_correction_reason"),
+    CheckConstraint(
+        "affected_inventory_value >= 0 AND affected_draft_invoice_value >= 0 "
+        "AND affected_value_base_currency = greatest(affected_inventory_value, "
+        "affected_draft_invoice_value)",
+        name="ck_delivery_correction_affected_value",
+    ),
+)
+
+delivery_correction_lines = Table(
+    "delivery_correction_lines",
+    metadata,
+    Column("correction_line_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "correction_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_corrections.correction_id"),
+        nullable=False,
+    ),
+    Column(
+        "confirmation_line_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_confirmation_lines.confirmation_line_id"),
+        nullable=False,
+    ),
+    Column(
+        "delivery_line_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_lines.delivery_line_id"),
+        nullable=False,
+    ),
+    Column("line_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("sku_id", PostgresUUID(as_uuid=True), ForeignKey("skus.sku_id"), nullable=False),
+    Column("accepted_quantity_base", Numeric(18, 6), nullable=False),
+    Column("refused_quantity_base", Numeric(18, 6), nullable=False),
+    Column("damaged_quantity_base", Numeric(18, 6), nullable=False),
+    Column("short_missing_quantity_base", Numeric(18, 6), nullable=False),
+    Column("still_undelivered_quantity_base", Numeric(18, 6), nullable=False),
+    Column("unit_cost", Numeric(18, 6), nullable=False),
+    Column("value_delta", Numeric(24, 6), nullable=False),
+    UniqueConstraint("correction_id", "delivery_line_id", name="uq_delivery_correction_line"),
+    UniqueConstraint(
+        "correction_line_id", "confirmation_line_id", name="uq_correction_line_source"
+    ),
+    CheckConstraint(
+        "accepted_quantity_base >= 0 AND refused_quantity_base >= 0 "
+        "AND damaged_quantity_base >= 0 AND short_missing_quantity_base >= 0 "
+        "AND still_undelivered_quantity_base >= 0",
+        name="ck_delivery_correction_line_nonnegative",
+    ),
+    CheckConstraint(
+        "unit_cost >= 0 AND value_delta <= 0",
+        name="ck_delivery_correction_line_value",
+    ),
+)
+
+delivery_correction_identity_positions = Table(
+    "delivery_correction_identity_positions",
+    metadata,
+    Column("correction_identity_position_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "correction_line_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_correction_lines.correction_line_id"),
+        nullable=False,
+    ),
+    Column(
+        "delivery_line_identity_allocation_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_line_identity_allocations.allocation_id"),
+        nullable=False,
+    ),
+    Column("accepted_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("refused_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("damaged_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("short_missing_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("still_undelivered_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    UniqueConstraint(
+        "correction_line_id",
+        "delivery_line_identity_allocation_id",
+        name="uq_delivery_correction_identity_position",
+    ),
+    CheckConstraint(
+        "accepted_quantity_base >= 0 AND refused_quantity_base >= 0 "
+        "AND damaged_quantity_base >= 0 AND short_missing_quantity_base >= 0 "
+        "AND still_undelivered_quantity_base >= 0",
+        name="ck_delivery_correction_identity_nonnegative",
+    ),
+)
+
+delivery_correction_evidence = Table(
+    "delivery_correction_evidence",
+    metadata,
+    Column(
+        "correction_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_corrections.correction_id"),
+        primary_key=True,
+    ),
+    Column(
+        "evidence_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_evidence.evidence_id"),
+        primary_key=True,
+    ),
+)
+
+delivery_correction_authorizations = Table(
+    "delivery_correction_authorizations",
+    metadata,
+    Column(
+        "correction_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_corrections.correction_id"),
+        primary_key=True,
+    ),
+    Column("authorized_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column(
+        "approval_authority_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("approval_authorities.approval_authority_id"),
+        nullable=False,
+    ),
+    Column("idempotency_key", String(200), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("authorized_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint("authorized_by", "idempotency_key", name="uq_correction_authorization_key"),
+)
+
+delivery_correction_movement_effects = Table(
+    "delivery_correction_movement_effects",
+    metadata,
+    Column("movement_effect_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "correction_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_corrections.correction_id"),
+        nullable=False,
+    ),
+    Column(
+        "correction_line_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_correction_lines.correction_line_id"),
+        nullable=False,
+    ),
+    Column("effect_role", String(20), nullable=False),
+    Column("outcome", String(30), nullable=False),
+    Column(
+        "movement_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("stock_movements.movement_id"),
+        nullable=False,
+    ),
+    Column(
+        "original_movement_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("stock_movements.movement_id"),
+        nullable=True,
+    ),
+    UniqueConstraint(
+        "correction_id", "effect_role", "movement_id", name="uq_correction_movement_effect"
+    ),
+    CheckConstraint(
+        "effect_role IN ('original','reversal','replacement')",
+        name="ck_correction_movement_effect_role",
+    ),
+    CheckConstraint(
+        "outcome IN ('accepted','short_missing')", name="ck_correction_movement_effect_outcome"
+    ),
+)
+
 document_series = Table(
     "document_series",
     metadata,
@@ -3025,6 +3271,19 @@ delivery_receipts = Table(
         PostgresUUID(as_uuid=True),
         ForeignKey("delivery_confirmations.confirmation_id"),
         nullable=False,
+    ),
+    Column(
+        "correction_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_corrections.correction_id", use_alter=True),
+        nullable=True,
+        unique=True,
+    ),
+    Column(
+        "corrects_delivery_receipt_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_receipts.delivery_receipt_id"),
+        nullable=True,
         unique=True,
     ),
     Column(
@@ -3043,6 +3302,12 @@ delivery_receipts = Table(
     UniqueConstraint(
         "document_series_id", "series_number", name="uq_delivery_receipt_series_number"
     ),
+)
+Index(
+    "uq_original_delivery_receipt_confirmation",
+    delivery_receipts.c.confirmation_id,
+    unique=True,
+    postgresql_where=delivery_receipts.c.correction_id.is_(None),
 )
 
 delivery_receipt_documents = Table(
@@ -3141,13 +3406,32 @@ draft_invoices = Table(
         PostgresUUID(as_uuid=True),
         ForeignKey("delivery_confirmations.confirmation_id"),
         nullable=False,
-        unique=True,
     ),
     Column(
         "source_event_id",
         PostgresUUID(as_uuid=True),
         ForeignKey("outbox_events.outbox_event_id"),
         nullable=False,
+    ),
+    Column("invoice_kind", String(20), nullable=False, server_default="original"),
+    Column(
+        "correction_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_corrections.correction_id", use_alter=True),
+        nullable=True,
+    ),
+    Column(
+        "reversal_of_draft_invoice_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("draft_invoices.draft_invoice_id"),
+        nullable=True,
+        unique=True,
+    ),
+    Column(
+        "replaces_draft_invoice_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("draft_invoices.draft_invoice_id"),
+        nullable=True,
         unique=True,
     ),
     Column("status", String(20), nullable=False),
@@ -3169,6 +3453,26 @@ draft_invoices = Table(
     Column("grand_total", Numeric(24, 6), nullable=False),
     Column("source_snapshot", JSONB, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint("source_event_id", "invoice_kind", name="uq_draft_invoice_event_kind"),
+    CheckConstraint(
+        "invoice_kind IN ('original','reversal','replacement')",
+        name="ck_draft_invoice_kind",
+    ),
+    CheckConstraint(
+        "((invoice_kind IN ('original','replacement') "
+        "AND grand_total = subtotal - discount_total + tax_total AND subtotal >= 0 "
+        "AND discount_total >= 0 AND tax_total >= 0 AND grand_total >= 0) "
+        "OR (invoice_kind = 'reversal' AND subtotal <= 0 AND discount_total <= 0 "
+        "AND tax_total <= 0 AND grand_total <= 0))",
+        name="ck_draft_invoice_signed_totals",
+        postgresql_not_valid=True,
+    ),
+)
+Index(
+    "uq_original_draft_invoice_confirmation",
+    draft_invoices.c.delivery_confirmation_id,
+    unique=True,
+    postgresql_where=draft_invoices.c.invoice_kind == "original",
 )
 
 draft_invoice_lines = Table(
@@ -3184,6 +3488,7 @@ draft_invoice_lines = Table(
     Column("line_id", PostgresUUID(as_uuid=True), nullable=False),
     Column("sku_id", PostgresUUID(as_uuid=True), ForeignKey("skus.sku_id"), nullable=False),
     Column("accepted_quantity_base", Numeric(18, 6), nullable=False),
+    Column("invoice_kind", String(20), nullable=False, server_default="original"),
     Column("unit_price", Numeric(18, 6), nullable=False),
     Column("subtotal", Numeric(24, 6), nullable=False),
     Column("discount_amount", Numeric(24, 6), nullable=False),
@@ -3191,4 +3496,19 @@ draft_invoice_lines = Table(
     Column("line_total", Numeric(24, 6), nullable=False),
     Column("calculation_snapshot", JSONB, nullable=False),
     UniqueConstraint("draft_invoice_id", "line_id", name="uq_draft_invoice_line"),
+    CheckConstraint(
+        "invoice_kind IN ('original','reversal','replacement')",
+        name="ck_draft_invoice_line_kind",
+    ),
+    CheckConstraint(
+        "unit_price >= 0 AND ((invoice_kind IN ('original','replacement') "
+        "AND line_total = subtotal - discount_amount + tax_amount "
+        "AND accepted_quantity_base > 0 "
+        "AND subtotal >= 0 AND discount_amount >= 0 AND tax_amount >= 0 "
+        "AND line_total >= 0) OR (invoice_kind = 'reversal' "
+        "AND accepted_quantity_base < 0 AND subtotal <= 0 AND discount_amount <= 0 "
+        "AND tax_amount <= 0 AND line_total <= 0))",
+        name="ck_draft_invoice_line_signed_values",
+        postgresql_not_valid=True,
+    ),
 )

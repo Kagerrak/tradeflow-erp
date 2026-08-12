@@ -404,6 +404,49 @@ async def require_delivery_confirmer(
     return require_capability(user, "fulfillment:delivery-confirm")
 
 
+async def require_delivery_receipt_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    if not {
+        "fulfillment:delivery-confirm",
+        "fulfillment:delivery-correction-request",
+        "fulfillment:delivery-correction-authorize",
+    }.intersection(user.capabilities):
+        raise AppError(
+            status_code=403,
+            code="capability_required",
+            message="A Delivery Receipt or Delivery Correction capability is required.",
+        )
+    return user
+
+
+async def require_delivery_correction_requester(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "fulfillment:delivery-correction-request")
+
+
+async def require_delivery_correction_authorizer(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "fulfillment:delivery-correction-authorize")
+
+
+async def require_delivery_correction_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    if not {
+        "fulfillment:delivery-correction-request",
+        "fulfillment:delivery-correction-authorize",
+    }.intersection(user.capabilities):
+        raise AppError(
+            status_code=403,
+            code="capability_required",
+            message="A Delivery Correction capability is required.",
+        )
+    return user
+
+
 async def require_delivery_exception_reader(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:

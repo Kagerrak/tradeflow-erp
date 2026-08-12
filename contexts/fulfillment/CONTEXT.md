@@ -62,7 +62,15 @@ never-reused Delivery Receipt number and audits voided or skipped numbers.
 
 **Delivery Correction**: An authorized, reasoned reversal and replacement
 workflow linked to the original Delivery Confirmation, stock movements, and
-Delivery Receipt. It does not edit an issued receipt.
+Delivery Receipt. A requester proposes one complete corrected quantity and
+tracked-identity partition, and a different eligible approver posts it against
+the current receipt-chain head. It does not edit an issued receipt, Proof of
+Delivery, stock movement, or Draft Invoice source.
+
+**Replacement Delivery Receipt**: A new Branch-numbered immutable receipt
+issued when a posted Delivery Correction retains accepted quantity. It links
+bidirectionally to the prior receipt; the prior number and customer-readable
+document remain valid historical records marked as corrected.
 
 **Proof of Delivery**: Evidence of receipt such as recipient name, signature,
 photo, timestamp, or delivery exception.

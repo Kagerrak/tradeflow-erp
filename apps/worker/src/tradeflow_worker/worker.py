@@ -10,9 +10,13 @@ from arq.typing import WorkerCoroutine
 from sqlalchemy import exists, func, select, text, update
 from tradeflow_api.database import create_database_engine, create_session_factory
 from tradeflow_api.delivery_confirmation_outbox import (
+    CORRECTION_HANDLER_NAME,
+    CORRECTION_RECEIPT_HANDLER_NAME,
     HANDLER_NAME,
     RECEIPT_HANDLER_NAME,
+    create_corrected_draft_invoices_for_event,
     create_draft_invoice_for_event,
+    render_corrected_delivery_receipt_for_event,
     render_delivery_receipt_for_event,
 )
 from tradeflow_api.models import (
@@ -88,18 +92,24 @@ async def poll_delivery_confirmation_outbox(context: dict[Any, Any]) -> Any:
                         )
                     )
                     .where(
-                        outbox_events.c.event_type == "delivery.confirmed.v1",
+                        outbox_events.c.event_type.in_(
+                            ["delivery.confirmed.v1", "delivery.correction.posted.v1"]
+                        ),
                         outbox_processing_state.c.available_at <= func.now(),
                         (
                             ~exists().where(
                                 outbox_handler_receipts.c.outbox_event_id
                                 == outbox_events.c.outbox_event_id,
-                                outbox_handler_receipts.c.handler_name == HANDLER_NAME,
+                                outbox_handler_receipts.c.handler_name.in_(
+                                    [HANDLER_NAME, CORRECTION_HANDLER_NAME]
+                                ),
                             )
                             | ~exists().where(
                                 outbox_handler_receipts.c.outbox_event_id
                                 == outbox_events.c.outbox_event_id,
-                                outbox_handler_receipts.c.handler_name == RECEIPT_HANDLER_NAME,
+                                outbox_handler_receipts.c.handler_name.in_(
+                                    [RECEIPT_HANDLER_NAME, CORRECTION_RECEIPT_HANDLER_NAME]
+                                ),
                             )
                         ),
                     )
@@ -124,12 +134,25 @@ async def poll_delivery_confirmation_outbox(context: dict[Any, Any]) -> Any:
             )
         try:
             async with factory() as session, session.begin():
-                await create_draft_invoice_for_event(session, event_id)
-                await render_delivery_receipt_for_event(
-                    session,
-                    event_id,
-                    context["object_storage"],
+                event_type = await session.scalar(
+                    select(outbox_events.c.event_type).where(
+                        outbox_events.c.outbox_event_id == event_id
+                    )
                 )
+                if event_type == "delivery.confirmed.v1":
+                    await create_draft_invoice_for_event(session, event_id)
+                    await render_delivery_receipt_for_event(
+                        session,
+                        event_id,
+                        context["object_storage"],
+                    )
+                else:
+                    await create_corrected_draft_invoices_for_event(session, event_id)
+                    await render_corrected_delivery_receipt_for_event(
+                        session,
+                        event_id,
+                        context["object_storage"],
+                    )
                 await session.execute(
                     update(outbox_processing_state)
                     .where(outbox_processing_state.c.outbox_event_id == event_id)

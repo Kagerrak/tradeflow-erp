@@ -180,6 +180,7 @@ export function DeliveryExceptionWorkspace() {
         <nav aria-label="Exception navigation">
           <Link href="/deliveries">Deliver</Link>
           <strong>Exception custody</strong>
+          <Link href="/delivery-corrections">Corrections</Link>
         </nav>
         <span>Inventory control / live</span>
       </header>

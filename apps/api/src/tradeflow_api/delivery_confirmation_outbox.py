@@ -15,6 +15,8 @@ from tradeflow_api.errors import AppError
 from tradeflow_api.models import (
     delivery_confirmation_lines,
     delivery_confirmations,
+    delivery_correction_lines,
+    delivery_corrections,
     delivery_dispatches,
     delivery_receipt_documents,
     delivery_receipts,
@@ -25,7 +27,7 @@ from tradeflow_api.models import (
     sales_order_line_revisions,
     sales_order_revisions,
 )
-from tradeflow_api.money import currency_quantum
+from tradeflow_api.money import currency_quantum, scale_invoice_line_amounts
 from tradeflow_api.object_storage import ObjectStorage
 from tradeflow_api.settlement_allocation import (
     allocate_partial_line_amounts,
@@ -34,6 +36,8 @@ from tradeflow_api.settlement_allocation import (
 
 HANDLER_NAME = "finance.draft-invoice.v1"
 RECEIPT_HANDLER_NAME = "documents.delivery-receipt.v1"
+CORRECTION_HANDLER_NAME = "finance.delivery-correction.v1"
+CORRECTION_RECEIPT_HANDLER_NAME = "documents.delivery-correction-receipt.v1"
 ZERO = Decimal("0")
 SIX_PLACES = Decimal("0.000001")
 
@@ -252,7 +256,10 @@ def _render_receipt_pdf(number: str, snapshot: dict[str, object]) -> bytes:
     )
     document.drawString(48, 716, f"Delivery address: {address_text}")
     document.drawString(48, 700, f"Sales Order: {snapshot['sales_order_id']}")
-    y = 674
+    corrects_number = snapshot.get("corrects_delivery_receipt_number")
+    if corrects_number:
+        document.drawString(48, 684, f"Corrects Delivery Receipt: {corrects_number}")
+    y = 658 if corrects_number else 674
     for line in cast(list[dict[str, object]], snapshot["lines"]):
         document.drawString(
             48,
@@ -350,3 +357,308 @@ async def render_delivery_receipt_for_event(
         )
     )
     return receipt_id
+
+
+async def create_corrected_draft_invoices_for_event(
+    session: AsyncSession,
+    outbox_event_id: UUID,
+) -> UUID:
+    event = (
+        (
+            await session.execute(
+                select(outbox_events)
+                .where(outbox_events.c.outbox_event_id == outbox_event_id)
+                .with_for_update()
+            )
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if event is None or event["event_type"] != "delivery.correction.posted.v1":
+        raise AppError(404, "outbox_event_not_found", "Delivery Correction event not found.")
+    prior = await session.scalar(
+        select(outbox_handler_receipts.c.result_id).where(
+            outbox_handler_receipts.c.outbox_event_id == outbox_event_id,
+            outbox_handler_receipts.c.handler_name == CORRECTION_HANDLER_NAME,
+        )
+    )
+    if prior is not None:
+        return cast(UUID, prior)
+    correction_id = UUID(str(event["payload"]["correction_id"]))
+    correction = (
+        (
+            await session.execute(
+                select(delivery_corrections).where(
+                    delivery_corrections.c.correction_id == correction_id
+                )
+            )
+        )
+        .mappings()
+        .one()
+    )
+    original = (
+        (
+            await session.execute(
+                select(draft_invoices).where(
+                    draft_invoices.c.draft_invoice_id == correction["original_draft_invoice_id"]
+                )
+            )
+        )
+        .mappings()
+        .one()
+    )
+    original_lines = list(
+        (
+            await session.execute(
+                select(draft_invoice_lines).where(
+                    draft_invoice_lines.c.draft_invoice_id == original["draft_invoice_id"]
+                )
+            )
+        ).mappings()
+    )
+    root_invoice = original
+    while root_invoice["replaces_draft_invoice_id"] is not None:
+        root_invoice = (
+            (
+                await session.execute(
+                    select(draft_invoices).where(
+                        draft_invoices.c.draft_invoice_id
+                        == root_invoice["replaces_draft_invoice_id"]
+                    )
+                )
+            )
+            .mappings()
+            .one()
+        )
+    root_lines = list(
+        (
+            await session.execute(
+                select(draft_invoice_lines).where(
+                    draft_invoice_lines.c.draft_invoice_id == root_invoice["draft_invoice_id"]
+                )
+            )
+        ).mappings()
+    )
+    corrected_accepted: defaultdict[UUID, Decimal] = defaultdict(lambda: ZERO)
+    for row in (
+        await session.execute(
+            select(delivery_correction_lines).where(
+                delivery_correction_lines.c.correction_id == correction_id
+            )
+        )
+    ).mappings():
+        corrected_accepted[cast(UUID, row["line_id"])] += cast(
+            Decimal, row["accepted_quantity_base"]
+        )
+    quantum = currency_quantum(cast(str, original["currency"]))
+    reversal_id = cast(UUID, correction["reversal_draft_invoice_id"])
+    replacement_id = cast(UUID | None, correction["replacement_draft_invoice_id"])
+    replacement_lines: list[dict[str, object]] = []
+    reversal_lines: list[dict[str, object]] = []
+    replacement_totals = {name: ZERO for name in ("subtotal", "discount", "tax", "total")}
+    for source in original_lines:
+        common = {
+            "line_id": source["line_id"],
+            "sku_id": source["sku_id"],
+            "unit_price": source["unit_price"],
+            "calculation_snapshot": {
+                **dict(source["calculation_snapshot"]),
+                "delivery_correction_id": str(correction_id),
+            },
+        }
+        reversal_lines.append(
+            {
+                **common,
+                "draft_invoice_line_id": _id(
+                    "draft-invoice-correction-reversal-line",
+                    f"{reversal_id}:{source['line_id']}",
+                ),
+                "draft_invoice_id": reversal_id,
+                "invoice_kind": "reversal",
+                "accepted_quantity_base": -cast(Decimal, source["accepted_quantity_base"]),
+                "subtotal": -cast(Decimal, source["subtotal"]),
+                "discount_amount": -cast(Decimal, source["discount_amount"]),
+                "tax_amount": -cast(Decimal, source["tax_amount"]),
+                "line_total": -cast(Decimal, source["line_total"]),
+            }
+        )
+    for source in root_lines:
+        replacement_quantity = corrected_accepted[cast(UUID, source["line_id"])]
+        source_quantity = cast(Decimal, source["accepted_quantity_base"])
+        amounts = scale_invoice_line_amounts(
+            source_quantity=source_quantity,
+            replacement_quantity=replacement_quantity,
+            source_subtotal=cast(Decimal, source["subtotal"]),
+            source_discount=cast(Decimal, source["discount_amount"]),
+            source_tax=cast(Decimal, source["tax_amount"]),
+            quantum=quantum,
+        )
+        replacement_totals["subtotal"] += amounts.subtotal
+        replacement_totals["discount"] += amounts.discount
+        replacement_totals["tax"] += amounts.tax
+        replacement_totals["total"] += amounts.total
+        if replacement_quantity > ZERO and replacement_id is not None:
+            replacement_lines.append(
+                {
+                    "draft_invoice_line_id": _id(
+                        "draft-invoice-correction-replacement-line",
+                        f"{replacement_id}:{source['line_id']}",
+                    ),
+                    "draft_invoice_id": replacement_id,
+                    "invoice_kind": "replacement",
+                    "line_id": source["line_id"],
+                    "sku_id": source["sku_id"],
+                    "unit_price": source["unit_price"],
+                    "accepted_quantity_base": replacement_quantity,
+                    "subtotal": amounts.subtotal,
+                    "discount_amount": amounts.discount,
+                    "tax_amount": amounts.tax,
+                    "line_total": amounts.total,
+                    "calculation_snapshot": {
+                        **dict(source["calculation_snapshot"]),
+                        "delivery_correction_id": str(correction_id),
+                    },
+                }
+            )
+    base = {
+        "delivery_confirmation_id": original["delivery_confirmation_id"],
+        "source_event_id": outbox_event_id,
+        "correction_id": correction_id,
+        "status": "draft",
+        "sales_order_id": original["sales_order_id"],
+        "sales_order_revision_id": original["sales_order_revision_id"],
+        "customer_id": original["customer_id"],
+        "branch_id": original["branch_id"],
+        "currency": original["currency"],
+    }
+    invoice_rows: list[dict[str, object]] = [
+        {
+            **base,
+            "draft_invoice_id": reversal_id,
+            "invoice_kind": "reversal",
+            "reversal_of_draft_invoice_id": original["draft_invoice_id"],
+            "replaces_draft_invoice_id": None,
+            "subtotal": -original["subtotal"],
+            "discount_total": -original["discount_total"],
+            "tax_total": -original["tax_total"],
+            "grand_total": -original["grand_total"],
+            "source_snapshot": {
+                "delivery_correction_id": str(correction_id),
+                "reversal_of_draft_invoice_id": str(original["draft_invoice_id"]),
+            },
+        }
+    ]
+    if replacement_id is not None:
+        invoice_rows.append(
+            {
+                **base,
+                "draft_invoice_id": replacement_id,
+                "invoice_kind": "replacement",
+                "reversal_of_draft_invoice_id": None,
+                "replaces_draft_invoice_id": original["draft_invoice_id"],
+                "subtotal": replacement_totals["subtotal"],
+                "discount_total": replacement_totals["discount"],
+                "tax_total": replacement_totals["tax"],
+                "grand_total": replacement_totals["total"],
+                "source_snapshot": {
+                    "delivery_correction_id": str(correction_id),
+                    "replaces_draft_invoice_id": str(original["draft_invoice_id"]),
+                },
+            }
+        )
+    await session.execute(insert(draft_invoices), invoice_rows)
+    if reversal_lines:
+        await session.execute(insert(draft_invoice_lines), reversal_lines)
+    if replacement_lines:
+        await session.execute(insert(draft_invoice_lines), replacement_lines)
+    await session.execute(
+        insert(outbox_handler_receipts).values(
+            outbox_handler_receipt_id=_id("outbox-handler-correction-finance", outbox_event_id),
+            outbox_event_id=outbox_event_id,
+            handler_name=CORRECTION_HANDLER_NAME,
+            result_id=replacement_id or reversal_id,
+        )
+    )
+    return replacement_id or reversal_id
+
+
+async def render_corrected_delivery_receipt_for_event(
+    session: AsyncSession,
+    outbox_event_id: UUID,
+    storage: ObjectStorage,
+) -> UUID:
+    event = (
+        (
+            await session.execute(
+                select(outbox_events)
+                .where(outbox_events.c.outbox_event_id == outbox_event_id)
+                .with_for_update()
+            )
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if event is None or event["event_type"] != "delivery.correction.posted.v1":
+        raise AppError(404, "outbox_event_not_found", "Delivery Correction event not found.")
+    prior = await session.scalar(
+        select(outbox_handler_receipts.c.result_id).where(
+            outbox_handler_receipts.c.outbox_event_id == outbox_event_id,
+            outbox_handler_receipts.c.handler_name == CORRECTION_RECEIPT_HANDLER_NAME,
+        )
+    )
+    if prior is not None:
+        return cast(UUID, prior)
+    raw_receipt_id = event["payload"].get("replacement_delivery_receipt_id")
+    result_id = (
+        UUID(str(raw_receipt_id))
+        if raw_receipt_id is not None
+        else UUID(str(event["payload"]["correction_id"]))
+    )
+    if raw_receipt_id is not None:
+        receipt = (
+            (
+                await session.execute(
+                    select(
+                        delivery_receipts.c.number,
+                        delivery_receipts.c.snapshot,
+                        delivery_receipt_documents.c.object_key,
+                    )
+                    .join(
+                        delivery_receipt_documents,
+                        delivery_receipts.c.delivery_receipt_id
+                        == delivery_receipt_documents.c.delivery_receipt_id,
+                    )
+                    .where(delivery_receipts.c.delivery_receipt_id == result_id)
+                    .with_for_update(of=delivery_receipt_documents)
+                )
+            )
+            .mappings()
+            .one()
+        )
+        body = _render_receipt_pdf(receipt["number"], dict(receipt["snapshot"]))
+        await storage.ensure_bucket()
+        await storage.put(
+            body=body,
+            content_type="application/pdf",
+            object_key=receipt["object_key"],
+        )
+        await session.execute(
+            update(delivery_receipt_documents)
+            .where(delivery_receipt_documents.c.delivery_receipt_id == result_id)
+            .values(
+                status="ready",
+                checksum_sha256=sha256(body).hexdigest(),
+                size_bytes=len(body),
+                rendered_at=func.now(),
+                last_error=None,
+            )
+        )
+    await session.execute(
+        insert(outbox_handler_receipts).values(
+            outbox_handler_receipt_id=_id("outbox-handler-correction-document", outbox_event_id),
+            outbox_event_id=outbox_event_id,
+            handler_name=CORRECTION_RECEIPT_HANDLER_NAME,
+            result_id=result_id,
+        )
+    )
+    return result_id
