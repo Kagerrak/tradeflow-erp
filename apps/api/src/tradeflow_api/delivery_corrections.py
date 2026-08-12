@@ -128,6 +128,8 @@ class StockEffect(BaseModel):
     original_movement_ids: list[UUID]
     reversal_movement_ids: list[UUID]
     replacement_movement_ids: list[UUID]
+    expected_reversal_count: int = Field(ge=0)
+    expected_replacement_count: int = Field(ge=0)
 
 
 class DraftInvoiceEffect(BaseModel):
@@ -736,21 +738,24 @@ async def _response(session: AsyncSession, correction_id: UUID) -> DeliveryCorre
     )
     authorized = row["authorized_by"] is not None
     source_correction_id = cast(UUID | None, row["source_correction_id"])
-    if source_correction_id is None:
-        planned_originals = [
-            line["outbound_movement_id"]
-            for line in await _source_lines(session, row["confirmation_id"])
-            if line["outbound_movement_id"] is not None
-        ]
-    else:
-        planned_originals = list(
-            await session.scalars(
-                select(delivery_correction_movement_effects.c.movement_id).where(
-                    delivery_correction_movement_effects.c.correction_id == source_correction_id,
-                    delivery_correction_movement_effects.c.effect_role == "replacement",
-                )
-            )
-        )
+    source_rows = await _source_lines(
+        session, row["confirmation_id"], source_correction_id=source_correction_id
+    )
+    planned_originals = [
+        cast(UUID, source["outbound_movement_id"])
+        for source in source_rows
+        if source["outbound_movement_id"] is not None
+    ]
+    expected_reversals = sum(
+        (1 if cast(Decimal, source["accepted_quantity_base"]) > ZERO else 0)
+        + (2 if cast(Decimal, source["short_missing_quantity_base"]) > ZERO else 0)
+        for source in source_rows
+    )
+    expected_replacements = sum(
+        (1 if cast(Decimal, line["accepted_quantity_base"]) > ZERO else 0)
+        + (2 if cast(Decimal, line["short_missing_quantity_base"]) > ZERO else 0)
+        for line in line_rows
+    )
     originals = [
         item["movement_id"] for item in effects if item["effect_role"] == "original"
     ] or planned_originals
@@ -812,6 +817,8 @@ async def _response(session: AsyncSession, correction_id: UUID) -> DeliveryCorre
             original_movement_ids=originals,
             reversal_movement_ids=reversals,
             replacement_movement_ids=replacements,
+            expected_reversal_count=expected_reversals,
+            expected_replacement_count=expected_replacements,
         ),
         draft_invoice_effect=DraftInvoiceEffect(
             status="completed" if reversal_done and replacement_done else "pending",

@@ -8691,6 +8691,16 @@
       },
       "StockEffect": {
         "properties": {
+          "expected_replacement_count": {
+            "minimum": 0.0,
+            "title": "Expected Replacement Count",
+            "type": "integer"
+          },
+          "expected_reversal_count": {
+            "minimum": 0.0,
+            "title": "Expected Reversal Count",
+            "type": "integer"
+          },
           "original_movement_ids": {
             "items": {
               "format": "uuid",
@@ -8728,7 +8738,9 @@
           "status",
           "original_movement_ids",
           "reversal_movement_ids",
-          "replacement_movement_ids"
+          "replacement_movement_ids",
+          "expected_reversal_count",
+          "expected_replacement_count"
         ],
         "title": "StockEffect",
         "type": "object"
