@@ -1,50 +1,61 @@
 # TradeFlow workflow checkpoint
 
 - Date: August 13, 2026
-- Phase: Issue #27 implemented; PR #32 published, CI green, and ready for review
-- Branch: `feat/delivery-correction-frontend-polish`
-- Commit: `4762f0b`
-- Stacked base: `main`
-- PR: #32 — https://github.com/Kagerrak/tradeflow-erp/pull/32
+- Phase: Issue #14 release integration candidate prepared
+- Branch: `feat/order-to-delivery-release`
+- Commit: `cf999dc`
+- Base: `main`
+- PR chain integrated: #15 → #16 → #17 → #18 → #19 → #20 → #21 → #22 → #23 → #24 →
+  #25 → #29 → #30 → #31 → #32
 
 ## Established
 
-- Refactored `apps/web/app/api/delivery-receipts/[receiptId]/route.ts` to reuse
-  shared `correction-api.ts` helpers for detail and signed-access requests.
-- Restored `apps/web/lib/correction-api.ts` as the single seam for all
-  correction/receipt BFF routes, preserving error codes such as
-  `delivery_correction_service_unavailable`.
-- Derived workspace correction types from `@tradeflow/api-client` schemas while
-  keeping local `CorrectionLine` and `IdentityPosition` types to guarantee
-  required `identity_positions` arrays in the UI.
-- Added `expected_reversal_count` and `expected_replacement_count` to the backend
-  `StockEffect` model and consumed them in the workspace effects panel.
-- Added `ReceiptDocumentLink`, which POSTs to the BFF receipt access endpoint and
-  opens the returned signed `access_url`.
-- Preserved posted-state invoice/receipt behavior with a conditional that uses
-  line quantities for pending corrections and persisted IDs for posted
-  corrections.
-- Added a `mobile-web` Playwright describe block with narrow viewport and touch
-  coverage for the delivery-corrections spec.
-- Regenerated `openapi/openapi.json` and `packages/api-client/src/schema.d.ts`
-  for the new `StockEffect` counts.
+- Created a release integration branch from `main`.
+- Merged the complete order-to-delivery PR chain locally:
+  - Platform shell (#15)
+  - Organization/customer onboarding (#16)
+  - Opening stock (#17)
+  - Sales order draft (#18)
+  - Commercial approval (#19)
+  - Prepaid payment clearance (#20)
+  - Tracked stock picking (#21)
+  - Dispatch and mobile delivery (#22)
+  - Offline delivery confirmation (#23)
+  - Cash on delivery collection/reconciliation (#24)
+  - Delivery exception custody (#25)
+  - Immutable delivery receipt corrections (#29)
+  - Shared inventory-projection service (#30)
+  - Warehouse-scoped correction authorizations (#31)
+  - Frontend/BFF correction polish (#32)
+- Resolved a single import conflict in
+  `apps/api/src/tradeflow_api/delivery_corrections.py` between #30 and #31.
+- Removed an unused `pg_insert` import surfaced by ruff on the integrated branch.
 
 ## Verification evidence
 
-- `uv run ruff check apps/api/src/tradeflow_api/delivery_corrections.py
-apps/api/tests/test_delivery_correction_*.py` — passed.
-- `uv run mypy apps/api/src/tradeflow_api/delivery_corrections.py` — passed.
-- `uv run pytest apps/api/tests/test_delivery_correction_*.py -q` — 17 passed.
-- Full Python pytest suite — 122 passed, 4 skipped.
+- `uv run ruff check apps/api/src apps/api/tests apps/worker/src` — passed.
+- `uv run mypy apps/api/src apps/worker/src` — passed.
 - `pnpm format` — passed.
-- `pnpm --filter @tradeflow/web typecheck` — passed.
-- `pnpm --filter @tradeflow/web test -- tests/delivery-corrections.spec.ts` —
-  38 passed (chromium + mobile-web).
-- `pnpm test` / `pnpm build` / `uv build --all-packages` — passed.
+- `pnpm test` — passed.
+  - Full Python pytest suite — 122 passed, 4 skipped.
+  - Playwright delivery-corrections spec — 38 passed (chromium + mobile-web).
+- `pnpm build` / `uv build --all-packages` — passed.
 - `git diff --check` — passed.
 
 ## Closed / ready for review
 
+- #2 — Boot a secured cross-platform TradeFlow shell (PR #15).
+- #3 — Configure organization scope and onboard a Customer Account (PR #16).
+- #4 — Receive traceable opening stock and query availability (PR #17).
+- #5 — Capture and synchronize a priced Sales Order draft (PR #18).
+- #6 — Commercially approve and partially reserve a Sales Order (PR #19).
+- #7 — Clear payment and enforce Prepaid reservation deadlines (PR #20).
+- #8 — Pick tracked stock into Dispatch Staging (PR #21).
+- #9 — Dispatch stock and assign a mobile Delivery (PR #22).
+- #10 — Confirm an accepted Delivery from offline proof (PR #23).
+- #11 — Collect and reconcile Cash on Delivery (PR #24).
+- #12 — Resolve Delivery Exceptions without losing custody (PR #25).
+- #13 — Correct an issued Delivery Receipt immutably (PR #29).
 - #26 — Extract delivery-correction inventory projection updates into shared
   inventory service (PR #30).
 - #28 — Enforce warehouse scope for correction authorizations at the DB trigger
@@ -54,11 +65,15 @@ apps/api/tests/test_delivery_correction_*.py` — passed.
 ## Next dependency-ready issue
 
 - **#14 — Rebuild, reconcile, and release the complete order-to-delivery slice.**
-  This is the remaining production-release milestone in the current vertical.
+  The integrated branch is now a candidate for this milestone. Remaining work is
+  likely release documentation, migration smoke tests against a production-like
+  database, and final merge to `main`.
 
 ## Decisions needed from user
 
-- Whether to merge the stacked PR chain (#24 → #25 → #29 → #30 → #31 → #32) now,
-  or keep PRs open until release integration testing is complete.
-- Whether Issue #14 should be picked up next on a new branch
-  `feat/order-to-delivery-release`.
+- Whether to publish `feat/order-to-delivery-release` as a draft PR for Issue
+  #14.
+- Whether to merge the individual PRs in dependency order, or merge this single
+  release integration PR once reviewed.
+- Whether a production-like migration/reconciliation smoke test is required
+  before release.
