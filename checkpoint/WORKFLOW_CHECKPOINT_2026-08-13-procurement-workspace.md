@@ -52,6 +52,6 @@ to this vertical.
 
 ## Status
 
-- #46 implementation is complete on `feat/procurement-workspace`.
-- PR #51 (https://github.com/Kagerrak/tradeflow-erp/pull/51) is open targeting
-  `feat/landed-cost-allocation`; merge requires explicit user approval.
+- #46 implementation is complete.
+- PR #51 merged to `main` at 2026-08-13T11:17:34Z.
+- Issue #46 closed automatically by the merge.
