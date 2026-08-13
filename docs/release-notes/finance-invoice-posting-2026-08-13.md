@@ -16,9 +16,9 @@ operators can post invoices to the ledger.
 
 ## Integrated pull requests
 
-| Issue | PR  | Title                                                   |
-| ----- | --- | ------------------------------------------------------- |
-| #35   | #38 | Customer ledger and invoice posting                     |
+| Issue | PR  | Title                               |
+| ----- | --- | ----------------------------------- |
+| #35   | #38 | Customer ledger and invoice posting |
 
 ## Runtime environment
 
