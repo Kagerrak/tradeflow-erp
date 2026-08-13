@@ -1131,6 +1131,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/procurement/purchase-orders/{purchase_order_id}/receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Goods Receipt */
+        post: operations["create_goods_receipt_v1_procurement_purchase_orders__purchase_order_id__receipts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/procurement/suppliers": {
         parameters: {
             query?: never;
@@ -2582,6 +2599,23 @@ export interface components {
              */
             status: "active" | "inactive" | "prospect";
         };
+        /** CreateGoodsReceiptCommand */
+        CreateGoodsReceiptCommand: {
+            /** Lines */
+            lines: components["schemas"]["ReceiptLineCommand"][];
+            /**
+             * Location Id
+             * Format: uuid
+             */
+            location_id: string;
+            /** Receipt Number */
+            receipt_number: string;
+            /**
+             * Warehouse Id
+             * Format: uuid
+             */
+            warehouse_id: string;
+        };
         /** CreateLocationCommand */
         CreateLocationCommand: {
             /** Code */
@@ -3505,6 +3539,54 @@ export interface components {
              * Format: uuid
              */
             sales_order_id: string;
+            /** Status */
+            status: string;
+            /**
+             * Warehouse Id
+             * Format: uuid
+             */
+            warehouse_id: string;
+        };
+        /** GoodsReceiptLineResponse */
+        GoodsReceiptLineResponse: {
+            /**
+             * Goods Receipt Line Id
+             * Format: uuid
+             */
+            goods_receipt_line_id: string;
+            /** Lot Code */
+            lot_code: string | null;
+            /**
+             * Purchase Order Line Id
+             * Format: uuid
+             */
+            purchase_order_line_id: string;
+            /** Received Quantity Base */
+            received_quantity_base: string;
+            /** Serial Numbers */
+            serial_numbers: string[];
+        };
+        /** GoodsReceiptResponse */
+        GoodsReceiptResponse: {
+            /**
+             * Goods Receipt Id
+             * Format: uuid
+             */
+            goods_receipt_id: string;
+            /** Lines */
+            lines: components["schemas"]["GoodsReceiptLineResponse"][];
+            /**
+             * Location Id
+             * Format: uuid
+             */
+            location_id: string;
+            /**
+             * Purchase Order Id
+             * Format: uuid
+             */
+            purchase_order_id: string;
+            /** Receipt Number */
+            receipt_number: string;
             /** Status */
             status: string;
             /**
@@ -4586,6 +4668,20 @@ export interface components {
             replacement_document_status: ("pending_document" | "ready" | "unavailable") | null;
             /** Replacement Number */
             replacement_number: string | null;
+        };
+        /** ReceiptLineCommand */
+        ReceiptLineCommand: {
+            /** Lot Code */
+            lot_code?: string | null;
+            /**
+             * Purchase Order Line Id
+             * Format: uuid
+             */
+            purchase_order_line_id: string;
+            /** Received Quantity Base */
+            received_quantity_base: number | string;
+            /** Serial Numbers */
+            serial_numbers?: string[];
         };
         /** RecordPaymentReceiptCommand */
         RecordPaymentReceiptCommand: {
@@ -11201,6 +11297,104 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_goods_receipt_v1_procurement_purchase_orders__purchase_order_id__receipts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                purchase_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGoodsReceiptCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoodsReceiptResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
             /** @description Stable TradeFlow error envelope. */

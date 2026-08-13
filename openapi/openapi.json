@@ -3275,6 +3275,43 @@
         "title": "CreateCustomerCommand",
         "type": "object"
       },
+      "CreateGoodsReceiptCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ReceiptLineCommand"
+            },
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "location_id": {
+            "format": "uuid",
+            "title": "Location Id",
+            "type": "string"
+          },
+          "receipt_number": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Receipt Number",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "warehouse_id",
+          "location_id",
+          "receipt_number",
+          "lines"
+        ],
+        "title": "CreateGoodsReceiptCommand",
+        "type": "object"
+      },
       "CreateLocationCommand": {
         "additionalProperties": false,
         "properties": {
@@ -5537,6 +5574,101 @@
           "payment_hold"
         ],
         "title": "FulfillmentOrderResponse",
+        "type": "object"
+      },
+      "GoodsReceiptLineResponse": {
+        "properties": {
+          "goods_receipt_line_id": {
+            "format": "uuid",
+            "title": "Goods Receipt Line Id",
+            "type": "string"
+          },
+          "lot_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Code"
+          },
+          "purchase_order_line_id": {
+            "format": "uuid",
+            "title": "Purchase Order Line Id",
+            "type": "string"
+          },
+          "received_quantity_base": {
+            "title": "Received Quantity Base",
+            "type": "string"
+          },
+          "serial_numbers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Serial Numbers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "goods_receipt_line_id",
+          "purchase_order_line_id",
+          "received_quantity_base",
+          "lot_code",
+          "serial_numbers"
+        ],
+        "title": "GoodsReceiptLineResponse",
+        "type": "object"
+      },
+      "GoodsReceiptResponse": {
+        "properties": {
+          "goods_receipt_id": {
+            "format": "uuid",
+            "title": "Goods Receipt Id",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/GoodsReceiptLineResponse"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "location_id": {
+            "format": "uuid",
+            "title": "Location Id",
+            "type": "string"
+          },
+          "purchase_order_id": {
+            "format": "uuid",
+            "title": "Purchase Order Id",
+            "type": "string"
+          },
+          "receipt_number": {
+            "title": "Receipt Number",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "format": "uuid",
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "goods_receipt_id",
+          "purchase_order_id",
+          "warehouse_id",
+          "location_id",
+          "receipt_number",
+          "status",
+          "lines"
+        ],
+        "title": "GoodsReceiptResponse",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -8167,6 +8299,54 @@
           "replacement_document_status"
         ],
         "title": "ReceiptEffect",
+        "type": "object"
+      },
+      "ReceiptLineCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "lot_code": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Code"
+          },
+          "purchase_order_line_id": {
+            "format": "uuid",
+            "title": "Purchase Order Line Id",
+            "type": "string"
+          },
+          "received_quantity_base": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Received Quantity Base"
+          },
+          "serial_numbers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Serial Numbers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "purchase_order_line_id",
+          "received_quantity_base"
+        ],
+        "title": "ReceiptLineCommand",
         "type": "object"
       },
       "RecordPaymentReceiptCommand": {
@@ -18787,6 +18967,134 @@
           }
         ],
         "summary": "Approve Purchase Order",
+        "tags": [
+          "procurement"
+        ]
+      }
+    },
+    "/v1/procurement/purchase-orders/{purchase_order_id}/receipts": {
+      "post": {
+        "operationId": "create_goods_receipt_v1_procurement_purchase_orders__purchase_order_id__receipts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "purchase_order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Purchase Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGoodsReceiptCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoodsReceiptResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Goods Receipt",
         "tags": [
           "procurement"
         ]
