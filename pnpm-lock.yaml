@@ -177,6 +177,9 @@ importers:
       '@tradeflow/platform-session':
         specifier: workspace:*
         version: link:../../packages/platform-session
+      '@tradeflow/procurement-suppliers':
+        specifier: workspace:*
+        version: link:../../packages/procurement-suppliers
       '@tradeflow/sales-order-draft':
         specifier: workspace:*
         version: link:../../packages/sales-order-draft
@@ -344,6 +347,28 @@ importers:
         version: 3.2.7(@types/node@24.13.3)(jsdom@20.0.3)(lightningcss@1.33.0)(terser@5.49.0)(yaml@2.9.0)
 
   packages/platform-session:
+    dependencies:
+      '@tradeflow/api-client':
+        specifier: workspace:*
+        version: link:../api-client
+    devDependencies:
+      '@eslint/js':
+        specifier: ^9.32.0
+        version: 9.39.5
+      eslint:
+        specifier: ^9.32.0
+        version: 9.39.5
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      typescript-eslint:
+        specifier: ^8.38.0
+        version: 8.65.0(eslint@9.39.5)(typescript@5.9.3)
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@24.13.3)(jsdom@20.0.3)(lightningcss@1.33.0)(terser@5.49.0)(yaml@2.9.0)
+
+  packages/procurement-suppliers:
     dependencies:
       '@tradeflow/api-client':
         specifier: workspace:*
@@ -7797,9 +7822,7 @@ snapshots:
       metro-runtime: 0.84.4
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
 
   '@react-native/normalize-colors@0.74.89': {}
 

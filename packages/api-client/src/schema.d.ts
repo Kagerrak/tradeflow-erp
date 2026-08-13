@@ -1079,6 +1079,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/procurement/suppliers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Suppliers */
+        get: operations["list_suppliers_v1_procurement_suppliers_get"];
+        put?: never;
+        /** Create Supplier */
+        post: operations["create_supplier_v1_procurement_suppliers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sales/order-entry-reference": {
         parameters: {
             query?: never;
@@ -2600,6 +2618,19 @@ export interface components {
              * Format: uuid
              */
             sales_order_id: string;
+        };
+        /** CreateSupplierCommand */
+        CreateSupplierCommand: {
+            /** Code */
+            code: string;
+            /** Default Currency */
+            default_currency: string;
+            /** Legal Name */
+            legal_name: string;
+            /** Payment Terms */
+            payment_terms: string;
+            /** Tax Id */
+            tax_id?: string | null;
         };
         /** CreateTaxCodeVersionCommand */
         CreateTaxCodeVersionCommand: {
@@ -5056,6 +5087,55 @@ export interface components {
              * @enum {string}
              */
             status: "pending" | "posted";
+        };
+        /** SupplierResponse */
+        SupplierResponse: {
+            /** Code */
+            code: string;
+            /** Default Currency */
+            default_currency: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Legal Name */
+            legal_name: string;
+            /** Payment Terms */
+            payment_terms: string;
+            /**
+             * Supplier Id
+             * Format: uuid
+             */
+            supplier_id: string;
+            /** Tax Id */
+            tax_id: string | null;
+            /** Version */
+            version: number;
+        };
+        /** SupplierSearchItem */
+        SupplierSearchItem: {
+            /** Code */
+            code: string;
+            /** Default Currency */
+            default_currency: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Legal Name */
+            legal_name: string;
+            /**
+             * Supplier Id
+             * Format: uuid
+             */
+            supplier_id: string;
+            /** Tax Id */
+            tax_id: string | null;
+            /** Version */
+            version: number;
+        };
+        /** SupplierSearchResponse */
+        SupplierSearchResponse: {
+            /** Items */
+            items: components["schemas"]["SupplierSearchItem"][];
+            /** Total */
+            total: number;
         };
         /** TaxCodeVersionResponse */
         TaxCodeVersionResponse: {
@@ -10618,6 +10698,162 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    list_suppliers_v1_procurement_suppliers_get: {
+        parameters: {
+            query?: {
+                query?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupplierSearchResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_supplier_v1_procurement_suppliers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSupplierCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupplierResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description Stable TradeFlow error envelope. */

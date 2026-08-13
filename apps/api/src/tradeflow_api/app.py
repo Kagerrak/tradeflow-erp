@@ -45,6 +45,7 @@ from tradeflow_api.payment_fulfillment import router as payment_fulfillment_rout
 from tradeflow_api.picking import router as picking_router
 from tradeflow_api.platform import router as platform_router
 from tradeflow_api.sales import router as sales_router
+from tradeflow_api.suppliers import router as suppliers_router
 
 
 class LiveResponse(BaseModel):
@@ -112,6 +113,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(organization_router)
     app.include_router(platform_router)
     app.include_router(sales_router)
+    app.include_router(suppliers_router)
     instrument_app(app, engine, resolved_settings)
 
     @app.exception_handler(AppError)

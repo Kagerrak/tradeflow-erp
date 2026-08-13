@@ -254,6 +254,18 @@ async def require_customer_credit_approver(
     return require_capability(user, "customer:credit-approve")
 
 
+async def require_supplier_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "procurement:supplier-read")
+
+
+async def require_supplier_writer(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "procurement:supplier-write")
+
+
 async def require_catalog_writer(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:
