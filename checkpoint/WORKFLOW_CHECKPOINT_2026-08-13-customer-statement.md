@@ -50,16 +50,17 @@
 
 ## Shipped
 
-- None yet — awaiting explicit approval to merge PR #39 and then PR #40.
+- PR #40 merged to `main` at 2026-08-13T05:44:57Z.
+- Issue #37 closed automatically by the merge.
 
 ## Residual risks and follow-ups
 
-- PR #39 must merge before #40 can be merged safely.
-- Procurement inbound receipts / landed cost remains the next likely vertical
-  once product priority is confirmed.
+- Procurement inbound receipts / landed cost is now the next dependency-ready
+  vertical area.
 - The web console reuses the test-access-token BFF pattern; production
   authentication integration is tracked separately.
 
 ## Next issue
 
-- Procurement inbound receipts / landed cost, pending product priority.
+- #44 — Goods receipt posting against purchase orders (next dependency-ready
+  Procurement slice).

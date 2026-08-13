@@ -64,14 +64,19 @@
 
 ## Shipped
 
-- None yet — awaiting explicit approval to merge PR #39.
+- PR #39 merged to `main` at 2026-08-13T05:28:20Z.
+- Issue #36 closed automatically by the merge.
 
 ## Residual risks and follow-ups
 
-- Customer statement projection (#37) remains the next open Finance slice.
+- Customer statement projection (#37) is now dependency-ready and has been
+  merged.
+- Procurement inbound receipts / landed cost is the next dependency-ready
+  vertical area.
 - The web console reuses the test-access-token BFF pattern; production
   authentication integration is tracked separately.
 
 ## Next issue
 
-- #37 — Customer statement of account projection.
+- #44 — Goods receipt posting against purchase orders (next dependency-ready
+  Procurement slice).

@@ -57,17 +57,17 @@
 
 ## Shipped
 
-- None yet — awaiting explicit approval to merge PR #47.
+- PR #47 merged to `main` at 2026-08-13T05:58:47Z.
+- Issue #42 closed automatically by the merge.
 
 ## Residual risks and follow-ups
 
-- Procurement child issues (#43–#46) remain open for supplier updates,
-  purchase-order draft, purchase-order approval, and goods receipt.
+- Procurement child issues (#43–#46) are now dependency-ready for supplier
+  updates, purchase-order draft, purchase-order approval, and goods receipt.
 - The web console reuses the test-access-token BFF pattern; production
   authentication integration is tracked separately.
 
 ## Next issue
 
-- Await merge of PR #39 (payment allocation) and PR #40 (customer statement),
-  then continue with the next dependency-ready Procurement slice (#43–#46) or
-  defer procurement if directed.
+- #44 — Goods receipt posting against purchase orders (next dependency-ready
+  Procurement slice).
