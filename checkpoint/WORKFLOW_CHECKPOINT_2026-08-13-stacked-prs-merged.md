@@ -48,13 +48,15 @@ workflow, and were merged in dependency order with explicit approval.
 - #45 — Landed cost allocation to goods receipts. Implemented on
   `feat/landed-cost-allocation`; stacked PR #50 opened targeting
   `feat/goods-receipt-posting`, awaiting explicit approval before merge.
+- #46 — Procurement workspace web console. Implemented on
+  `feat/procurement-workspace`; stacked PR #51 ready to open targeting
+  `feat/landed-cost-allocation`, awaiting explicit approval before merge.
 
 ## Remaining dependency-ready work
 
-- #46 — Procurement workspace web console (blocked by #44 / #45; may be covered
-  by the existing #44/#45 pages).
+- None.
 
 ## Next issue
 
-- #46 — Procurement workspace web console. Begin once PR #49 and PR #50 are
-  merged in dependency order.
+- Await explicit user approval to merge PR #49, then rebase/retarget and merge
+  PR #50, then rebase/retarget and merge PR #51.

@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Annotated, Any, cast
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -74,6 +74,20 @@ class GoodsReceiptResponse(BaseModel):
     receipt_number: str
     status: str
     lines: list[GoodsReceiptLineResponse]
+
+
+class GoodsReceiptSummary(BaseModel):
+    goods_receipt_id: UUID
+    purchase_order_id: UUID
+    warehouse_id: UUID
+    receipt_number: str
+    status: str
+    created_at: str
+
+
+class GoodsReceiptSearchResponse(BaseModel):
+    items: list[GoodsReceiptSummary]
+    total: int
 
 
 async def _company(session: AsyncSession) -> dict[str, Any]:
@@ -502,4 +516,79 @@ async def create_goods_receipt(
             )
             for line in line_inputs
         ],
+    )
+
+
+@router.get(
+    "/receipts",
+    response_model=GoodsReceiptSearchResponse,
+    responses=error_responses(401, 403, 503),
+)
+async def list_goods_receipts(
+    actor: Annotated[AuthorizedUser, Depends(require_goods_receipt_poster)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    limit: Annotated[int, Query(ge=1, le=100)] = 25,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> GoodsReceiptSearchResponse:
+    company_id = await session.scalar(select(companies.c.company_id).limit(1))
+    if company_id is None:
+        raise AppError(500, "company_missing", "Company not configured.")
+
+    filters = [
+        purchase_orders.c.company_id == company_id,
+        purchase_orders.c.branch_id.in_(actor.branch_ids),
+        goods_receipts.c.warehouse_id.in_(actor.warehouse_ids),
+    ]
+
+    total = await session.scalar(
+        select(func.count(goods_receipts.c.goods_receipt_id))
+        .select_from(
+            goods_receipts.join(
+                purchase_orders,
+                goods_receipts.c.purchase_order_id == purchase_orders.c.purchase_order_id,
+            )
+        )
+        .where(*filters)
+    )
+
+    rows = (
+        (
+            await session.execute(
+                select(
+                    goods_receipts.c.goods_receipt_id,
+                    goods_receipts.c.purchase_order_id,
+                    goods_receipts.c.warehouse_id,
+                    goods_receipts.c.receipt_number,
+                    goods_receipts.c.status,
+                    goods_receipts.c.created_at,
+                )
+                .select_from(
+                    goods_receipts.join(
+                        purchase_orders,
+                        goods_receipts.c.purchase_order_id == purchase_orders.c.purchase_order_id,
+                    )
+                )
+                .where(*filters)
+                .order_by(goods_receipts.c.created_at.desc())
+                .limit(limit)
+                .offset(offset)
+            )
+        )
+        .mappings()
+        .all()
+    )
+
+    return GoodsReceiptSearchResponse(
+        items=[
+            GoodsReceiptSummary(
+                goods_receipt_id=row["goods_receipt_id"],
+                purchase_order_id=row["purchase_order_id"],
+                warehouse_id=row["warehouse_id"],
+                receipt_number=row["receipt_number"],
+                status=row["status"],
+                created_at=row["created_at"].isoformat(),
+            )
+            for row in rows
+        ],
+        total=total or 0,
     )
