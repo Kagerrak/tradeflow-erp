@@ -49,8 +49,9 @@ workflow, and were merged in dependency order with explicit approval.
   `feat/landed-cost-allocation`; stacked PR #50 opened targeting
   `feat/goods-receipt-posting`, awaiting explicit approval before merge.
 - #46 — Procurement workspace web console. Implemented on
-  `feat/procurement-workspace`; stacked PR #51 ready to open targeting
-  `feat/landed-cost-allocation`, awaiting explicit approval before merge.
+  `feat/procurement-workspace`; stacked PR #51 opened targeting
+  `feat/landed-cost-allocation` (https://github.com/Kagerrak/tradeflow-erp/pull/51),
+  awaiting explicit approval before merge.
 
 ## Remaining dependency-ready work
 
