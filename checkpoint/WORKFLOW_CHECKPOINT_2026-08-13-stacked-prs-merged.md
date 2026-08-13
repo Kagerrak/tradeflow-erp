@@ -40,17 +40,17 @@ workflow, and were merged in dependency order with explicit approval.
 - Local gates on each rebased branch: `pnpm format`, `pnpm lint`,
   `pnpm typecheck`, `pnpm test`, `pnpm build`, `git diff --check` — passed.
 
+## In progress
+
+- #44 — Goods receipt posting against purchase orders. Implemented on
+  `feat/goods-receipt-posting`; PR #49 opened and awaiting explicit approval
+  before merge.
+
 ## Remaining dependency-ready work
 
-- #44 — Goods receipt posting against purchase orders (blocked by #43, now
-  unblocked).
-- #45 — Landed cost allocation to goods receipts (blocked by #44).
+- #45 — Landed cost allocation to goods receipts (blocked by #44 / PR #49).
 - #46 — Procurement workspace web console (may be covered by #44/#45 pages).
 
 ## Next issue
 
-- #44 — Goods receipt posting against purchase orders. Start with a PRD/vertical
-  slice plan, then implement test-first: `goods_receipts`/`goods_receipt_lines`
-  schema, `POST /v1/procurement/purchase-orders/{id}/receipts`, stock movement
-  posting, moving-average cost update, tracked-SKU lot/serial validation, web
-  console page, contract tests, and OpenAPI/client regeneration.
+- #45 — Landed cost allocation to goods receipts. Begin once PR #49 is merged.
