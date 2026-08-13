@@ -34,6 +34,7 @@ from tradeflow_api.dispatch import router as dispatch_router
 from tradeflow_api.errors import AppError, error_response, error_responses
 from tradeflow_api.goods_receipts import router as goods_receipts_router
 from tradeflow_api.invoice_posting import router as invoice_posting_router
+from tradeflow_api.landed_costs import router as landed_costs_router
 from tradeflow_api.object_storage import S3ObjectStorage
 from tradeflow_api.observability import (
     CorrelationMiddleware,
@@ -106,6 +107,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(delivery_corrections_router)
     app.include_router(delivery_exceptions_router)
     app.include_router(goods_receipts_router)
+    app.include_router(landed_costs_router)
     app.include_router(invoice_posting_router)
     app.include_router(payment_allocation_router)
     app.include_router(customer_statement_router)
