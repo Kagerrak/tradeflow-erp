@@ -33,6 +33,7 @@ from tradeflow_api.inventory_projection_service import (
 from tradeflow_api.models import (
     approval_authorities,
     companies,
+    customer_ledger_entries,
     delivery_confirmation_evidence,
     delivery_confirmation_identity_partitions,
     delivery_confirmation_lines,
@@ -586,7 +587,15 @@ async def _assert_source_eligible(
             "delivery_correction_draft_invoice_pending",
             "The source Draft Invoice is not ready.",
         )
-    if invoice["status"] != "draft":
+    posted = await session.scalar(
+        select(
+            exists().where(
+                customer_ledger_entries.c.invoice_id == invoice["draft_invoice_id"],
+                customer_ledger_entries.c.entry_type == "invoice",
+            )
+        )
+    )
+    if posted:
         raise AppError(
             409, "delivery_correction_not_eligible", "Only a Draft Invoice source may be corrected."
         )

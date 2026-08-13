@@ -1,0 +1,230 @@
+.finance-app {
+  min-height: 100vh;
+  background: #f3efe5;
+  color: #17201b;
+}
+
+.finance-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem 3vw;
+  border-bottom: 1px solid #76786f;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.finance-header a {
+  color: inherit;
+  font-family: var(--font-display), serif;
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+  text-transform: none;
+}
+
+.finance-header span:last-child {
+  text-align: right;
+}
+
+.finance-main {
+  width: min(1280px, 94vw);
+  margin: 0 auto;
+  padding: 3.5rem 0 6rem;
+}
+
+.finance-title {
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  gap: 3rem;
+  align-items: end;
+  margin-bottom: 2.5rem;
+}
+
+.finance-title h1 {
+  max-width: 850px;
+  margin: 0.25rem 0 0;
+  font-family: var(--font-display), serif;
+  font-size: clamp(3.2rem, 7.5vw, 7rem);
+  font-weight: 500;
+  letter-spacing: -0.055em;
+  line-height: 0.86;
+}
+
+.finance-title > p {
+  max-width: 35rem;
+  margin: 0;
+  color: #4d574f;
+  line-height: 1.6;
+}
+
+.finance-panel {
+  border: 1px solid #76786f;
+  background: #faf7ef;
+}
+
+.finance-section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: end;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #c9c4b8;
+}
+
+.finance-section-head span {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.finance-section-head h2 {
+  margin: 0.2rem 0 0;
+  font-family: var(--font-display), serif;
+  font-size: 2rem;
+}
+
+.finance-section-head > strong {
+  font-family: ui-monospace, monospace;
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.finance-message {
+  margin: 1rem 1.5rem 0;
+  padding: 0.75rem;
+  background: #e9f0e6;
+  color: #17643c;
+}
+
+.finance-empty {
+  padding: 2rem 1.5rem;
+  color: #586059;
+}
+
+.finance-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.finance-table th,
+.finance-table td {
+  padding: 1rem 1.5rem;
+  text-align: left;
+  border-bottom: 1px solid #c9c4b8;
+  font-size: 0.9rem;
+}
+
+.finance-table th {
+  color: #4d574f;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.finance-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+.finance-table button {
+  min-height: 36px;
+  border: 1px solid #17201b;
+  background: #c64e0b;
+  color: #fffaf0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 0.45rem 0.8rem;
+}
+
+.finance-table button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.finance-muted {
+  color: #8d9087;
+}
+
+.finance-status {
+  display: inline-block;
+  padding: 0.22rem 0.45rem;
+  border: 1px solid currentColor;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.finance-status.attention {
+  color: #8a570f;
+}
+
+.finance-status.positive {
+  color: #17643c;
+}
+
+.finance-status.critical {
+  color: #9d332c;
+}
+
+@media (max-width: 900px) {
+  .finance-title {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-table,
+  .finance-table thead,
+  .finance-table tbody,
+  .finance-table th,
+  .finance-table td,
+  .finance-table tr {
+    display: block;
+  }
+
+  .finance-table thead {
+    display: none;
+  }
+
+  .finance-table td {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 1.5rem;
+    border: 0;
+  }
+
+  .finance-table td::before {
+    content: attr(data-label);
+    color: #4d574f;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .finance-table tr {
+    border-bottom: 1px solid #c9c4b8;
+  }
+}
+
+@media (max-width: 620px) {
+  .finance-header {
+    grid-template-columns: 1fr auto;
+  }
+
+  .finance-header span:last-child {
+    display: none;
+  }
+
+  .finance-main {
+    padding-top: 2rem;
+  }
+
+  .finance-title {
+    gap: 1.5rem;
+  }
+}

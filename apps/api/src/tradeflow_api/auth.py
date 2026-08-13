@@ -362,6 +362,42 @@ async def require_payment_projection_rebuilder(
     return require_capability(user, "finance:projection-rebuild")
 
 
+async def require_invoice_poster(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:invoice-post")
+
+
+async def require_invoice_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:invoice-read")
+
+
+async def require_invoice_voider(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:invoice-void")
+
+
+async def require_credit_note_poster(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:credit-note-post")
+
+
+async def require_payment_allocator(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:payment-allocate")
+
+
+async def require_statement_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:statement-read")
+
+
 async def require_pick_releaser(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:

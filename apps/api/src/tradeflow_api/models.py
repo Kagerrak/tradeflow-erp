@@ -3531,3 +3531,70 @@ draft_invoice_lines = Table(
         postgresql_not_valid=True,
     ),
 )
+
+customer_ledger_entries = Table(
+    "customer_ledger_entries",
+    metadata,
+    Column("entry_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "customer_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("customer_accounts.customer_id"),
+        nullable=False,
+    ),
+    Column("entry_type", String(30), nullable=False),
+    Column("source_type", String(50), nullable=False),
+    Column("source_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column(
+        "invoice_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("draft_invoices.draft_invoice_id"),
+        nullable=True,
+    ),
+    Column("amount", Numeric(24, 6), nullable=False),
+    Column("currency", String(3), nullable=False),
+    Column(
+        "branch_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("branches.branch_id"),
+        nullable=False,
+    ),
+    Column("actor_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    Column(
+        "posted_at",
+        DateTime(timezone=True),
+        nullable=True,
+    ),
+    CheckConstraint(
+        "entry_type IN ('invoice', 'allocation', 'credit_note', 'void')",
+        name="ck_customer_ledger_entry_type",
+    ),
+    CheckConstraint(
+        "source_type IN ('draft_invoice', 'payment_receipt', 'payment_allocation', "
+        "'credit_note', 'invoice_void')",
+        name="ck_customer_ledger_source_type",
+    ),
+    CheckConstraint(
+        "amount <> 0",
+        name="ck_customer_ledger_amount_nonzero",
+    ),
+    UniqueConstraint(
+        "source_type",
+        "source_id",
+        "entry_type",
+        name="uq_customer_ledger_source_entry_type",
+    ),
+    Index(
+        "idx_customer_ledger_entries_customer_created",
+        "customer_id",
+        "created_at",
+    ),
+)

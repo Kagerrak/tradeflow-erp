@@ -23,6 +23,7 @@ const navigation = [
   ["Fulfillment", "03", "/picking"],
   ["Inventory", "04", "/inventory"],
   ["Customers", "05", "/customers"],
+  ["Finance", "06", "/finance"],
 ] as const;
 
 async function fetchPlatformSession(): Promise<PlatformSessionState> {
