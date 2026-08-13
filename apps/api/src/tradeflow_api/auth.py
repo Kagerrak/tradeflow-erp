@@ -525,6 +525,30 @@ async def require_delivery_correction_reader(
     return user
 
 
+async def require_return_requester(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "returns:request")
+
+
+async def require_return_authorizer(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "returns:authorize")
+
+
+async def require_return_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    if not {"returns:request", "returns:authorize"}.intersection(user.capabilities):
+        raise AppError(
+            status_code=403,
+            code="capability_required",
+            message="A Returns capability is required.",
+        )
+    return user
+
+
 async def require_delivery_exception_reader(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:

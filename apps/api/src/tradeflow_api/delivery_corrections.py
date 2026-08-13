@@ -62,6 +62,8 @@ from tradeflow_api.models import (
     outbox_events,
     outbox_processing_state,
     pick_identity_assignments,
+    return_authorizations,
+    return_requests,
     skus,
     stock_movement_identity_allocations,
     stock_movements,
@@ -650,6 +652,21 @@ async def _assert_eligible(
         raise AppError(
             409, "delivery_correction_chain_conflict", "Only the current receipt may be corrected."
         )
+    authorized_return = await session.scalar(
+        select(return_authorizations.c.return_request_id)
+        .join(
+            return_requests,
+            return_requests.c.return_request_id == return_authorizations.c.return_request_id,
+        )
+        .where(return_requests.c.delivery_receipt_id == receipt["delivery_receipt_id"])
+        .limit(1)
+    )
+    if authorized_return is not None:
+        raise AppError(
+            409,
+            "delivery_correction_not_eligible",
+            "A Delivery Receipt with an authorized customer return cannot be corrected.",
+        )
     return await _assert_source_eligible(
         session,
         cast(UUID, receipt["confirmation_id"]),
@@ -870,7 +887,7 @@ async def request_delivery_correction(
     request_hash = _request_hash("request-delivery-correction", receipt_id, actor.subject, command)
     await session.rollback()
     async with session.begin():
-        await _lock(session, f"delivery-receipt-correction:{receipt_id}")
+        await _lock(session, f"delivery-receipt-chain:{receipt_id}")
         receipt = await _source_receipt(session, receipt_id, actor, for_update=True)
         replay = await get_command_replay(
             session,
