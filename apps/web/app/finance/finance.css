@@ -173,6 +173,23 @@
   color: #9d332c;
 }
 
+.finance-status.paid,
+.finance-status.neutral {
+  color: #17643c;
+}
+
+.finance-status.partially_paid {
+  color: #8a570f;
+}
+
+.finance-status.overdue {
+  color: #9d332c;
+}
+
+.finance-status.credited {
+  color: #17643c;
+}
+
 .finance-queue article {
   display: grid;
   grid-template-columns: 1fr auto;
