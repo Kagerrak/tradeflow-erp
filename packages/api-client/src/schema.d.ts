@@ -1079,6 +1079,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/procurement/goods-receipts/{goods_receipt_id}/landed-costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Landed Costs */
+        get: operations["get_landed_costs_v1_procurement_goods_receipts__goods_receipt_id__landed_costs_get"];
+        put?: never;
+        /** Create Landed Cost */
+        post: operations["create_landed_cost_v1_procurement_goods_receipts__goods_receipt_id__landed_costs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/procurement/purchase-orders": {
         parameters: {
             query?: never;
@@ -1960,6 +1978,13 @@ export interface components {
              */
             reversed_at: string;
         };
+        /** ChargeCommand */
+        ChargeCommand: {
+            /** Amount Base */
+            amount_base: number | string;
+            /** Charge Type */
+            charge_type: string;
+        };
         /** CheckClearanceCommand */
         CheckClearanceCommand: {
             /** Bank Reference */
@@ -2615,6 +2640,11 @@ export interface components {
              * Format: uuid
              */
             warehouse_id: string;
+        };
+        /** CreateLandedCostCommand */
+        CreateLandedCostCommand: {
+            /** Charges */
+            charges: components["schemas"]["ChargeCommand"][];
         };
         /** CreateLocationCommand */
         CreateLocationCommand: {
@@ -3662,6 +3692,70 @@ export interface components {
             ledger_entry_id: string;
             /** Status */
             status: string;
+        };
+        /** LandedCostAllocationResponse */
+        LandedCostAllocationResponse: {
+            /** Allocated Amount Base */
+            allocated_amount_base: string;
+            /**
+             * Goods Receipt Line Id
+             * Format: uuid
+             */
+            goods_receipt_line_id: string;
+            /**
+             * Landed Cost Allocation Id
+             * Format: uuid
+             */
+            landed_cost_allocation_id: string;
+        };
+        /** LandedCostChargeResponse */
+        LandedCostChargeResponse: {
+            /** Allocations */
+            allocations: components["schemas"]["LandedCostAllocationResponse"][];
+            /** Amount Base */
+            amount_base: string;
+            /** Charge Type */
+            charge_type: string;
+            /**
+             * Landed Cost Charge Id
+             * Format: uuid
+             */
+            landed_cost_charge_id: string;
+        };
+        /** LandedCostReceiptLineResponse */
+        LandedCostReceiptLineResponse: {
+            /**
+             * Goods Receipt Line Id
+             * Format: uuid
+             */
+            goods_receipt_line_id: string;
+            /** Original Line Value */
+            original_line_value: string;
+            /** Received Quantity Base */
+            received_quantity_base: string;
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+            /** Total Allocated Landed Cost */
+            total_allocated_landed_cost: string;
+            /** Unit Cost */
+            unit_cost: string;
+        };
+        /** LandedCostResponse */
+        LandedCostResponse: {
+            /** Base Currency */
+            base_currency: string;
+            /** Charges */
+            charges: components["schemas"]["LandedCostChargeResponse"][];
+            /**
+             * Goods Receipt Id
+             * Format: uuid
+             */
+            goods_receipt_id: string;
+            /** Lines */
+            lines: components["schemas"]["LandedCostReceiptLineResponse"][];
         };
         /** LifecycleCommand */
         LifecycleCommand: {
@@ -10947,6 +11041,180 @@ export interface operations {
             };
             /** @description Stable TradeFlow error envelope. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_landed_costs_v1_procurement_goods_receipts__goods_receipt_id__landed_costs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                goods_receipt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LandedCostResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_landed_cost_v1_procurement_goods_receipts__goods_receipt_id__landed_costs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                goods_receipt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateLandedCostCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LandedCostResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

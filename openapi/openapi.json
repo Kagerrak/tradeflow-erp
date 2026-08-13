@@ -1499,6 +1499,36 @@
         "title": "CashReconciliationReversalCommand",
         "type": "object"
       },
+      "ChargeCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_base": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Amount Base"
+          },
+          "charge_type": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Charge Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "charge_type",
+          "amount_base"
+        ],
+        "title": "ChargeCommand",
+        "type": "object"
+      },
       "CheckClearanceCommand": {
         "additionalProperties": false,
         "properties": {
@@ -3310,6 +3340,24 @@
           "lines"
         ],
         "title": "CreateGoodsReceiptCommand",
+        "type": "object"
+      },
+      "CreateLandedCostCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "charges": {
+            "items": {
+              "$ref": "#/components/schemas/ChargeCommand"
+            },
+            "minItems": 1,
+            "title": "Charges",
+            "type": "array"
+          }
+        },
+        "required": [
+          "charges"
+        ],
+        "title": "CreateLandedCostCommand",
         "type": "object"
       },
       "CreateLocationCommand": {
@@ -5813,6 +5861,138 @@
           "status"
         ],
         "title": "InvoiceVoidResponse",
+        "type": "object"
+      },
+      "LandedCostAllocationResponse": {
+        "properties": {
+          "allocated_amount_base": {
+            "title": "Allocated Amount Base",
+            "type": "string"
+          },
+          "goods_receipt_line_id": {
+            "format": "uuid",
+            "title": "Goods Receipt Line Id",
+            "type": "string"
+          },
+          "landed_cost_allocation_id": {
+            "format": "uuid",
+            "title": "Landed Cost Allocation Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "landed_cost_allocation_id",
+          "goods_receipt_line_id",
+          "allocated_amount_base"
+        ],
+        "title": "LandedCostAllocationResponse",
+        "type": "object"
+      },
+      "LandedCostChargeResponse": {
+        "properties": {
+          "allocations": {
+            "items": {
+              "$ref": "#/components/schemas/LandedCostAllocationResponse"
+            },
+            "title": "Allocations",
+            "type": "array"
+          },
+          "amount_base": {
+            "title": "Amount Base",
+            "type": "string"
+          },
+          "charge_type": {
+            "title": "Charge Type",
+            "type": "string"
+          },
+          "landed_cost_charge_id": {
+            "format": "uuid",
+            "title": "Landed Cost Charge Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "landed_cost_charge_id",
+          "charge_type",
+          "amount_base",
+          "allocations"
+        ],
+        "title": "LandedCostChargeResponse",
+        "type": "object"
+      },
+      "LandedCostReceiptLineResponse": {
+        "properties": {
+          "goods_receipt_line_id": {
+            "format": "uuid",
+            "title": "Goods Receipt Line Id",
+            "type": "string"
+          },
+          "original_line_value": {
+            "title": "Original Line Value",
+            "type": "string"
+          },
+          "received_quantity_base": {
+            "title": "Received Quantity Base",
+            "type": "string"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "total_allocated_landed_cost": {
+            "title": "Total Allocated Landed Cost",
+            "type": "string"
+          },
+          "unit_cost": {
+            "title": "Unit Cost",
+            "type": "string"
+          }
+        },
+        "required": [
+          "goods_receipt_line_id",
+          "sku_id",
+          "received_quantity_base",
+          "unit_cost",
+          "original_line_value",
+          "total_allocated_landed_cost"
+        ],
+        "title": "LandedCostReceiptLineResponse",
+        "type": "object"
+      },
+      "LandedCostResponse": {
+        "properties": {
+          "base_currency": {
+            "title": "Base Currency",
+            "type": "string"
+          },
+          "charges": {
+            "items": {
+              "$ref": "#/components/schemas/LandedCostChargeResponse"
+            },
+            "title": "Charges",
+            "type": "array"
+          },
+          "goods_receipt_id": {
+            "format": "uuid",
+            "title": "Goods Receipt Id",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/LandedCostReceiptLineResponse"
+            },
+            "title": "Lines",
+            "type": "array"
+          }
+        },
+        "required": [
+          "goods_receipt_id",
+          "base_currency",
+          "charges",
+          "lines"
+        ],
+        "title": "LandedCostResponse",
         "type": "object"
       },
       "LifecycleCommand": {
@@ -18526,6 +18706,230 @@
         "summary": "Ping",
         "tags": [
           "platform"
+        ]
+      }
+    },
+    "/v1/procurement/goods-receipts/{goods_receipt_id}/landed-costs": {
+      "get": {
+        "operationId": "get_landed_costs_v1_procurement_goods_receipts__goods_receipt_id__landed_costs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "goods_receipt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Goods Receipt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LandedCostResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Landed Costs",
+        "tags": [
+          "procurement"
+        ]
+      },
+      "post": {
+        "operationId": "create_landed_cost_v1_procurement_goods_receipts__goods_receipt_id__landed_costs_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "goods_receipt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Goods Receipt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLandedCostCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LandedCostResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Landed Cost",
+        "tags": [
+          "procurement"
         ]
       }
     },

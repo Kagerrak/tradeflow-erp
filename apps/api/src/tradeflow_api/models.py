@@ -269,6 +269,74 @@ goods_receipt_lines = Table(
     ),
 )
 
+landed_cost_charges = Table(
+    "landed_cost_charges",
+    metadata,
+    Column(
+        "landed_cost_charge_id",
+        PostgresUUID(as_uuid=True),
+        primary_key=True,
+    ),
+    Column(
+        "goods_receipt_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("goods_receipts.goods_receipt_id"),
+        nullable=False,
+    ),
+    Column("charge_type", String(50), nullable=False),
+    Column("amount_base", Numeric(18, 6), nullable=False),
+    Column("base_currency", String(3), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    Column(
+        "created_by",
+        String(200),
+        ForeignKey("users.subject"),
+        nullable=False,
+    ),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    CheckConstraint(
+        "charge_type IN ('freight', 'insurance', 'customs', 'brokerage', 'handling')",
+        name="ck_landed_cost_charges_charge_type",
+    ),
+    CheckConstraint(
+        "amount_base > 0",
+        name="ck_landed_cost_charges_amount_positive",
+    ),
+)
+
+landed_cost_allocations = Table(
+    "landed_cost_allocations",
+    metadata,
+    Column(
+        "landed_cost_allocation_id",
+        PostgresUUID(as_uuid=True),
+        primary_key=True,
+    ),
+    Column(
+        "landed_cost_charge_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("landed_cost_charges.landed_cost_charge_id"),
+        nullable=False,
+    ),
+    Column(
+        "goods_receipt_line_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("goods_receipt_lines.goods_receipt_line_id"),
+        nullable=False,
+    ),
+    Column("allocated_amount_base", Numeric(18, 6), nullable=False),
+    CheckConstraint(
+        "allocated_amount_base > 0",
+        name="ck_landed_cost_allocations_amount_positive",
+    ),
+)
+
 branches = Table(
     "branches",
     metadata,
