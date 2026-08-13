@@ -44,16 +44,19 @@
 - `uv run ruff check apps/api/src apps/api/tests apps/worker/src` — passed.
 - `uv run ruff format --check .` — passed.
 - `uv run mypy apps/api/src apps/worker/src` — passed.
-- `pnpm format` — passed.
+- `pnpm format` — passed (fixed Prettier issue in
+  `docs/release-notes/finance-invoice-posting-2026-08-13.md`).
 - `pnpm lint` — passed.
 - `pnpm typecheck` — passed.
 - `pnpm test` — passed.
-  - Full Python pytest suite: **141 passed, 4 skipped**.
+  - Full Python pytest suite: **149 passed, 4 skipped**.
   - Playwright web suite: **134 passed, 10 skipped**.
 - `pnpm build` / `uv build --all-packages` — passed.
 - `git diff --check` — passed.
 - Alembic `upgrade head` / `downgrade -1` / `upgrade head` on a clean test
   database — passed.
+- GitHub Actions CI `verify` for PR #39 — passed
+  (run 31669045701, https://github.com/Kagerrak/tradeflow-erp/actions/runs/31669045701).
 
 ## Closed / ready for review
 
