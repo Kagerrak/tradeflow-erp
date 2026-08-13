@@ -266,6 +266,24 @@ async def require_supplier_writer(
     return require_capability(user, "procurement:supplier-write")
 
 
+async def require_purchase_order_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "procurement:purchase-order-read")
+
+
+async def require_purchase_order_writer(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "procurement:purchase-order-write")
+
+
+async def require_purchase_order_approver(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "procurement:purchase-order-approve")
+
+
 async def require_catalog_writer(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:
