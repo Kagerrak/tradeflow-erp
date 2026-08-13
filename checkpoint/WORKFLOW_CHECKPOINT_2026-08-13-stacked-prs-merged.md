@@ -1,7 +1,7 @@
 # TradeFlow workflow checkpoint
 
 - Date: August 13, 2026
-- Phase: Stacked procurement PRs merged to `main`
+- Phase: Shipped foundations reconciled against incomplete first-release scope
 - Session: continuation of order-to-delivery shipment
 
 ## Shipped
@@ -44,14 +44,44 @@ were merged in dependency order with explicit approval.
 
 ## In progress
 
-- None.
+- #55 — Reconcile first-release tracker, product scope, and policy gates.
+- The complete evidence matrix is in
+  `docs/delivery/first-release-reconciliation.md`.
 
 ## Remaining dependency-ready work
 
-- None. All open implementation issues and PRDs are resolved.
+- #65 — Approve a Return Authorization against delivered and previously
+  returned quantity.
+- #71 — Issue and post immutable Credit Note documents under Maker-Checker
+  control.
+- #72 — Support unapplied and overpaid Payment Receipts explicitly.
+- #77 — Create and approve Purchase Requests before Purchase Orders.
+- #78 — Record Receipt Variance, quality outcome, and Purchase Backorder
+  explicitly.
+- #83 — Configure effective-dated Expense Categories and Policies.
+- #94 — Expose a consolidated Customer transaction timeline.
+- #97 — Establish production-like staging and authorization/security evidence.
+- #105–#108 — Complete remaining Quotation, Order Cancellation, Inventory
+  Transfer/Adjustment, and operational configuration requirements.
+- #109 — Deliver scoped mobile operational notifications and deep links.
+- #110 — Baseline current workflows and measure first-release success outcomes.
+
+The ready list exposes independent dependency roots. Delivery continues with
+one vertical slice at a time, beginning with Returns as required by the product
+priority.
+
+## Policy decisions
+
+- #63 — Confirm the first-release Landed Cost allocation policy. This gates
+  policy-sensitive international procurement valuation.
+- #64 — Select the Commission Basis and earning trigger. This gates commission
+  posting rules.
 
 ## Next issue
 
-- No dependency-ready issues remain. The procurement and finance verticals
-  described in #34 and #41 are fully shipped to `main`. Await product priority
-  for the next roadmap vertical.
+- #65 — Approve a Return Authorization against delivered and previously
+  returned quantity, after #55 is reviewed and merged.
+- The overall first-release goal remains active through Returns,
+  invoice-to-cash completion, remaining Procurement, Expenses, Commissions,
+  customer history/reporting, remaining Sales/Inventory/configuration, and
+  hardening/migration/UAT and success-measure evidence (#56–#110).

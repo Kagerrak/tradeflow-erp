@@ -2,6 +2,13 @@
 
 Deliver thin end-to-end business slices before attempting every module.
 
+The evidence-based status of this roadmap and the dependency-aware tracker for
+remaining first-release work are recorded in
+[`first-release-reconciliation.md`](./first-release-reconciliation.md). A
+closed tracker item is not completion evidence unless the corresponding code,
+tests, migration, cross-platform workflow, reconciliation, and release gates
+also pass.
+
 ## Phase 0: Discovery and migration baseline
 
 - Inventory existing screens, reports, roles, integrations, and data exports.

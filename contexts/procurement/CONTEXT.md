@@ -8,6 +8,11 @@ purchased.
 **International Supplier**: A supplier whose purchase may require foreign
 currency, import shipment, customs, and landed-cost allocation.
 
+**Purchase Request**: An internal, Branch-owned request for approval to procure
+specified products, quantities, and needed-by dates. Approval permits an
+authorized conversion into one or more Purchase Order lines; it does not itself
+commit the Company to a Supplier or post stock or financial value.
+
 **Purchase Order**: The authorized commitment to buy products, quantities, and
 services from a supplier under agreed terms. An international Purchase Order
 may use one foreign Transaction Currency.
@@ -20,6 +25,14 @@ order may arrive through multiple inbound shipments.
 
 **Goods Receipt**: Confirmation of quantities physically received against
 purchase-order demand.
+
+**Receipt Variance**: The immutable comparison between expected, physically
+received, accepted, rejected, and approved over-received quantity for a Goods
+Receipt line, together with its reason and evidence.
+
+**Purchase Backorder**: Approved Purchase Order quantity that remains open
+after one or more Goods Receipts. It is procurement demand owed by a Supplier
+and is distinct from Sales Backorder Demand.
 
 **Supplier Return**: Authorized outbound movement returning received goods to a
 supplier.
