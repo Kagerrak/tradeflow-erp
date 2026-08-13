@@ -57,6 +57,41 @@ companies = Table(
     CheckConstraint("version > 0", name="ck_companies_version_positive"),
 )
 
+suppliers = Table(
+    "suppliers",
+    metadata,
+    Column("supplier_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "company_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("companies.company_id"),
+        nullable=False,
+    ),
+    Column("code", String(50), nullable=False),
+    Column("legal_name", String(200), nullable=False),
+    Column("tax_id", String(50), nullable=True),
+    Column("payment_terms", String(50), nullable=False),
+    Column("default_currency", String(3), nullable=False),
+    Column("is_active", Boolean, nullable=False, server_default="true"),
+    Column("version", Integer, nullable=False, server_default="1"),
+    Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    ),
+    CheckConstraint("version > 0", name="ck_suppliers_version_positive"),
+    UniqueConstraint("company_id", "code", name="uq_suppliers_company_code"),
+)
+
 branches = Table(
     "branches",
     metadata,

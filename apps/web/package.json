@@ -21,6 +21,7 @@
     "@tradeflow/inventory-directory": "workspace:*",
     "@tradeflow/payment-clearance": "workspace:*",
     "@tradeflow/platform-session": "workspace:*",
+    "@tradeflow/procurement-suppliers": "workspace:*",
     "@tradeflow/sales-order-draft": "workspace:*",
     "@tradeflow/warehouse-picking": "workspace:*",
     "next": "16.2.12",
