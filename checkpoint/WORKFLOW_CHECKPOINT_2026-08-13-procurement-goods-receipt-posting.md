@@ -59,5 +59,6 @@ to the goods-receipt vertical.
 
 ## Status
 
-- #44 implementation is complete on `feat/goods-receipt-posting`.
-- PR #49 is ready to be opened; merge requires explicit user approval.
+- #44 implementation is complete.
+- PR #49 merged to `main` at 2026-08-13T11:00:00Z.
+- Issue #44 closed automatically by the merge.

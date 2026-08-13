@@ -63,6 +63,6 @@ to the landed-cost vertical.
 
 ## Status
 
-- #45 implementation is complete on `feat/landed-cost-allocation`.
-- PR #50 is ready to be opened (targeting `feat/goods-receipt-posting` until
-  #49 merges); merge of both PRs requires explicit user approval.
+- #45 implementation is complete.
+- PR #50 merged to `main` at 2026-08-13T11:09:50Z.
+- Issue #45 closed automatically by the merge.

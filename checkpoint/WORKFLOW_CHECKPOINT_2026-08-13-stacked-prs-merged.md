@@ -1,7 +1,7 @@
 # TradeFlow workflow checkpoint
 
 - Date: August 13, 2026
-- Phase: Stacked Finance and Procurement PRs merged to `main`
+- Phase: Stacked procurement PRs merged to `main`
 - Session: continuation of order-to-delivery shipment
 
 ## Shipped
@@ -14,50 +14,41 @@
   2026-08-13T05:58:47Z).
 - #43 — Purchase order creation and approval (PR #48, merged
   2026-08-13T06:23:46Z).
+- #44 — Goods receipt posting against purchase orders (PR #49, merged
+  2026-08-13T11:00:00Z).
+- #45 — Landed cost allocation to goods receipts (PR #50, merged
+  2026-08-13T11:09:50Z).
+- #46 — Procurement workspace web console (PR #51, merged
+  2026-08-13T11:17:34Z).
 
-All four PRs were rebased/retargeted onto `main`, passed the full CI `verify`
-workflow, and were merged in dependency order with explicit approval.
+All procurement PRs were rebased/retargeted onto `main`, passed local gates, and
+were merged in dependency order with explicit approval.
 
 ## What changed since the last checkpoint
 
-- Fixed Prettier formatting in
-  `docs/release-notes/finance-invoice-posting-2026-08-13.md` on
-  `feat/payment-allocation` so PR #39 CI passed.
-- Rebased `feat/customer-statement` onto `main` after #39 merged.
-- Rebased `feat/supplier-directory` onto `main` after #40 merged, resolving
-  shell navigation and release-note conflicts.
-- Rebased `feat/purchase-order-creation` onto `main` after #47 merged,
-  resolving shell navigation conflicts and appending Purchase orders as
-  navigation item 10.
-- Updated each vertical checkpoint to record merge timestamp and next issue.
+- Merged PR #49 (#44), PR #50 (#45), and PR #51 (#46) into `main`.
+- Rebased `feat/landed-cost-allocation` onto `main` after #49 merged.
+- Rebased `feat/procurement-workspace` onto `main` after #50 merged.
+- Updated each vertical checkpoint and release notes to record merge timestamp.
 
 ## Verification evidence
 
-- PR #39 CI `verify` — passed (run 31669045701).
-- PR #40 CI `verify` — passed (run 31670498334).
-- PR #47 CI `verify` — passed (run 31671505186).
-- PR #48 CI `verify` — passed (run 31672671922).
+- PR #49 CI `verify` — passed before merge; local gates passed after rebase.
+- PR #50 CI `verify` — passed before rebase; local gates passed after rebase.
+- PR #51 CI `verify` — passed before rebase; local gates passed after rebase.
 - Local gates on each rebased branch: `pnpm format`, `pnpm lint`,
   `pnpm typecheck`, `pnpm test`, `pnpm build`, `git diff --check` — passed.
+- Alembic `upgrade head / downgrade base / upgrade head` — passed.
 
 ## In progress
 
-- #44 — Goods receipt posting against purchase orders. Implemented on
-  `feat/goods-receipt-posting`; PR #49 opened and awaiting explicit approval
-  before merge.
-- #45 — Landed cost allocation to goods receipts. Implemented on
-  `feat/landed-cost-allocation`; stacked PR #50 opened targeting
-  `feat/goods-receipt-posting`, awaiting explicit approval before merge.
-- #46 — Procurement workspace web console. Implemented on
-  `feat/procurement-workspace`; stacked PR #51 opened targeting
-  `feat/landed-cost-allocation` (https://github.com/Kagerrak/tradeflow-erp/pull/51),
-  awaiting explicit approval before merge.
+- None.
 
 ## Remaining dependency-ready work
 
-- None.
+- None in the current open issue list.
 
 ## Next issue
 
-- Await explicit user approval to merge PR #49, then rebase/retarget and merge
-  PR #50, then rebase/retarget and merge PR #51.
+- No dependency-ready issues remain. Await product priority for the next
+  vertical.
