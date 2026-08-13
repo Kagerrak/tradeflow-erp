@@ -39,6 +39,7 @@ from tradeflow_api.observability import (
     instrument_app,
 )
 from tradeflow_api.organization import router as organization_router
+from tradeflow_api.payment_allocation import router as payment_allocation_router
 from tradeflow_api.payment_fulfillment import router as payment_fulfillment_router
 from tradeflow_api.picking import router as picking_router
 from tradeflow_api.platform import router as platform_router
@@ -101,6 +102,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(delivery_corrections_router)
     app.include_router(delivery_exceptions_router)
     app.include_router(invoice_posting_router)
+    app.include_router(payment_allocation_router)
     app.include_router(payment_fulfillment_router)
     if resolved_settings.picking_enabled:
         app.include_router(picking_router)

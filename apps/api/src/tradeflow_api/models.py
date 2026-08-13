@@ -1815,6 +1815,36 @@ payment_receipt_balances = Table(
     CheckConstraint("version > 0", name="ck_payment_receipt_balances_version"),
 )
 
+payment_allocations = Table(
+    "payment_allocations",
+    metadata,
+    Column("allocation_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "payment_receipt_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("payment_receipts.payment_receipt_id"),
+        nullable=False,
+    ),
+    Column(
+        "invoice_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("draft_invoices.draft_invoice_id"),
+        nullable=False,
+    ),
+    Column("amount", Numeric(24, 6), nullable=False),
+    Column("currency", String(3), nullable=False),
+    Column(
+        "branch_id", PostgresUUID(as_uuid=True), ForeignKey("branches.branch_id"), nullable=False
+    ),
+    Column("actor_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("amount > 0", name="ck_payment_allocation_amount_positive"),
+    Index("idx_payment_allocations_receipt", "payment_receipt_id"),
+    Index("idx_payment_allocations_invoice", "invoice_id"),
+)
+
 cash_reconciliation_items = Table(
     "cash_reconciliation_items",
     metadata,
