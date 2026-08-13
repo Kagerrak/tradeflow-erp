@@ -983,7 +983,7 @@ async def test_correction_command_and_worker_replays_preserve_one_reconciled_aud
         "handler_receipts": 2,
         "replacement_receipts": 1,
         "replacement_documents": 1,
-        "customer_ledger_table": None,
+        "customer_ledger_table": "customer_ledger_entries",
     }
     assert document["number"] == replacement_number
     assert str(document["corrects_delivery_receipt_id"]) == original_receipt_id
@@ -2011,58 +2011,55 @@ async def test_authorization_rejects_draft_invoice_posted_since_request(
     )
     assert requested.status_code == 201, requested.text
     pending = requested.json()
-    try:
-        async with engine.begin() as connection:
-            await connection.execute(
-                text("ALTER TABLE draft_invoices DISABLE TRIGGER trg_draft_invoices_immutable")
-            )
-            await connection.execute(
-                text("ALTER TABLE draft_invoices DROP CONSTRAINT ck_draft_invoice_status")
-            )
-            await connection.execute(
-                text(
-                    "UPDATE draft_invoices SET status = 'posted' "
-                    "WHERE delivery_confirmation_id = :confirmation_id "
-                    "AND invoice_kind = 'original'"
-                ),
-                {"confirmation_id": confirmation["confirmation_id"]},
-            )
-            await connection.execute(
-                text("ALTER TABLE draft_invoices ENABLE TRIGGER trg_draft_invoices_immutable")
-            )
-        rejected = await confirmation_client.post(
-            f"/v1/delivery-corrections/{correction_id}/authorization",
-            headers=auth(
-                confirmation_settings,
-                "delivery-correction-checker-mnl",
-                **{"Idempotency-Key": "authorize-posted-invoice-correction"},
-            ),
-            json={"expected_correction_version": 1},
-        )
-        assert rejected.status_code == 409, rejected.text
-        assert rejected.json()["error"]["code"] == "delivery_correction_not_eligible"
-    finally:
-        async with engine.begin() as connection:
-            await connection.execute(
-                text("ALTER TABLE draft_invoices DISABLE TRIGGER trg_draft_invoices_immutable")
-            )
-            await connection.execute(
-                text(
-                    "UPDATE draft_invoices SET status = 'draft' "
-                    "WHERE delivery_confirmation_id = :confirmation_id "
-                    "AND invoice_kind = 'original'"
-                ),
-                {"confirmation_id": confirmation["confirmation_id"]},
-            )
-            await connection.execute(
-                text(
-                    "ALTER TABLE draft_invoices ADD CONSTRAINT ck_draft_invoice_status "
-                    "CHECK (status = 'draft')"
+    async with engine.begin() as connection:
+        original_invoice = (
+            (
+                await connection.execute(
+                    text(
+                        "SELECT draft_invoice_id, customer_id, branch_id, grand_total, currency "
+                        "FROM draft_invoices "
+                        "WHERE delivery_confirmation_id = :confirmation_id "
+                        "AND invoice_kind = 'original'"
+                    ),
+                    {"confirmation_id": confirmation["confirmation_id"]},
                 )
             )
-            await connection.execute(
-                text("ALTER TABLE draft_invoices ENABLE TRIGGER trg_draft_invoices_immutable")
-            )
+            .mappings()
+            .one()
+        )
+        await connection.execute(
+            text(
+                "INSERT INTO customer_ledger_entries "
+                "(entry_id, customer_id, entry_type, source_type, source_id, invoice_id, "
+                "amount, currency, branch_id, actor_subject, correlation_id, idempotency_key) "
+                "VALUES "
+                "(:entry_id, :customer_id, 'invoice', 'draft_invoice', :source_id, :invoice_id, "
+                ":amount, :currency, :branch_id, 'finance-recorder', "
+                ":correlation_id, :idempotency_key)"
+            ),
+            {
+                "entry_id": str(uuid4()),
+                "customer_id": str(original_invoice["customer_id"]),
+                "source_id": str(original_invoice["draft_invoice_id"]),
+                "invoice_id": str(original_invoice["draft_invoice_id"]),
+                "amount": str(original_invoice["grand_total"]),
+                "currency": original_invoice["currency"],
+                "branch_id": str(original_invoice["branch_id"]),
+                "correlation_id": str(uuid4()),
+                "idempotency_key": str(uuid4()),
+            },
+        )
+    rejected = await confirmation_client.post(
+        f"/v1/delivery-corrections/{correction_id}/authorization",
+        headers=auth(
+            confirmation_settings,
+            "delivery-correction-checker-mnl",
+            **{"Idempotency-Key": "authorize-posted-invoice-correction"},
+        ),
+        json={"expected_correction_version": 1},
+    )
+    assert rejected.status_code == 409, rejected.text
+    assert rejected.json()["error"]["code"] == "delivery_correction_not_eligible"
     unchanged = await confirmation_client.get(
         f"/v1/delivery-corrections/{correction_id}",
         headers=auth(confirmation_settings, "warehouse-supervisor-mnl"),
