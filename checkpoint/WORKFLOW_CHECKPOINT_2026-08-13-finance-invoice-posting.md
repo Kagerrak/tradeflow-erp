@@ -1,9 +1,9 @@
 # TradeFlow workflow checkpoint
 
 - Date: August 13, 2026
-- Phase: Issue #35 complete — finance invoice posting vertical
-- Branch: `feat/customer-ledger-invoice-posting`
-- Commit: HEAD of `feat/customer-ledger-invoice-posting`
+- Phase: Issue #35 merged — finance invoice posting vertical shipped
+- Branch: `feat/customer-ledger-invoice-posting` (merged to `main`)
+- Commit: `a9bd18a`
 - Release PR: #38 — https://github.com/Kagerrak/tradeflow-erp/pull/38
 
 ## Established
