@@ -26,9 +26,11 @@ were merged in dependency order with explicit approval.
 
 ## What changed since the last checkpoint
 
-- Merged PR #49 (#44), PR #50 (#45), and PR #51 (#46) into `main`.
+- Merged PR #49 (#44), PR #50 (#45), PR #51 (#46), and PR #52 (checkpoint
+  update) into `main`.
 - Rebased `feat/landed-cost-allocation` onto `main` after #49 merged.
 - Rebased `feat/procurement-workspace` onto `main` after #50 merged.
+- Closed parent PRD issues #34 and #41 as completed.
 - Updated each vertical checkpoint and release notes to record merge timestamp.
 
 ## Verification evidence
@@ -46,9 +48,10 @@ were merged in dependency order with explicit approval.
 
 ## Remaining dependency-ready work
 
-- None in the current open issue list.
+- None. All open implementation issues and PRDs are resolved.
 
 ## Next issue
 
-- No dependency-ready issues remain. Await product priority for the next
-  vertical.
+- No dependency-ready issues remain. The procurement and finance verticals
+  described in #34 and #41 are fully shipped to `main`. Await product priority
+  for the next roadmap vertical.
