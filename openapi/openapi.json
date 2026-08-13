@@ -169,6 +169,128 @@
         "title": "AddressUpdateResponse",
         "type": "object"
       },
+      "AllocatePaymentCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "allocations": {
+            "items": {
+              "$ref": "#/components/schemas/AllocationApplication"
+            },
+            "minItems": 1,
+            "title": "Allocations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "allocations"
+        ],
+        "title": "AllocatePaymentCommand",
+        "type": "object"
+      },
+      "AllocationApplication": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,18}|(?=[\\d.]{1,25}0*$)\\d{0,18}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Amount"
+          },
+          "invoice_id": {
+            "format": "uuid",
+            "title": "Invoice Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "invoice_id",
+          "amount"
+        ],
+        "title": "AllocationApplication",
+        "type": "object"
+      },
+      "AllocationResponse": {
+        "properties": {
+          "allocation_id": {
+            "format": "uuid",
+            "title": "Allocation Id",
+            "type": "string"
+          },
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "invoice_id": {
+            "format": "uuid",
+            "title": "Invoice Id",
+            "type": "string"
+          },
+          "payment_receipt_id": {
+            "format": "uuid",
+            "title": "Payment Receipt Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "allocation_id",
+          "payment_receipt_id",
+          "invoice_id",
+          "amount",
+          "currency",
+          "created_at"
+        ],
+        "title": "AllocationResponse",
+        "type": "object"
+      },
+      "AppliedAllocation": {
+        "properties": {
+          "allocated_at": {
+            "format": "date-time",
+            "title": "Allocated At",
+            "type": "string"
+          },
+          "allocation_id": {
+            "format": "uuid",
+            "title": "Allocation Id",
+            "type": "string"
+          },
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "invoice_id": {
+            "format": "uuid",
+            "title": "Invoice Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "allocation_id",
+          "invoice_id",
+          "amount",
+          "allocated_at"
+        ],
+        "title": "AppliedAllocation",
+        "type": "object"
+      },
       "ApprovalAuthorityInput-Input": {
         "additionalProperties": false,
         "properties": {
@@ -6259,6 +6381,52 @@
           "document_url"
         ],
         "title": "PaymentEvidence",
+        "type": "object"
+      },
+      "PaymentReceiptAllocationListResponse": {
+        "properties": {
+          "allocated_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Allocated Amount",
+            "type": "string"
+          },
+          "allocations": {
+            "items": {
+              "$ref": "#/components/schemas/AppliedAllocation"
+            },
+            "title": "Allocations",
+            "type": "array"
+          },
+          "available_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Available Amount",
+            "type": "string"
+          },
+          "cleared_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cleared Amount",
+            "type": "string"
+          },
+          "coverage_designated_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Coverage Designated Amount",
+            "type": "string"
+          },
+          "payment_receipt_id": {
+            "format": "uuid",
+            "title": "Payment Receipt Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payment_receipt_id",
+          "cleared_amount",
+          "allocated_amount",
+          "available_amount",
+          "coverage_designated_amount",
+          "allocations"
+        ],
+        "title": "PaymentReceiptAllocationListResponse",
         "type": "object"
       },
       "PaymentReceiptListResponse": {
@@ -13746,6 +13914,252 @@
         "tags": [
           "finance",
           "fulfillment"
+        ]
+      }
+    },
+    "/v1/finance/payment-receipts/{payment_receipt_id}/allocations": {
+      "get": {
+        "operationId": "list_payment_allocations_v1_finance_payment_receipts__payment_receipt_id__allocations_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payment_receipt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Payment Receipt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentReceiptAllocationListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Payment Allocations",
+        "tags": [
+          "finance"
+        ]
+      },
+      "post": {
+        "operationId": "allocate_payment_v1_finance_payment_receipts__payment_receipt_id__allocations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payment_receipt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Payment Receipt Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AllocatePaymentCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AllocationResponse"
+                  },
+                  "title": "Response Allocate Payment V1 Finance Payment Receipts  Payment Receipt Id  Allocations Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Allocate Payment",
+        "tags": [
+          "finance"
         ]
       }
     },

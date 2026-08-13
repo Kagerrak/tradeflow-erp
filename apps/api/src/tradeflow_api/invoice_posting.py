@@ -30,6 +30,7 @@ from tradeflow_api.models import (
     draft_invoice_lines,
     draft_invoices,
 )
+from tradeflow_api.payment_allocation import auto_allocate_invoice
 
 router = APIRouter(prefix="/v1/finance/invoices", tags=["finance"])
 ZERO = Decimal("0")
@@ -444,6 +445,12 @@ async def post_invoice(
             idempotency_key=idempotency_key,
             request_hash=request_hash,
             result=result,
+        )
+        await auto_allocate_invoice(
+            session,
+            actor,
+            invoice,
+            request.state.correlation_id,
         )
         response.headers["X-Idempotency-Replayed"] = "false"
         return result

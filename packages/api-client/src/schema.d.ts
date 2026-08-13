@@ -584,6 +584,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/finance/payment-receipts/{payment_receipt_id}/allocations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Payment Allocations */
+        get: operations["list_payment_allocations_v1_finance_payment_receipts__payment_receipt_id__allocations_get"];
+        put?: never;
+        /** Allocate Payment */
+        post: operations["allocate_payment_v1_finance_payment_receipts__payment_receipt_id__allocations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/finance/payment-receipts/{payment_receipt_id}/bank-clearance": {
         parameters: {
             query?: never;
@@ -1300,6 +1318,68 @@ export interface components {
             customer_id: string;
             /** Customer Version */
             customer_version: number;
+        };
+        /** AllocatePaymentCommand */
+        AllocatePaymentCommand: {
+            /** Allocations */
+            allocations: components["schemas"]["AllocationApplication"][];
+        };
+        /** AllocationApplication */
+        AllocationApplication: {
+            /** Amount */
+            amount: number | string;
+            /**
+             * Invoice Id
+             * Format: uuid
+             */
+            invoice_id: string;
+        };
+        /** AllocationResponse */
+        AllocationResponse: {
+            /**
+             * Allocation Id
+             * Format: uuid
+             */
+            allocation_id: string;
+            /** Amount */
+            amount: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Invoice Id
+             * Format: uuid
+             */
+            invoice_id: string;
+            /**
+             * Payment Receipt Id
+             * Format: uuid
+             */
+            payment_receipt_id: string;
+        };
+        /** AppliedAllocation */
+        AppliedAllocation: {
+            /**
+             * Allocated At
+             * Format: date-time
+             */
+            allocated_at: string;
+            /**
+             * Allocation Id
+             * Format: uuid
+             */
+            allocation_id: string;
+            /** Amount */
+            amount: string;
+            /**
+             * Invoice Id
+             * Format: uuid
+             */
+            invoice_id: string;
         };
         /** ApprovalAuthorityInput */
         "ApprovalAuthorityInput-Input": {
@@ -3687,6 +3767,24 @@ export interface components {
             document_url: string;
             /** Value Date */
             value_date: string;
+        };
+        /** PaymentReceiptAllocationListResponse */
+        PaymentReceiptAllocationListResponse: {
+            /** Allocated Amount */
+            allocated_amount: string;
+            /** Allocations */
+            allocations: components["schemas"]["AppliedAllocation"][];
+            /** Available Amount */
+            available_amount: string;
+            /** Cleared Amount */
+            cleared_amount: string;
+            /** Coverage Designated Amount */
+            coverage_designated_amount: string;
+            /**
+             * Payment Receipt Id
+             * Format: uuid
+             */
+            payment_receipt_id: string;
         };
         /** PaymentReceiptListResponse */
         PaymentReceiptListResponse: {
@@ -7882,6 +7980,182 @@ export interface operations {
             };
             /** @description Stable TradeFlow error envelope. */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    list_payment_allocations_v1_finance_payment_receipts__payment_receipt_id__allocations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payment_receipt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentReceiptAllocationListResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    allocate_payment_v1_finance_payment_receipts__payment_receipt_id__allocations_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                payment_receipt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AllocatePaymentCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationResponse"][];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
