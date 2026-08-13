@@ -353,6 +353,13 @@ export function ProcurementPurchaseOrdersWorkspace() {
                             >
                               Approve
                             </button>
+                          ) : po.status === "approved" ||
+                            po.status === "partially_received" ? (
+                            <Link
+                              href={`/procurement/purchase-orders/${po.purchase_order_id}/receipts`}
+                            >
+                              Receive
+                            </Link>
                           ) : (
                             "—"
                           )}

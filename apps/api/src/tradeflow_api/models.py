@@ -162,6 +162,7 @@ purchase_order_lines = Table(
     Column("requested_quantity", Numeric(18, 6), nullable=False),
     Column("unit_code", String(30), nullable=False),
     Column("base_quantity", Numeric(18, 6), nullable=False),
+    Column("received_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
     Column("unit_cost", Numeric(18, 6), nullable=False),
     Column("version", Integer, nullable=False, server_default="1"),
     CheckConstraint("line_number > 0", name="ck_purchase_order_lines_line_number_positive"),
@@ -171,11 +172,100 @@ purchase_order_lines = Table(
     ),
     CheckConstraint("base_quantity > 0", name="ck_purchase_order_lines_base_quantity_positive"),
     CheckConstraint("unit_cost >= 0", name="ck_purchase_order_lines_unit_cost_positive"),
+    CheckConstraint(
+        "received_quantity_base >= 0",
+        name="ck_purchase_order_lines_received_quantity_base_nonnegative",
+    ),
     CheckConstraint("version > 0", name="ck_purchase_order_lines_version_positive"),
     UniqueConstraint(
         "purchase_order_id",
         "line_number",
         name="uq_purchase_order_lines_order_line",
+    ),
+)
+
+goods_receipts = Table(
+    "goods_receipts",
+    metadata,
+    Column("goods_receipt_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "purchase_order_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("purchase_orders.purchase_order_id"),
+        nullable=False,
+    ),
+    Column(
+        "warehouse_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouses.warehouse_id"),
+        nullable=False,
+    ),
+    Column(
+        "location_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouse_stock_locations.location_id"),
+        nullable=False,
+    ),
+    Column("receipt_number", String(50), nullable=False),
+    Column("status", String(30), nullable=False, server_default="posted"),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    Column(
+        "created_by",
+        String(200),
+        ForeignKey("users.subject"),
+        nullable=False,
+    ),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    ),
+    CheckConstraint(
+        "status IN ('posted', 'reversed')",
+        name="ck_goods_receipts_status",
+    ),
+    UniqueConstraint(
+        "purchase_order_id",
+        "receipt_number",
+        name="uq_goods_receipts_purchase_order_receipt_number",
+    ),
+)
+
+goods_receipt_lines = Table(
+    "goods_receipt_lines",
+    metadata,
+    Column(
+        "goods_receipt_line_id",
+        PostgresUUID(as_uuid=True),
+        primary_key=True,
+    ),
+    Column(
+        "goods_receipt_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("goods_receipts.goods_receipt_id"),
+        nullable=False,
+    ),
+    Column(
+        "purchase_order_line_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("purchase_order_lines.purchase_order_line_id"),
+        nullable=False,
+    ),
+    Column("received_quantity_base", Numeric(18, 6), nullable=False),
+    Column("lot_code", String(100), nullable=True),
+    Column("serial_numbers", JSONB, nullable=False, server_default="[]"),
+    CheckConstraint(
+        "received_quantity_base > 0",
+        name="ck_goods_receipt_lines_received_quantity_positive",
     ),
 )
 
@@ -682,7 +772,7 @@ stock_movements = Table(
     CheckConstraint(
         "movement_type IN ('opening_stock', 'pick', 'pick_reversal', 'dispatch', "
         "'delivery_confirmation', 'delivery_exception', 'return_to_warehouse', "
-        "'investigation_resolution', 'delivery_correction')",
+        "'investigation_resolution', 'delivery_correction', 'goods_receipt')",
         name="ck_stock_movements_type",
     ),
     CheckConstraint(
@@ -709,7 +799,9 @@ stock_movements = Table(
         "'correction_exception_reversal_investigation_out', "
         "'correction_accepted_replacement_out', "
         "'correction_exception_replacement_transit_out', "
-        "'correction_exception_replacement_investigation_in'))",
+        "'correction_exception_replacement_investigation_in')) "
+        "OR (movement_type = 'goods_receipt' "
+        "AND movement_leg = 'goods_receipt_in')",
         name="ck_stock_movements_leg",
     ),
     CheckConstraint("quantity_base > 0", name="ck_stock_movements_quantity_positive"),
