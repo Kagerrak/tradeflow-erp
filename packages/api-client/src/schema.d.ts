@@ -464,6 +464,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/finance/customers/{customer_id}/statement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Customer Statement */
+        get: operations["get_customer_statement_v1_finance_customers__customer_id__statement_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/finance/invoices": {
         parameters: {
             query?: never;
@@ -4944,6 +4961,84 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** StatementDocument */
+        StatementDocument: {
+            /** Aging Bucket */
+            aging_bucket: string;
+            /**
+             * Invoice Id
+             * Format: uuid
+             */
+            invoice_id: string;
+            /** Open Amount */
+            open_amount: string;
+            /** Original Amount */
+            original_amount: string;
+            /** Paid Amount */
+            paid_amount: string;
+            /** Posted At */
+            posted_at: string | null;
+            /** State */
+            state: string;
+        };
+        /** StatementLine */
+        StatementLine: {
+            /** Amount */
+            amount: string;
+            /**
+             * Entry Id
+             * Format: uuid
+             */
+            entry_id: string;
+            /** Entry Type */
+            entry_type: string;
+            /** Invoice Id */
+            invoice_id: string | null;
+            /** Posted At */
+            posted_at: string | null;
+            /** Running Balance */
+            running_balance: string;
+            /**
+             * Source Id
+             * Format: uuid
+             */
+            source_id: string;
+            /** Source Type */
+            source_type: string;
+        };
+        /** StatementResponse */
+        StatementResponse: {
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Closing Balance */
+            closing_balance: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /** Documents */
+            documents: components["schemas"]["StatementDocument"][];
+            /**
+             * From Date
+             * Format: date
+             */
+            from_date: string;
+            /** Lines */
+            lines: components["schemas"]["StatementLine"][];
+            /** Opening Balance */
+            opening_balance: string;
+            /**
+             * To Date
+             * Format: date
+             */
+            to_date: string;
+        };
         /** StockEffect */
         StockEffect: {
             /** Expected Replacement Count */
@@ -7319,6 +7414,95 @@ export interface operations {
             };
             /** @description Stable TradeFlow error envelope. */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_customer_statement_v1_finance_customers__customer_id__statement_get: {
+        parameters: {
+            query: {
+                from_date: string;
+                to_date: string;
+                as_of?: string | null;
+            };
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatementResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
