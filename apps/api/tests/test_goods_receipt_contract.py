@@ -901,3 +901,172 @@ class TestCreateGoodsReceipt:
 
         assert response.status_code == 404, response.text
         assert response.json()["error"]["code"] == "location_not_found"
+
+
+class TestListGoodsReceipts:
+    async def test_list_goods_receipts_returns_created_receipts(
+        self,
+        gr_client: AsyncClient,
+        gr_settings: Settings,
+        postgres_url: str,
+    ) -> None:
+        scope = await bootstrap_procurement(gr_client, gr_settings)
+        sku_id = await _seed_sku(postgres_url)
+        po_id, line_id = await _create_approved_purchase_order(
+            gr_client, gr_settings, postgres_url, scope, sku_id
+        )
+        location_id = await _seed_location(postgres_url, scope["mnl_01_id"])
+
+        await gr_client.post(
+            f"/v1/procurement/purchase-orders/{po_id}/receipts",
+            headers=auth(gr_settings, "receiver-mnl"),
+            json={
+                "warehouse_id": scope["mnl_01_id"],
+                "location_id": location_id,
+                "receipt_number": "GR-LIST-001",
+                "lines": [
+                    {
+                        "purchase_order_line_id": line_id,
+                        "received_quantity_base": "120",
+                    }
+                ],
+            },
+        )
+
+        response = await gr_client.get(
+            "/v1/procurement/purchase-orders/receipts",
+            headers=auth(gr_settings, "receiver-mnl"),
+        )
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["total"] == 1
+        assert len(body["items"]) == 1
+        assert body["items"][0]["receipt_number"] == "GR-LIST-001"
+        assert body["items"][0]["status"] == "posted"
+
+    async def test_list_goods_receipts_returns_empty_for_other_branch(
+        self,
+        gr_client: AsyncClient,
+        gr_settings: Settings,
+        postgres_url: str,
+    ) -> None:
+        scope = await bootstrap_procurement(gr_client, gr_settings)
+        sku_id = await _seed_sku(postgres_url)
+        po_id, line_id = await _create_approved_purchase_order(
+            gr_client, gr_settings, postgres_url, scope, sku_id
+        )
+        location_id = await _seed_location(postgres_url, scope["mnl_01_id"])
+
+        await gr_client.post(
+            f"/v1/procurement/purchase-orders/{po_id}/receipts",
+            headers=auth(gr_settings, "receiver-mnl"),
+            json={
+                "warehouse_id": scope["mnl_01_id"],
+                "location_id": location_id,
+                "receipt_number": "GR-LIST-002",
+                "lines": [
+                    {
+                        "purchase_order_line_id": line_id,
+                        "received_quantity_base": "120",
+                    }
+                ],
+            },
+        )
+
+        response = await gr_client.get(
+            "/v1/procurement/purchase-orders/receipts",
+            headers=auth(gr_settings, "receiver-ceb"),
+        )
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["total"] == 0
+        assert body["items"] == []
+
+    async def test_list_goods_receipts_respects_warehouse_scope(
+        self,
+        gr_client: AsyncClient,
+        gr_settings: Settings,
+        postgres_url: str,
+    ) -> None:
+        scope = await bootstrap_procurement(gr_client, gr_settings)
+        sku_id = await _seed_sku(postgres_url)
+        po_id, line_id = await _create_approved_purchase_order(
+            gr_client, gr_settings, postgres_url, scope, sku_id
+        )
+        location_id = await _seed_location(postgres_url, scope["mnl_02_id"])
+
+        await gr_client.post(
+            f"/v1/procurement/purchase-orders/{po_id}/receipts",
+            headers=auth(gr_settings, "procurement-mnl"),
+            json={
+                "warehouse_id": scope["mnl_02_id"],
+                "location_id": location_id,
+                "receipt_number": "GR-LIST-003",
+                "lines": [
+                    {
+                        "purchase_order_line_id": line_id,
+                        "received_quantity_base": "120",
+                    }
+                ],
+            },
+        )
+
+        response = await gr_client.get(
+            "/v1/procurement/purchase-orders/receipts",
+            headers=auth(gr_settings, "receiver-mnl"),
+        )
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["total"] == 0
+
+    async def test_list_goods_receipts_supports_pagination(
+        self,
+        gr_client: AsyncClient,
+        gr_settings: Settings,
+        postgres_url: str,
+    ) -> None:
+        scope = await bootstrap_procurement(gr_client, gr_settings)
+        sku_id = await _seed_sku(postgres_url)
+        po_id, line_id = await _create_approved_purchase_order(
+            gr_client, gr_settings, postgres_url, scope, sku_id
+        )
+        location_id = await _seed_location(postgres_url, scope["mnl_01_id"])
+
+        for index in range(3):
+            await gr_client.post(
+                f"/v1/procurement/purchase-orders/{po_id}/receipts",
+                headers=auth(gr_settings, "receiver-mnl"),
+                json={
+                    "warehouse_id": scope["mnl_01_id"],
+                    "location_id": location_id,
+                    "receipt_number": f"GR-LIST-{index:03d}",
+                    "lines": [
+                        {
+                            "purchase_order_line_id": line_id,
+                            "received_quantity_base": "12",
+                        }
+                    ],
+                },
+            )
+
+        response = await gr_client.get(
+            "/v1/procurement/purchase-orders/receipts?limit=1&offset=1",
+            headers=auth(gr_settings, "receiver-mnl"),
+        )
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["total"] == 3
+        assert len(body["items"]) == 1
+
+    async def test_list_goods_receipts_requires_post_capability(
+        self,
+        gr_client: AsyncClient,
+        gr_settings: Settings,
+    ) -> None:
+        await bootstrap_procurement(gr_client, gr_settings)
+        response = await gr_client.get(
+            "/v1/procurement/purchase-orders/receipts",
+            headers=auth(gr_settings, "buyer-mnl"),
+        )
+        assert response.status_code == 403, response.text
+        assert response.json()["error"]["code"] == "capability_required"

@@ -1115,6 +1115,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/procurement/purchase-orders/receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Goods Receipts */
+        get: operations["list_goods_receipts_v1_procurement_purchase_orders_receipts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/procurement/purchase-orders/{purchase_order_id}": {
         parameters: {
             query?: never;
@@ -3610,6 +3627,37 @@ export interface components {
              * Format: uuid
              */
             location_id: string;
+            /**
+             * Purchase Order Id
+             * Format: uuid
+             */
+            purchase_order_id: string;
+            /** Receipt Number */
+            receipt_number: string;
+            /** Status */
+            status: string;
+            /**
+             * Warehouse Id
+             * Format: uuid
+             */
+            warehouse_id: string;
+        };
+        /** GoodsReceiptSearchResponse */
+        GoodsReceiptSearchResponse: {
+            /** Items */
+            items: components["schemas"]["GoodsReceiptSummary"][];
+            /** Total */
+            total: number;
+        };
+        /** GoodsReceiptSummary */
+        GoodsReceiptSummary: {
+            /** Created At */
+            created_at: string;
+            /**
+             * Goods Receipt Id
+             * Format: uuid
+             */
+            goods_receipt_id: string;
             /**
              * Purchase Order Id
              * Format: uuid
@@ -11395,6 +11443,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    list_goods_receipts_v1_procurement_purchase_orders_receipts_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoodsReceiptSearchResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description Stable TradeFlow error envelope. */
