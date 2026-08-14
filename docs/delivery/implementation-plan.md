@@ -9,9 +9,15 @@ closed tracker item is not completion evidence unless the corresponding code,
 tests, migration, cross-platform workflow, reconciliation, and release gates
 also pass.
 
+The product matrix is not a substitute for legacy discovery. Every behavior
+found in the current system must be classified as implemented and verified,
+retired with named owner approval, or covered by a controlled temporary bridge
+as defined in `first-release-reconciliation.md`.
+
 ## Phase 0: Discovery and migration baseline
 
-- Inventory existing screens, reports, roles, integrations, and data exports.
+- Inventory existing screens, workflows, reports, roles, integrations, data
+  exports, and source data stores.
 - Observe high-frequency user workflows and measure current task time/errors.
 - Confirm company, branch, warehouse, currency, tax, valuation, numbering,
   approval, invoicing, payment, and commission policies.
@@ -81,5 +87,9 @@ Exit: an invoice payment and later return produce explainable commission entries
 - Permission, security, accessibility, load, restore, and failure testing.
 - EAS store builds, staged rollout, support runbooks, and training.
 - Cutover rehearsal, rollback criteria, and audit sign-off.
+- After an explicit Go decision, execute the final production migration and
+  reconcile frozen-source and imported cutover control totals before day-one
+  activation.
 
-Exit: business owners can reconcile opening and closing balances before cutover.
+Exit: business owners approve the reconciled opening and closing balances, the
+final production migration evidence, and the explicit activation decision.
