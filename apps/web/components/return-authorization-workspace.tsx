@@ -5,6 +5,7 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 
 type ReturnRequest = components["schemas"]["ReturnRequestResponse"];
 type Classifications = components["schemas"]["ReturnClassificationsResponse"];
+type Eligibility = components["schemas"]["ReturnEligibilityResponse"];
 type Mutation = { body: string };
 
 export function ReturnAuthorizationWorkspace() {
@@ -14,8 +15,10 @@ export function ReturnAuthorizationWorkspace() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [receiptId, setReceiptId] = useState("");
-  const [deliveryLineId, setDeliveryLineId] = useState("");
-  const [quantity, setQuantity] = useState("1.000000");
+  const [eligibility, setEligibility] = useState<Eligibility | null>(null);
+  const [lineQuantities, setLineQuantities] = useState<Record<string, string>>(
+    {},
+  );
   const [classifications, setClassifications] =
     useState<Classifications | null>(null);
   const [reasonCode, setReasonCode] = useState("");
@@ -41,6 +44,36 @@ export function ReturnAuthorizationWorkspace() {
         ),
       );
   }, []);
+
+  async function loadEligibility() {
+    setBusy(true);
+    setError(null);
+    setEligibility(null);
+    setLineQuantities({});
+    createMutation.current = null;
+    try {
+      const response = await fetch(
+        `/api/delivery-receipts/${receiptId}/return-eligibility`,
+        { cache: "no-store" },
+      );
+      const payload = (await response.json()) as Eligibility & {
+        message?: string;
+      };
+      if (!response.ok)
+        throw new Error(
+          payload.message ?? "Return eligibility could not be loaded.",
+        );
+      setEligibility(payload);
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Return eligibility could not be loaded.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     void fetch("/api/return-classifications", { cache: "no-store" })
@@ -121,13 +154,21 @@ export function ReturnAuthorizationWorkspace() {
       );
       if (reason === undefined || party === undefined)
         throw new Error("Select valid return classifications.");
+      const lines = Object.entries(lineQuantities)
+        .filter(([, value]) => Number(value) > 0)
+        .map(([deliveryLineId, quantityBase]) => ({
+          delivery_line_id: deliveryLineId,
+          quantity_base: quantityBase,
+        }));
+      if (eligibility === null || lines.length === 0)
+        throw new Error(
+          "Load a receipt and select at least one eligible line.",
+        );
       const requestId = crypto.randomUUID();
       const mutation = createMutation.current ?? {
         body: JSON.stringify({
           command: {
-            lines: [
-              { delivery_line_id: deliveryLineId, quantity_base: quantity },
-            ],
+            lines,
             reason_code: reason.code,
             reason_label: reason.label,
             responsible_party_code: party.code,
@@ -181,39 +222,71 @@ export function ReturnAuthorizationWorkspace() {
           onSubmit={(event) => void createRequest(event)}
         >
           <label>
-            Delivery Receipt ID
+            Delivery Receipt ID (paste or scan)
             <input
               required
               value={receiptId}
               onChange={(event) => {
                 setReceiptId(event.target.value);
+                setEligibility(null);
+                setLineQuantities({});
                 createMutation.current = null;
               }}
             />
           </label>
-          <label>
-            Delivery Line ID
-            <input
-              required
-              value={deliveryLineId}
-              onChange={(event) => {
-                setDeliveryLineId(event.target.value);
-                createMutation.current = null;
-              }}
-            />
-          </label>
-          <label>
-            Quantity
-            <input
-              required
-              inputMode="decimal"
-              value={quantity}
-              onChange={(event) => {
-                setQuantity(event.target.value);
-                createMutation.current = null;
-              }}
-            />
-          </label>
+          <button
+            type="button"
+            disabled={busy || receiptId.trim() === ""}
+            onClick={() => void loadEligibility()}
+          >
+            Load delivered lines
+          </button>
+          {eligibility !== null && (
+            <fieldset>
+              <legend>
+                Receipt {eligibility.number}: select eligible delivered lines
+              </legend>
+              {eligibility.lines.map((line) => (
+                <label key={line.delivery_line_id}>
+                  <input
+                    type="checkbox"
+                    disabled={Number(line.eligible_quantity_base) <= 0}
+                    checked={line.delivery_line_id in lineQuantities}
+                    onChange={(event) => {
+                      setLineQuantities((current) => {
+                        const next = { ...current };
+                        if (event.target.checked)
+                          next[line.delivery_line_id] =
+                            line.eligible_quantity_base;
+                        else delete next[line.delivery_line_id];
+                        return next;
+                      });
+                      createMutation.current = null;
+                    }}
+                  />
+                  SKU {line.sku_id}: {line.eligible_quantity_base} eligible of{" "}
+                  {line.delivered_quantity_base} delivered
+                  {line.delivery_line_id in lineQuantities && (
+                    <input
+                      aria-label={`Return quantity for ${line.sku_id}`}
+                      inputMode="decimal"
+                      max={line.eligible_quantity_base}
+                      min="0.000001"
+                      step="0.000001"
+                      value={lineQuantities[line.delivery_line_id]}
+                      onChange={(event) => {
+                        setLineQuantities((current) => ({
+                          ...current,
+                          [line.delivery_line_id]: event.target.value,
+                        }));
+                        createMutation.current = null;
+                      }}
+                    />
+                  )}
+                </label>
+              ))}
+            </fieldset>
+          )}
           <label>
             Return reason
             <select
@@ -248,7 +321,14 @@ export function ReturnAuthorizationWorkspace() {
               ))}
             </select>
           </label>
-          <button disabled={busy || classifications === null}>
+          <button
+            disabled={
+              busy ||
+              classifications === null ||
+              eligibility === null ||
+              Object.keys(lineQuantities).length === 0
+            }
+          >
             Create return request
           </button>
         </form>

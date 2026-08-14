@@ -640,6 +640,8 @@ async def _authorized_receipt(
         {
             "fulfillment:delivery-correction-request",
             "fulfillment:delivery-correction-authorize",
+            "returns:request",
+            "returns:authorize",
         }.intersection(actor.capabilities)
     )
     if delivery["assigned_to"] != actor.subject and not (

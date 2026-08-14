@@ -44,6 +44,27 @@ const classifications = {
   ],
 };
 
+const eligibility = {
+  delivery_receipt_id: "receipt-1",
+  number: "DR-000001",
+  lines: [
+    {
+      delivered_quantity_base: "2.000000",
+      delivery_line_id: "delivery-line-1",
+      eligible_quantity_base: "2.000000",
+      line_id: "line-1",
+      sku_id: "SKU-DEFECT-1",
+    },
+    {
+      delivered_quantity_base: "3.000000",
+      delivery_line_id: "delivery-line-2",
+      eligible_quantity_base: "1.500000",
+      line_id: "line-2",
+      sku_id: "SKU-DEFECT-2",
+    },
+  ],
+};
+
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/return-classifications", (route) =>
     route.fulfill({ contentType: "application/json", json: classifications }),
@@ -133,10 +154,21 @@ test("creates a Return Request from a Delivery Receipt", async ({ page }) => {
     }
     return route.fulfill({ contentType: "application/json", json: pending });
   });
+  await page.route(
+    "**/api/delivery-receipts/receipt-1/return-eligibility",
+    (route) =>
+      route.fulfill({ contentType: "application/json", json: eligibility }),
+  );
   await page.goto("/returns");
-  await page.getByLabel("Delivery Receipt ID").fill("receipt-1");
-  await page.getByLabel("Delivery Line ID").fill("delivery-line-1");
-  await page.getByLabel("Quantity").fill("1.000000");
+  await page
+    .getByLabel("Delivery Receipt ID (paste or scan)")
+    .fill("receipt-1");
+  await page.getByRole("button", { name: "Load delivered lines" }).click();
+  await expect(page.getByText("Receipt DR-000001")).toBeVisible();
+  await page.getByLabel(/SKU SKU-DEFECT-1/).check();
+  await page.getByLabel(/SKU SKU-DEFECT-2/).check();
+  await page.getByLabel("Return quantity for SKU-DEFECT-1").fill("1.000000");
+  await page.getByLabel("Return quantity for SKU-DEFECT-2").fill("0.500000");
   await page.getByLabel("Return reason").selectOption("WRONG_ITEM");
   await page.getByLabel("Responsible party").selectOption("CUSTOMER");
   await page.getByRole("button", { name: "Create return request" }).click();
@@ -148,6 +180,7 @@ test("creates a Return Request from a Delivery Receipt", async ({ page }) => {
     command: {
       lines: [
         { delivery_line_id: "delivery-line-1", quantity_base: "1.000000" },
+        { delivery_line_id: "delivery-line-2", quantity_base: "0.500000" },
       ],
       reason_code: "WRONG_ITEM",
       reason_label: "Wrong item",

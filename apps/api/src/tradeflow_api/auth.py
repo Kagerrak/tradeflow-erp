@@ -501,11 +501,13 @@ async def require_delivery_receipt_reader(
         "fulfillment:delivery-confirm",
         "fulfillment:delivery-correction-request",
         "fulfillment:delivery-correction-authorize",
+        "returns:request",
+        "returns:authorize",
     }.intersection(user.capabilities):
         raise AppError(
             status_code=403,
             code="capability_required",
-            message="A Delivery Receipt or Delivery Correction capability is required.",
+            message="A Delivery Receipt, Delivery Correction, or Returns capability is required.",
         )
     return user
 

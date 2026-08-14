@@ -125,6 +125,20 @@ class ReturnClassificationsResponse(BaseModel):
     responsible_parties: list[ReturnClassification]
 
 
+class ReturnEligibleLine(BaseModel):
+    delivery_line_id: UUID
+    line_id: UUID
+    sku_id: UUID
+    delivered_quantity_base: Decimal
+    eligible_quantity_base: Decimal
+
+
+class ReturnEligibilityResponse(BaseModel):
+    delivery_receipt_id: UUID
+    number: str
+    lines: list[ReturnEligibleLine]
+
+
 @router.get(
     "/v1/return-classifications",
     response_model=ReturnClassificationsResponse,
@@ -306,8 +320,44 @@ async def _authorized_by_line(session: AsyncSession, receipt_id: UUID) -> dict[U
     return {row["delivery_line_id"]: row["quantity_base"] for row in rows}
 
 
-async def _response(session: AsyncSession, request_id: UUID) -> ReturnRequestResponse:
-    row = (
+@router.get(
+    "/v1/delivery-receipts/{receipt_id}/return-eligibility",
+    response_model=ReturnEligibilityResponse,
+    responses=error_responses(401, 403, 404, 409, 500),
+)
+async def get_return_eligibility(
+    receipt_id: UUID,
+    actor: Annotated[AuthorizedUser, Depends(require_return_requester)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> ReturnEligibilityResponse:
+    receipt = await _receipt(session, receipt_id, actor)
+    await _assert_current_receipt(session, receipt)
+    sources = await _source_lines(session, receipt)
+    authorized = await _authorized_by_line(session, receipt_id)
+    return ReturnEligibilityResponse(
+        delivery_receipt_id=receipt_id,
+        number=receipt["number"],
+        lines=[
+            ReturnEligibleLine(
+                delivery_line_id=source["delivery_line_id"],
+                line_id=source["line_id"],
+                sku_id=source["sku_id"],
+                delivered_quantity_base=source["delivered_quantity_base"],
+                eligible_quantity_base=max(
+                    ZERO,
+                    source["delivered_quantity_base"]
+                    - authorized.get(source["delivery_line_id"], ZERO),
+                ),
+            )
+            for source in sources
+        ],
+    )
+
+
+async def _responses(session: AsyncSession, request_ids: list[UUID]) -> list[ReturnRequestResponse]:
+    if not request_ids:
+        return []
+    rows = list(
         (
             await session.execute(
                 select(
@@ -320,59 +370,100 @@ async def _response(session: AsyncSession, request_id: UUID) -> ReturnRequestRes
                     return_authorizations.c.return_request_id
                     == return_requests.c.return_request_id,
                 )
-                .where(return_requests.c.return_request_id == request_id)
+                .where(return_requests.c.return_request_id.in_(request_ids))
+            )
+        ).mappings()
+    )
+    receipt_ids = {row["delivery_receipt_id"] for row in rows}
+    authorized_rows = (
+        await session.execute(
+            select(
+                return_requests.c.delivery_receipt_id,
+                return_request_lines.c.delivery_line_id,
+                func.sum(return_request_lines.c.quantity_base).label("quantity_base"),
+            )
+            .join(
+                return_request_lines,
+                return_request_lines.c.return_request_id == return_requests.c.return_request_id,
+            )
+            .join(
+                return_authorizations,
+                return_authorizations.c.return_request_id == return_requests.c.return_request_id,
+            )
+            .where(return_requests.c.delivery_receipt_id.in_(receipt_ids))
+            .group_by(
+                return_requests.c.delivery_receipt_id,
+                return_request_lines.c.delivery_line_id,
             )
         )
-        .mappings()
-        .one()
-    )
-    authorized = row["authorized_by"] is not None
-    authorized_by_line = await _authorized_by_line(session, row["delivery_receipt_id"])
-    lines = [
-        ReturnRequestLineResponse(
-            delivery_line_id=line["delivery_line_id"],
-            line_id=line["line_id"],
-            sku_id=line["sku_id"],
-            quantity_base=line["quantity_base"],
-            delivered_quantity_base=line["delivered_quantity_base"],
-            eligible_quantity_base=max(
-                ZERO,
-                line["delivered_quantity_base"]
-                - authorized_by_line.get(line["delivery_line_id"], ZERO),
-            ),
+    ).mappings()
+    authorized_by_line = {
+        (row["delivery_receipt_id"], row["delivery_line_id"]): row["quantity_base"]
+        for row in authorized_rows
+    }
+    line_rows = (
+        await session.execute(
+            select(return_request_lines)
+            .where(return_request_lines.c.return_request_id.in_(request_ids))
+            .order_by(
+                return_request_lines.c.return_request_id,
+                return_request_lines.c.delivery_line_id,
+            )
         )
-        for line in (
-            (
-                await session.execute(
-                    select(return_request_lines)
-                    .where(return_request_lines.c.return_request_id == request_id)
-                    .order_by(return_request_lines.c.delivery_line_id)
-                )
-            ).mappings()
+    ).mappings()
+    lines_by_request: dict[UUID, list[Mapping[str, Any]]] = {}
+    for line in line_rows:
+        lines_by_request.setdefault(line["return_request_id"], []).append(line)
+    rows_by_id = {row["return_request_id"]: row for row in rows}
+    responses: list[ReturnRequestResponse] = []
+    for request_id in request_ids:
+        row = rows_by_id[request_id]
+        authorized = row["authorized_by"] is not None
+        responses.append(
+            ReturnRequestResponse(
+                return_request_id=row["return_request_id"],
+                delivery_receipt_id=row["delivery_receipt_id"],
+                confirmation_id=row["confirmation_id"],
+                delivery_id=row["delivery_id"],
+                branch_id=row["branch_id"],
+                warehouse_id=row["warehouse_id"],
+                status="authorized" if authorized else "pending_authorization",
+                version=2 if authorized else 1,
+                reason_code=row["reason_code"],
+                reason_label=row["reason_label"],
+                responsible_party_code=row["responsible_party_code"],
+                responsible_party_label=row["responsible_party_label"],
+                notes=row["notes"],
+                requested_by=row["requested_by"],
+                requested_at=row["requested_at"],
+                authorized_by=row["authorized_by"],
+                authorized_at=row["authorized_at"],
+                affected_value_base_currency=row["affected_value_base_currency"],
+                base_currency=row["base_currency"],
+                lines=[
+                    ReturnRequestLineResponse(
+                        delivery_line_id=line["delivery_line_id"],
+                        line_id=line["line_id"],
+                        sku_id=line["sku_id"],
+                        quantity_base=line["quantity_base"],
+                        delivered_quantity_base=line["delivered_quantity_base"],
+                        eligible_quantity_base=max(
+                            ZERO,
+                            line["delivered_quantity_base"]
+                            - authorized_by_line.get(
+                                (row["delivery_receipt_id"], line["delivery_line_id"]), ZERO
+                            ),
+                        ),
+                    )
+                    for line in lines_by_request.get(request_id, [])
+                ],
+            )
         )
-    ]
-    return ReturnRequestResponse(
-        return_request_id=row["return_request_id"],
-        delivery_receipt_id=row["delivery_receipt_id"],
-        confirmation_id=row["confirmation_id"],
-        delivery_id=row["delivery_id"],
-        branch_id=row["branch_id"],
-        warehouse_id=row["warehouse_id"],
-        status="authorized" if authorized else "pending_authorization",
-        version=2 if authorized else 1,
-        reason_code=row["reason_code"],
-        reason_label=row["reason_label"],
-        responsible_party_code=row["responsible_party_code"],
-        responsible_party_label=row["responsible_party_label"],
-        notes=row["notes"],
-        requested_by=row["requested_by"],
-        requested_at=row["requested_at"],
-        authorized_by=row["authorized_by"],
-        authorized_at=row["authorized_at"],
-        affected_value_base_currency=row["affected_value_base_currency"],
-        base_currency=row["base_currency"],
-        lines=lines,
-    )
+    return responses
+
+
+async def _response(session: AsyncSession, request_id: UUID) -> ReturnRequestResponse:
+    return (await _responses(session, [request_id]))[0]
 
 
 @router.post(
@@ -408,6 +499,7 @@ async def create_return_request(
         )
         if replay is not None:
             response.status_code = 201
+            response.headers["X-Idempotency-Replayed"] = "true"
             return ReturnRequestResponse.model_validate(replay)
         await _assert_current_receipt(session, receipt)
         sources = await _source_lines(session, receipt)
@@ -517,6 +609,7 @@ async def create_return_request(
             request_hash=request_hash,
             result=result,
         )
+        response.headers["X-Idempotency-Replayed"] = "false"
     return result
 
 
@@ -562,6 +655,8 @@ async def list_return_requests(
     actor: Annotated[AuthorizedUser, Depends(require_return_reader)],
     session: Annotated[AsyncSession, Depends(get_database_session)],
     status: Annotated[Literal["pending_authorization", "authorized"] | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> ReturnRequestList:
     query = (
         select(return_requests.c.return_request_id)
@@ -578,10 +673,13 @@ async def list_return_requests(
         query = query.where(return_authorizations.c.return_request_id.is_(None))
     elif status == "authorized":
         query = query.where(return_authorizations.c.return_request_id.is_not(None))
-    ids = list(await session.scalars(query.order_by(return_requests.c.requested_at.desc())))
-    return ReturnRequestList(
-        items=[await _response(session, request_id) for request_id in ids], total=len(ids)
+    total = cast(int, await session.scalar(select(func.count()).select_from(query.subquery())))
+    ids = list(
+        await session.scalars(
+            query.order_by(return_requests.c.requested_at.desc()).limit(limit).offset(offset)
+        )
     )
+    return ReturnRequestList(items=await _responses(session, ids), total=total)
 
 
 @router.post(
@@ -593,6 +691,7 @@ async def authorize_return_request(
     return_request_id: UUID,
     command: AuthorizeReturnRequest,
     request: Request,
+    response: Response,
     actor: Annotated[AuthorizedUser, Depends(require_return_authorizer)],
     session: Annotated[AsyncSession, Depends(get_database_session)],
     idempotency_key: Annotated[
@@ -646,6 +745,7 @@ async def authorize_return_request(
             request_hash=request_hash,
         )
         if replay is not None:
+            response.headers["X-Idempotency-Replayed"] = "true"
             return ReturnRequestResponse.model_validate(replay)
         if command.expected_request_version != 1:
             raise AppError(
@@ -742,4 +842,5 @@ async def authorize_return_request(
             request_hash=request_hash,
             result=result,
         )
+        response.headers["X-Idempotency-Replayed"] = "false"
     return result

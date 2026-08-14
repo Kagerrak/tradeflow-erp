@@ -1,7 +1,7 @@
 # First-release scope reconciliation
 
 - Date: August 14, 2026
-- Baseline: `origin/main` at `5daf8ce`
+- Baseline: `origin/main` at `5832ba6`
 - Tracker reconciliation: GitHub issue #55
 - Pending evidence: reconciled Return Authorization PR #112; Inventory Transfer
   PR #114 at `17e1030`

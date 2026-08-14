@@ -9232,6 +9232,71 @@
         "title": "ReturnClassificationsResponse",
         "type": "object"
       },
+      "ReturnEligibilityResponse": {
+        "properties": {
+          "delivery_receipt_id": {
+            "format": "uuid",
+            "title": "Delivery Receipt Id",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnEligibleLine"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "delivery_receipt_id",
+          "number",
+          "lines"
+        ],
+        "title": "ReturnEligibilityResponse",
+        "type": "object"
+      },
+      "ReturnEligibleLine": {
+        "properties": {
+          "delivered_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Delivered Quantity Base",
+            "type": "string"
+          },
+          "delivery_line_id": {
+            "format": "uuid",
+            "title": "Delivery Line Id",
+            "type": "string"
+          },
+          "eligible_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Eligible Quantity Base",
+            "type": "string"
+          },
+          "line_id": {
+            "format": "uuid",
+            "title": "Line Id",
+            "type": "string"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "delivery_line_id",
+          "line_id",
+          "sku_id",
+          "delivered_quantity_base",
+          "eligible_quantity_base"
+        ],
+        "title": "ReturnEligibleLine",
+        "type": "object"
+      },
       "ReturnLineCommand": {
         "additionalProperties": false,
         "properties": {
@@ -14607,6 +14672,104 @@
         "summary": "Request Delivery Correction",
         "tags": [
           "delivery corrections"
+        ]
+      }
+    },
+    "/v1/delivery-receipts/{receipt_id}/return-eligibility": {
+      "get": {
+        "operationId": "get_return_eligibility_v1_delivery_receipts__receipt_id__return_eligibility_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "receipt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Receipt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnEligibilityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Return Eligibility",
+        "tags": [
+          "returns"
         ]
       }
     },
@@ -21258,6 +21421,29 @@
                 }
               ],
               "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
             }
           }
         ],

@@ -133,6 +133,16 @@ async def test_requester_records_return_request_without_stock_or_financial_effec
     await _grant_return_capabilities(postgres_url)
     receipt_id = confirmation["delivery_receipt"]["delivery_receipt_id"]
     request_id = str(uuid4())
+    eligibility = await confirmation_client.get(
+        f"/v1/delivery-receipts/{receipt_id}/return-eligibility",
+        headers=auth(confirmation_settings, "warehouse-supervisor-mnl"),
+    )
+    assert eligibility.status_code == 200, eligibility.text
+    assert eligibility.json()["number"] == confirmation["delivery_receipt"]["number"]
+    assert (
+        eligibility.json()["lines"][0]["delivery_line_id"]
+        == confirmation["lines"][0]["delivery_line_id"]
+    )
     classifications = await confirmation_client.get(
         "/v1/return-classifications",
         headers=auth(confirmation_settings, "warehouse-supervisor-mnl"),
@@ -227,6 +237,19 @@ async def test_requester_records_return_request_without_stock_or_financial_effec
     assert payload["responsible_party_label"] == "Supplier"
     # The fixture line total is PHP 224 for two units after discount and tax.
     assert Decimal(payload["affected_value_base_currency"]) == Decimal("112")
+    first_page = await confirmation_client.get(
+        "/v1/return-requests?status=pending_authorization&limit=1&offset=0",
+        headers=auth(confirmation_settings, "warehouse-supervisor-mnl"),
+    )
+    assert first_page.status_code == 200, first_page.text
+    assert first_page.json()["total"] == 1
+    assert [item["return_request_id"] for item in first_page.json()["items"]] == [request_id]
+    empty_page = await confirmation_client.get(
+        "/v1/return-requests?status=pending_authorization&limit=1&offset=1",
+        headers=auth(confirmation_settings, "warehouse-supervisor-mnl"),
+    )
+    assert empty_page.status_code == 200, empty_page.text
+    assert empty_page.json() == {"items": [], "total": 1}
     assert payload["base_currency"] == "PHP"
     assert payload["lines"] == [
         {
@@ -259,6 +282,164 @@ async def test_requester_records_return_request_without_stock_or_financial_effec
         )
     await engine.dispose()
     assert dict(after_effects) == dict(before_effects)
+
+
+@pytest.mark.asyncio
+async def test_database_authorization_rejects_revoked_operational_access(
+    confirmation_client: AsyncClient,
+    confirmation_settings: Settings,
+    postgres_url: str,
+) -> None:
+    _, confirmation = await _confirm_fully_accepted_delivery(
+        confirmation_client, confirmation_settings, postgres_url
+    )
+    await _grant_return_capabilities(postgres_url)
+    receipt_id = confirmation["delivery_receipt"]["delivery_receipt_id"]
+    request_id = str(uuid4())
+    created = await confirmation_client.post(
+        f"/v1/delivery-receipts/{receipt_id}/return-requests",
+        headers=auth(
+            confirmation_settings,
+            "warehouse-supervisor-mnl",
+            **{"Idempotency-Key": "return-request-revoked-access"},
+        ),
+        json={
+            "return_request_id": request_id,
+            "reason_code": "PRODUCT_DEFECT",
+            "reason_label": "Product defect",
+            "responsible_party_code": "SUPPLIER",
+            "responsible_party_label": "Supplier",
+            "lines": [
+                {
+                    "delivery_line_id": confirmation["lines"][0]["delivery_line_id"],
+                    "quantity_base": "1.000000",
+                }
+            ],
+        },
+    )
+    assert created.status_code == 201, created.text
+
+    revocations = [
+        "UPDATE users SET is_active = false WHERE subject = 'delivery-correction-checker-mnl'",
+        """
+        DELETE FROM user_role_templates assignment
+        USING role_templates role
+        WHERE assignment.role_template_id = role.role_template_id
+          AND assignment.user_subject = 'delivery-correction-checker-mnl'
+          AND role.code = 'WAREHOUSE_SUPERVISOR'
+        """,
+        """
+        DELETE FROM user_branch_scopes scope
+        USING return_requests request
+        WHERE scope.user_subject = 'delivery-correction-checker-mnl'
+          AND scope.branch_id = request.branch_id
+          AND request.return_request_id = :request_id
+        """,
+        """
+        DELETE FROM user_warehouse_scopes scope
+        USING return_requests request
+        WHERE scope.user_subject = 'delivery-correction-checker-mnl'
+          AND scope.warehouse_id = request.warehouse_id
+          AND request.return_request_id = :request_id
+        """,
+    ]
+    engine = create_async_engine(postgres_url)
+    for index, revocation in enumerate(revocations):
+        with pytest.raises(DBAPIError, match="violates eligibility or maker-checker authority"):
+            async with engine.begin() as connection:
+                await connection.execute(text(revocation), {"request_id": request_id})
+                await connection.execute(
+                    text(
+                        """
+                        INSERT INTO return_authorizations(
+                          return_request_id, authorized_by, approval_authority_id,
+                          idempotency_key, correlation_id
+                        )
+                        SELECT request.return_request_id,
+                               'delivery-correction-checker-mnl', authority.approval_authority_id,
+                               :idempotency_key, 'direct-write-revoked-access'
+                        FROM return_requests request
+                        JOIN approval_authorities authority
+                          ON authority.user_subject = 'delivery-correction-checker-mnl'
+                         AND authority.capability_code = 'returns:authorize'
+                         AND authority.branch_id = request.branch_id
+                         AND (authority.warehouse_id IS NULL
+                              OR authority.warehouse_id = request.warehouse_id)
+                         AND (authority.maximum_amount IS NULL
+                              OR authority.maximum_amount
+                                 >= request.affected_value_base_currency)
+                        WHERE request.return_request_id = :request_id
+                        ORDER BY authority.maximum_amount DESC NULLS FIRST
+                        LIMIT 1
+                        """
+                    ),
+                    {
+                        "idempotency_key": f"revoked-access-{index}",
+                        "request_id": request_id,
+                    },
+                )
+    forged_request_id = uuid4()
+    with pytest.raises(DBAPIError, match="Return Request source ownership is invalid"):
+        async with engine.begin() as connection:
+            await connection.execute(
+                text(
+                    """
+                    INSERT INTO return_requests(
+                      return_request_id, delivery_receipt_id, confirmation_id, delivery_id,
+                      branch_id, warehouse_id, reason_code, reason_label,
+                      responsible_party_code, responsible_party_label, notes, requested_by,
+                      base_currency, affected_value_base_currency, correlation_id, idempotency_key
+                    )
+                    SELECT :forged_id, delivery_receipt_id, confirmation_id, delivery_id,
+                           branch_id, warehouse_id, reason_code, reason_label,
+                           responsible_party_code, responsible_party_label, notes, requested_by,
+                           base_currency, affected_value_base_currency,
+                           'direct-write-revoked-requester', 'direct-write-revoked-requester'
+                    FROM return_requests WHERE return_request_id = :request_id
+                    """
+                ),
+                {"forged_id": forged_request_id, "request_id": request_id},
+            )
+            await connection.execute(
+                text(
+                    """
+                    INSERT INTO return_request_lines(
+                      return_request_line_id, return_request_id, delivery_line_id, line_id,
+                      sku_id, quantity_base, delivered_quantity_base,
+                      affected_value_base_currency
+                    )
+                    SELECT :forged_line_id, :forged_id, delivery_line_id, line_id,
+                           sku_id, quantity_base, delivered_quantity_base,
+                           affected_value_base_currency
+                    FROM return_request_lines WHERE return_request_id = :request_id
+                    """
+                ),
+                {
+                    "forged_id": forged_request_id,
+                    "forged_line_id": uuid4(),
+                    "request_id": request_id,
+                },
+            )
+            await connection.execute(
+                text(
+                    """
+                    DELETE FROM user_branch_scopes scope
+                    USING return_requests request
+                    WHERE scope.user_subject = request.requested_by
+                      AND scope.branch_id = request.branch_id
+                      AND request.return_request_id = :forged_id
+                    """
+                ),
+                {"forged_id": forged_request_id},
+            )
+            await connection.execute(
+                text(
+                    "UPDATE return_requests SET sealed_at = now() "
+                    "WHERE return_request_id = :forged_id"
+                ),
+                {"forged_id": forged_request_id},
+            )
+    await engine.dispose()
 
 
 @pytest.mark.asyncio
@@ -329,6 +510,7 @@ async def test_distinct_approver_reserves_only_remaining_delivered_quantity_and_
         json={"expected_request_version": 1},
     )
     assert authorized.status_code == 200, authorized.text
+    assert authorized.headers["X-Idempotency-Replayed"] == "false"
     posted = authorized.json()
     assert posted["status"] == "authorized"
     assert posted["version"] == 2
@@ -342,6 +524,7 @@ async def test_distinct_approver_reserves_only_remaining_delivered_quantity_and_
         json={"expected_request_version": 1},
     )
     assert replay.status_code == 200, replay.text
+    assert replay.headers["X-Idempotency-Replayed"] == "true"
     assert replay.json() == posted
 
     second_request_id = str(uuid4())
@@ -412,6 +595,7 @@ async def test_sealed_return_request_is_immutable_at_the_database_boundary(
         },
     )
     assert created.status_code == 201, created.text
+    assert created.headers["X-Idempotency-Replayed"] == "false"
 
     engine = create_async_engine(postgres_url)
     with pytest.raises(DBAPIError, match="sealed Return Request is immutable"):
@@ -724,12 +908,14 @@ async def test_return_authorization_denial_replay_and_rollback_matrix(
         json=command,
     )
     assert created.status_code == 201, created.text
+    assert created.headers["X-Idempotency-Replayed"] == "false"
     replay = await confirmation_client.post(
         f"/v1/delivery-receipts/{receipt_id}/return-requests",
         headers=creation_headers,
         json=command,
     )
     assert replay.status_code == 201, replay.text
+    assert replay.headers["X-Idempotency-Replayed"] == "true"
     assert replay.json() == created.json()
 
     mismatched = await confirmation_client.post(

@@ -134,6 +134,43 @@ def upgrade() -> None:
         """
     )
     op.execute(
+        "CREATE INDEX ix_return_requests_scope_requested_at "
+        "ON return_requests(branch_id, warehouse_id, requested_at DESC)"
+    )
+    op.execute(
+        "CREATE INDEX ix_return_requests_delivery_receipt ON return_requests(delivery_receipt_id)"
+    )
+    op.execute(
+        """
+        CREATE FUNCTION return_actor_has_access(
+          target_subject varchar(200), required_capability varchar(100),
+          target_branch uuid, target_warehouse uuid
+        ) RETURNS boolean LANGUAGE sql STABLE AS $$
+          SELECT EXISTS (
+            SELECT 1 FROM users actor
+            WHERE actor.subject = target_subject AND actor.is_active
+          ) AND EXISTS (
+            SELECT 1
+            FROM user_role_templates assignment
+            JOIN role_templates role
+              ON role.role_template_id = assignment.role_template_id AND role.is_active
+            JOIN role_template_capabilities capability
+              ON capability.role_template_id = role.role_template_id
+            WHERE assignment.user_subject = target_subject
+              AND capability.capability_code = required_capability
+          ) AND EXISTS (
+            SELECT 1 FROM user_branch_scopes branch_scope
+            WHERE branch_scope.user_subject = target_subject
+              AND branch_scope.branch_id = target_branch
+          ) AND EXISTS (
+            SELECT 1 FROM user_warehouse_scopes warehouse_scope
+            WHERE warehouse_scope.user_subject = target_subject
+              AND warehouse_scope.warehouse_id = target_warehouse
+          )
+        $$
+        """
+    )
+    op.execute(
         """
         CREATE FUNCTION reject_sealed_return_request_mutation()
           RETURNS trigger LANGUAGE plpgsql AS $$
@@ -188,6 +225,9 @@ def upgrade() -> None:
           JOIN delivery_confirmations confirmation USING (confirmation_id)
           JOIN delivery_dispatches dispatch USING (delivery_id)
           WHERE receipt.delivery_receipt_id = NEW.delivery_receipt_id;
+          PERFORM pg_advisory_xact_lock(
+            hashtextextended('delivery-receipt-chain:' || NEW.delivery_receipt_id, 0)
+          );
           SELECT count(*) INTO invalid_lines
           FROM return_request_lines requested
           JOIN delivery_lines delivered USING (delivery_line_id)
@@ -225,6 +265,17 @@ def upgrade() -> None:
              OR source_record.delivery_id IS DISTINCT FROM NEW.delivery_id
              OR source_record.branch_id IS DISTINCT FROM NEW.branch_id
              OR source_record.warehouse_id IS DISTINCT FROM NEW.warehouse_id
+             OR EXISTS (
+               SELECT 1 FROM delivery_receipts successor
+               WHERE successor.corrects_delivery_receipt_id = NEW.delivery_receipt_id
+             )
+             OR EXISTS (
+               SELECT 1 FROM delivery_corrections correction
+               WHERE correction.original_delivery_receipt_id = NEW.delivery_receipt_id
+             )
+             OR NOT return_actor_has_access(
+               NEW.requested_by, 'returns:request', NEW.branch_id, NEW.warehouse_id
+             )
              OR expected_currency IS DISTINCT FROM NEW.base_currency
              OR expected_currency IS DISTINCT FROM (
                SELECT base_currency FROM companies LIMIT 1
@@ -334,6 +385,10 @@ def upgrade() -> None:
              )
              OR request_record.requested_by = NEW.authorized_by
              OR authority_record.user_subject IS DISTINCT FROM NEW.authorized_by
+             OR NOT return_actor_has_access(
+               NEW.authorized_by, 'returns:authorize',
+               request_record.branch_id, request_record.warehouse_id
+             )
              OR authority_record.capability_code IS DISTINCT FROM 'returns:authorize'
              OR authority_record.branch_id IS DISTINCT FROM request_record.branch_id
              OR (authority_record.warehouse_id IS NOT NULL AND
@@ -389,6 +444,7 @@ def downgrade() -> None:
     op.execute("DROP FUNCTION IF EXISTS currency_minor_scale(varchar)")
     op.execute("DROP FUNCTION IF EXISTS reject_sealed_return_request_line_mutation() CASCADE")
     op.execute("DROP FUNCTION IF EXISTS reject_sealed_return_request_mutation() CASCADE")
+    op.execute("DROP FUNCTION IF EXISTS return_actor_has_access(varchar,varchar,uuid,uuid)")
     op.execute("DROP TABLE return_authorizations")
     op.execute("DROP TABLE return_request_lines")
     op.execute("DROP TABLE return_requests")

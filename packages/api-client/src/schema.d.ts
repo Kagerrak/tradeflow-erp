@@ -464,6 +464,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/delivery-receipts/{receipt_id}/return-eligibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Return Eligibility */
+        get: operations["get_return_eligibility_v1_delivery_receipts__receipt_id__return_eligibility_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/delivery-receipts/{receipt_id}/return-requests": {
         parameters: {
             query?: never;
@@ -5226,6 +5243,40 @@ export interface components {
             /** Responsible Parties */
             responsible_parties: components["schemas"]["ReturnClassification"][];
         };
+        /** ReturnEligibilityResponse */
+        ReturnEligibilityResponse: {
+            /**
+             * Delivery Receipt Id
+             * Format: uuid
+             */
+            delivery_receipt_id: string;
+            /** Lines */
+            lines: components["schemas"]["ReturnEligibleLine"][];
+            /** Number */
+            number: string;
+        };
+        /** ReturnEligibleLine */
+        ReturnEligibleLine: {
+            /** Delivered Quantity Base */
+            delivered_quantity_base: string;
+            /**
+             * Delivery Line Id
+             * Format: uuid
+             */
+            delivery_line_id: string;
+            /** Eligible Quantity Base */
+            eligible_quantity_base: string;
+            /**
+             * Line Id
+             * Format: uuid
+             */
+            line_id: string;
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+        };
         /** ReturnLineCommand */
         ReturnLineCommand: {
             /**
@@ -8300,6 +8351,82 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_return_eligibility_v1_delivery_receipts__receipt_id__return_eligibility_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                receipt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReturnEligibilityResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description Stable TradeFlow error envelope. */
@@ -12842,6 +12969,8 @@ export interface operations {
         parameters: {
             query?: {
                 status?: ("pending_authorization" | "authorized") | null;
+                limit?: number;
+                offset?: number;
             };
             header?: never;
             path?: never;

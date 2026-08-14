@@ -9,12 +9,14 @@
 ## Implemented evidence
 
 - `apps/api/src/tradeflow_api/returns.py`: request, read/list, and maker-checker
-  authorization contracts with receipt-chain serialization and stable replay.
+  authorization contracts with receipt-chain serialization, bounded batched
+  listing, explicit replay headers, and current eligibility lookup.
 - `apps/api/migrations/versions/e93736a741bd_return_requests_and_authorizations.py`:
   immutable persistence, direct-write guards, capabilities, and reversible empty
   migration with populated-history downgrade refusal.
 - `apps/web/components/return-authorization-workspace.tsx`: responsive pending
-  review queue and explicit authorization confirmation.
+  review queue, receipt-driven multi-line selection, and explicit authorization
+  confirmation.
 - Generated OpenAPI and TypeScript client include all Returns endpoints.
 - ADR-0019 and Returns context document source-chain, quantity, classification,
   authority, and no-posting boundaries.
@@ -24,12 +26,15 @@
 - PostgreSQL contract tests cover request creation, no posting effects,
   maker-checker, amount limits, prior authorization arithmetic, exact replay,
   excess rejection, final-quantity concurrency, correction exclusion, and
-  database immutability.
+  database immutability, including direct-write rejection after user,
+  capability, Branch-scope, or Warehouse-scope revocation.
 - Migration test covers downgrade to current Finance head `0017`, upgrade, and
   re-upgrade on an empty schema.
-- Playwright covers the web review and authorization journey.
-- Focused tests, one final two-axis review, and one current-head full gate remain
-  required before PR #112 is ready for human review.
+- Playwright covers receipt-driven multi-line request creation and the web
+  review/authorization journey on desktop and mobile projects.
+- Focused verification passed after implementation. The one final two-axis
+  review completed and its P1/P2 findings were resolved; one current-head full
+  CI gate remains before PR #112 is ready for human review.
 
 ## Next slice
 
