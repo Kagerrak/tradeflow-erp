@@ -994,6 +994,10 @@ inventory_transfers = Table(
     ),
     CheckConstraint("version > 0", name="ck_inventory_transfers_version"),
     CheckConstraint("quantity_base > 0", name="ck_inventory_transfers_quantity"),
+    CheckConstraint(
+        "from_warehouse_id <> to_warehouse_id",
+        name="ck_inventory_transfers_distinct_warehouses",
+    ),
     CheckConstraint("btrim(reason) <> ''", name="ck_inventory_transfers_reason"),
     CheckConstraint(
         "unit_cost >= 0",

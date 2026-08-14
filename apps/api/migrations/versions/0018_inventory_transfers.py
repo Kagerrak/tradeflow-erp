@@ -89,6 +89,8 @@ def upgrade() -> None:
         CONSTRAINT ck_inventory_transfers_status CHECK (status IN ('released','received')),
         CONSTRAINT ck_inventory_transfers_version CHECK (version > 0),
         CONSTRAINT ck_inventory_transfers_quantity CHECK (quantity_base > 0),
+        CONSTRAINT ck_inventory_transfers_distinct_warehouses CHECK (
+          from_warehouse_id <> to_warehouse_id),
         CONSTRAINT ck_inventory_transfers_reason CHECK (btrim(reason) <> ''),
         CONSTRAINT ck_inventory_transfers_unit_cost CHECK (unit_cost >= 0),
         CONSTRAINT ck_inventory_transfers_received_shape CHECK (
@@ -134,6 +136,22 @@ def upgrade() -> None:
                 ELSE 2
               END
             ) AS inventory_value
+          ), locations_valid AS (
+            SELECT target_from_warehouse_id <> target_to_warehouse_id
+              AND EXISTS (
+                SELECT 1 FROM warehouse_stock_locations
+                WHERE location_id = target_from_location_id
+                  AND warehouse_id = target_from_warehouse_id
+                  AND custody = 'available'
+                  AND is_active
+              )
+              AND EXISTS (
+                SELECT 1 FROM warehouse_stock_locations
+                WHERE location_id = target_to_location_id
+                  AND warehouse_id = target_to_warehouse_id
+                  AND custody = 'available'
+                  AND is_active
+              ) AS valid
           ), group_rows AS (
             SELECT movement.*, location.custody
             FROM stock_movements movement
@@ -147,7 +165,8 @@ def upgrade() -> None:
               AND movement.base_currency = target_currency
               AND movement.source_reference = 'TRANSFER:' || target_transfer_id
           )
-          SELECT (SELECT count(*) FROM stock_movements
+          SELECT (SELECT valid FROM locations_valid)
+             AND (SELECT count(*) FROM stock_movements
                   WHERE movement_group_id = target_group_id) = 2
              AND (SELECT count(*) FROM group_rows) = 2
              AND CASE target_phase

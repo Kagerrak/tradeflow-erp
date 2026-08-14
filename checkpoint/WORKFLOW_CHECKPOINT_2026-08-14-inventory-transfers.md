@@ -89,9 +89,11 @@ current head after its merge from `main` and safety corrections:
 
 ## Current-head verification
 
-- Focused transfer Python suite — **16 passed** on August 15, 2026.
+- Focused transfer Python suite — **17 passed** on August 15, 2026.
 - Ruff checks for all touched Python implementation and test files — passed.
-- One final review and one complete CI gate remain pending.
+- Repository TypeScript/Python typecheck — passed.
+- Transfer Playwright suite — **8 passed** across desktop and mobile-web.
+- One complete CI gate remains pending until the P1 policy findings are resolved.
 
 ## Historical review
 
@@ -104,8 +106,16 @@ current head after its merge from `main` and safety corrections:
 - Deferred one P3 BFF helper duplication finding; it does not affect transfer
   correctness or replacement risk.
 
-The current reconciled head requires its one final review after implementation
-and focused verification are complete.
+The single current-head final review found:
+
+- one hard terminology violation, corrected in ADR-0019;
+- one P2 database-boundary gap for invalid Transfer destinations, corrected with
+  distinct-Warehouse and active available-location guards plus a regression test;
+- one duplicated BFF status mapper, consolidated;
+- one non-blocking Data Clump judgement call in movement construction, deferred
+  to avoid an unrelated high-churn refactor;
+- two unresolved P1 policy decisions: valuation ownership timing, and whether
+  maker-checker/value-limit Approval Authority controls apply to transfers.
 
 ## Implemented / pending qualification
 
@@ -113,8 +123,8 @@ and focused verification are complete.
 
 ## Shipped
 
-- Not merged. Current-head review, CI, and the explicit valuation policy decision
-  are pending.
+- Not merged. Current-head CI and both explicit business policy decisions are
+  pending.
 
 ## Residual risks and follow-ups
 

@@ -62,7 +62,9 @@
 ## Decision required
 
 - Approve or revise ADR-0019's proposed Warehouse valuation-ownership timing.
-  The slice must not merge while that material business policy remains pending.
+- Decide whether requester/receiver maker-checker separation is mandatory and
+  whether transfer value limits or Approval Authorities apply.
+- The slice must not merge while either material business policy remains pending.
 
 ## Related documents
 

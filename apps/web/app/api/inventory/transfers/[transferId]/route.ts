@@ -1,5 +1,7 @@
 import { createTradeFlowClient } from "@tradeflow/api-client";
 
+import { transferFailureKind } from "../response";
+
 const baseUrl = process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000";
 
 export async function GET(
@@ -45,7 +47,7 @@ export async function GET(
       {
         code: envelope.error?.code ?? "transfer_detail_rejected",
         correlationId: envelope.error?.correlation_id ?? correlationId,
-        kind: failureKind(result.response.status),
+        kind: transferFailureKind(result.response.status),
         message: envelope.error?.message ?? "Transfer detail is unavailable.",
       },
       { status: result.response.status },
@@ -61,12 +63,4 @@ export async function GET(
       { status: 503 },
     );
   }
-}
-
-function failureKind(status: number): string {
-  if (status === 401) return "unauthenticated";
-  if (status === 403) return "forbidden";
-  if (status === 409) return "conflict";
-  if (status === 400 || status === 422) return "validation";
-  return "unavailable";
 }

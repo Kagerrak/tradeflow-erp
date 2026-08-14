@@ -1,5 +1,7 @@
 import { createTradeFlowClient } from "@tradeflow/api-client";
 
+import { transferFailureKind } from "./response";
+
 const baseUrl = process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000";
 
 type RequestBody = {
@@ -68,7 +70,7 @@ export async function POST(request: Request): Promise<Response> {
       {
         code: envelope.error?.code ?? "transfer_request_rejected",
         correlationId: envelope.error?.correlation_id ?? correlationId,
-        kind: failureKind(result.response.status),
+        kind: transferFailureKind(result.response.status),
         message:
           envelope.error?.message ?? "Transfer request was not accepted.",
       },
@@ -132,7 +134,7 @@ export async function GET(request: Request): Promise<Response> {
       {
         code: envelope.error?.code ?? "transfer_list_rejected",
         correlationId: envelope.error?.correlation_id ?? correlationId,
-        kind: failureKind(result.response.status),
+        kind: transferFailureKind(result.response.status),
         message: envelope.error?.message ?? "Transfer list is unavailable.",
       },
       { status: result.response.status },
@@ -148,12 +150,4 @@ export async function GET(request: Request): Promise<Response> {
       { status: 503 },
     );
   }
-}
-
-function failureKind(status: number): string {
-  if (status === 401) return "unauthenticated";
-  if (status === 403) return "forbidden";
-  if (status === 409) return "conflict";
-  if (status === 400 || status === 422) return "validation";
-  return "unavailable";
 }

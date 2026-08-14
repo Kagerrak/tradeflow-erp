@@ -130,3 +130,48 @@ async def test_inventory_transfer_status_transition_requires_receive_movements(
         assert row["status"] == "received"
         assert row["version"] == 2
     await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_inventory_transfer_group_rejects_invalid_destination(
+    transfer_env: dict[str, object],
+) -> None:
+    postgres_url = str(transfer_env["settings"].database_url)
+    engine = create_async_engine(postgres_url)
+    query = text(
+        "SELECT inventory_transfer_group_is_valid("
+        "release_movement_group_id, transfer_id, 'release', sku_id, "
+        "from_warehouse_id, :to_warehouse_id, from_location_id, :to_location_id, "
+        "quantity_base, unit_cost, base_currency) "
+        "FROM inventory_transfers WHERE transfer_id = :transfer_id"
+    )
+    async with engine.connect() as connection:
+        valid = await connection.scalar(
+            query,
+            {
+                "transfer_id": transfer_env["transfer_id"],
+                "to_warehouse_id": transfer_env["ceb_warehouse_id"],
+                "to_location_id": transfer_env["ceb_location_id"],
+            },
+        )
+        same_warehouse = await connection.scalar(
+            query,
+            {
+                "transfer_id": transfer_env["transfer_id"],
+                "to_warehouse_id": transfer_env["mnl_warehouse_id"],
+                "to_location_id": transfer_env["mnl_location_id"],
+            },
+        )
+        mismatched_location = await connection.scalar(
+            query,
+            {
+                "transfer_id": transfer_env["transfer_id"],
+                "to_warehouse_id": transfer_env["ceb_warehouse_id"],
+                "to_location_id": transfer_env["mnl_location_id"],
+            },
+        )
+    await engine.dispose()
+
+    assert valid is True
+    assert same_warehouse is False
+    assert mismatched_location is False
