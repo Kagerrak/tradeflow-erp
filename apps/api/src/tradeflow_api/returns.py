@@ -413,7 +413,9 @@ async def _responses(session: AsyncSession, request_ids: list[UUID]) -> list[Ret
     ).mappings()
     lines_by_request: dict[UUID, list[Mapping[str, Any]]] = {}
     for line in line_rows:
-        lines_by_request.setdefault(line["return_request_id"], []).append(line)
+        lines_by_request.setdefault(line["return_request_id"], []).append(
+            cast(Mapping[str, Any], line)
+        )
     rows_by_id = {row["return_request_id"]: row for row in rows}
     responses: list[ReturnRequestResponse] = []
     for request_id in request_ids:
