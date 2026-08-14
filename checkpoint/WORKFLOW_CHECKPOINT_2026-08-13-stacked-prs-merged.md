@@ -47,13 +47,17 @@ were merged in dependency order with explicit approval.
 - #55 — Reconcile first-release tracker, product scope, and policy gates.
 - The complete evidence matrix is in
   `docs/delivery/first-release-reconciliation.md`.
+- #71 — Immutable Credit Note implementation merged in PR #113, but issue and
+  CI-gate reconciliation remain open.
+- PR #114 — agent final review and remote CI completed for Inventory Transfer;
+  GitHub/human review and explicit merge approval remain pending.
+- PR #112 — Return Authorization implementation awaiting PR #111 and migration
+  lineage reconciliation against current `main`.
 
 ## Remaining dependency-ready work
 
-- #65 — Approve a Return Authorization against delivered and previously
-  returned quantity.
-- #71 — Issue and post immutable Credit Note documents under Maker-Checker
-  control.
+- #65 — Reconcile and review the pending Return Authorization against delivered
+  and previously returned quantity.
 - #72 — Support unapplied and overpaid Payment Receipts explicitly.
 - #77 — Create and approve Purchase Requests before Purchase Orders.
 - #78 — Record Receipt Variance, quality outcome, and Purchase Backorder
@@ -62,13 +66,16 @@ were merged in dependency order with explicit approval.
 - #94 — Expose a consolidated Customer transaction timeline.
 - #97 — Establish production-like staging and authorization/security evidence.
 - #105–#108 — Complete remaining Quotation, Order Cancellation, Inventory
-  Transfer/Adjustment, and operational configuration requirements.
+  Adjustment, and operational configuration requirements; Inventory Transfer
+  is pending PR #114.
 - #109 — Deliver scoped mobile operational notifications and deep links.
 - #110 — Baseline current workflows and measure first-release success outcomes.
+- #115 — Execute the authorized final production migration and reconcile
+  cutover control totals after a Go decision.
 
 The ready list exposes independent dependency roots. Delivery continues with
-one vertical slice at a time, beginning with Returns as required by the product
-priority.
+one vertical slice at a time. PR #111 must be reviewed first; PR #112 can then
+be reconciled onto the current migration and Finance foundation.
 
 ## Policy decisions
 
@@ -79,9 +86,9 @@ priority.
 
 ## Next issue
 
-- #65 — Approve a Return Authorization against delivered and previously
-  returned quantity, after #55 is reviewed and merged.
+- Review PR #111 without inferring merge approval, then reconcile PR #112 onto
+  current `main` and rerun its final review and full gate.
 - The overall first-release goal remains active through Returns,
   invoice-to-cash completion, remaining Procurement, Expenses, Commissions,
   customer history/reporting, remaining Sales/Inventory/configuration, and
-  hardening/migration/UAT and success-measure evidence (#56–#110).
+  hardening/migration/UAT and success-measure evidence (#56–#115).

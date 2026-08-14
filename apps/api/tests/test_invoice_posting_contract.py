@@ -27,7 +27,9 @@ FINANCE_CAPABILITIES = [
     "finance:invoice-post",
     "finance:invoice-read",
     "finance:invoice-void",
-    "finance:credit-note-post",
+    "finance:credit-note-request",
+    "finance:credit-note-approve",
+    "finance:credit-note-read",
     "finance:payment-allocate",
     "finance:statement-read",
     "finance:cash-reconcile",
@@ -442,66 +444,6 @@ async def test_void_invoice_reverses_ledger_and_open_balance(
         ("invoice", Decimal("224.00")),
         ("void", Decimal("-224.00")),
     ]
-
-
-@pytest.mark.asyncio
-async def test_credit_note_reduces_open_balance(
-    invoice_client: AsyncClient,
-    invoice_settings: Settings,
-    postgres_url: str,
-    fake_storage: FakeObjectStorage,
-) -> None:
-    fixture, draft_invoice_id = await confirmed_delivery_and_invoice(
-        invoice_client,
-        invoice_settings,
-        postgres_url,
-        fake_storage,
-    )
-    post = await invoice_client.post(
-        f"/v1/finance/invoices/{draft_invoice_id}/post",
-        headers=auth(
-            invoice_settings,
-            "finance-recorder",
-            **{"Idempotency-Key": "credit-post-invoice"},
-        ),
-        json={},
-    )
-    assert post.status_code == 201, post.text
-
-    credit_note_id = str(uuid4())
-    credited = await invoice_client.post(
-        f"/v1/finance/invoices/{draft_invoice_id}/credit-notes",
-        headers=auth(
-            invoice_settings,
-            "finance-recorder",
-            **{"Idempotency-Key": "credit-note"},
-        ),
-        json={
-            "credit_note_id": credit_note_id,
-            "amount": "50.00",
-            "currency": "PHP",
-            "reason": "Pricing correction.",
-        },
-    )
-    assert credited.status_code == 201, credited.text
-
-    engine = create_async_engine(postgres_url)
-    async with engine.connect() as connection:
-        exposure = (
-            (
-                await connection.execute(
-                    text(
-                        "SELECT open_balance FROM customer_credit_exposure "
-                        "WHERE customer_id = :customer_id"
-                    ),
-                    {"customer_id": fixture["customer_id"]},
-                )
-            )
-            .mappings()
-            .one()
-        )
-    await engine.dispose()
-    assert exposure["open_balance"] == Decimal("174.00")
 
 
 @pytest.mark.asyncio

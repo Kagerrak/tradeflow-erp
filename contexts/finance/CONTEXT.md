@@ -88,6 +88,16 @@ not reduce the originating Sales Order total.
 **Credit Note**: A posted reduction of customer receivables, typically arising
 from a return, pricing correction, or approved adjustment.
 
+**Credit Note Request**: A proposed credit note against a posted invoice. It has
+no ledger effect until a different eligible user authorizes it.
+
+**Credit Note Authorization**: Maker-checker approval by an eligible Finance
+user, under branch scope and within an explicit approval limit, that posts a
+Credit Note and assigns it a branch-scoped document number.
+
+**Credit Note Reversal**: An immutable negation of a posted Credit Note that
+preserves the original document and creates a restoring ledger entry.
+
 **Debit Adjustment**: A posted increase of customer receivables outside a
 standard sales invoice.
 

@@ -481,6 +481,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/finance/credit-notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Credit Notes */
+        get: operations["list_credit_notes_v1_finance_credit_notes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/finance/credit-notes/{credit_note_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Credit Note */
+        get: operations["get_credit_note_v1_finance_credit_notes__credit_note_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/finance/credit-notes/{credit_note_id}/post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Authorize And Post Credit Note */
+        post: operations["authorize_and_post_credit_note_v1_finance_credit_notes__credit_note_id__post_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/finance/credit-notes/{credit_note_id}/reverse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reverse Credit Note */
+        post: operations["reverse_credit_note_v1_finance_credit_notes__credit_note_id__reverse_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/finance/customers/{customer_id}/statement": {
         parameters: {
             query?: never;
@@ -541,8 +609,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Post Credit Note */
-        post: operations["post_credit_note_v1_finance_invoices__draft_invoice_id__credit_notes_post"];
+        /** Request Credit Note */
+        post: operations["request_credit_note_v1_finance_invoices__draft_invoice_id__credit_notes_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2113,6 +2181,8 @@ export interface components {
             /** Reference */
             reference: string;
         };
+        /** CommandModel */
+        CommandModel: Record<string, never>;
         /** CommercialApprovalCommand */
         CommercialApprovalCommand: {
             /** Credit Override Reason */
@@ -2960,8 +3030,15 @@ export interface components {
             /** Projected Exposure */
             projected_exposure: string;
         };
-        /** CreditNoteResponse */
-        CreditNoteResponse: {
+        /** CreditNoteListResponse */
+        CreditNoteListResponse: {
+            /** Items */
+            items: components["schemas"]["CreditNoteResponse"][];
+            /** Total */
+            total: number;
+        };
+        /** CreditNotePostedResponse */
+        CreditNotePostedResponse: {
             /**
              * Credit Note Id
              * Format: uuid
@@ -2977,6 +3054,93 @@ export interface components {
              * Format: uuid
              */
             ledger_entry_id: string;
+            /** Number */
+            number: string;
+            /**
+             * Posted At
+             * Format: date-time
+             */
+            posted_at: string;
+            /** Posted By */
+            posted_by: string;
+            /** Status */
+            status: string;
+        };
+        /** CreditNoteResponse */
+        CreditNoteResponse: {
+            /** Amount */
+            amount: string;
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /**
+             * Credit Note Id
+             * Format: uuid
+             */
+            credit_note_id: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /**
+             * Draft Invoice Id
+             * Format: uuid
+             */
+            draft_invoice_id: string;
+            /** Ledger Entry Id */
+            ledger_entry_id: string | null;
+            /** Number */
+            number: string | null;
+            /** Posted At */
+            posted_at: string | null;
+            /** Posted By */
+            posted_by: string | null;
+            /** Reason */
+            reason: string;
+            /**
+             * Requested At
+             * Format: date-time
+             */
+            requested_at: string;
+            /** Requested By */
+            requested_by: string;
+            /** Reversal Ledger Entry Id */
+            reversal_ledger_entry_id: string | null;
+            /** Reversal Reason */
+            reversal_reason: string | null;
+            /** Reversed At */
+            reversed_at: string | null;
+            /** Reversed By */
+            reversed_by: string | null;
+            /** Status */
+            status: string;
+        };
+        /** CreditNoteReversedResponse */
+        CreditNoteReversedResponse: {
+            /**
+             * Credit Note Id
+             * Format: uuid
+             */
+            credit_note_id: string;
+            /**
+             * Reversal Ledger Entry Id
+             * Format: uuid
+             */
+            reversal_ledger_entry_id: string;
+            /**
+             * Reversed At
+             * Format: date-time
+             */
+            reversed_at: string;
+            /** Reversed By */
+            reversed_by: string;
+            /** Status */
+            status: string;
         };
         /** CustomerResponse */
         CustomerResponse: {
@@ -4640,20 +4804,6 @@ export interface components {
             /** Message */
             message: string;
         };
-        /** PostCreditNoteCommand */
-        PostCreditNoteCommand: {
-            /** Amount */
-            amount: number | string;
-            /**
-             * Credit Note Id
-             * Format: uuid
-             */
-            credit_note_id: string;
-            /** Currency */
-            currency: string;
-            /** Reason */
-            reason: string;
-        };
         /** PostInvoiceCommand */
         PostInvoiceCommand: {
             /** Posted At */
@@ -4972,6 +5122,15 @@ export interface components {
             /** Sales Order Id */
             sales_order_id?: string | null;
         };
+        /** RequestCreditNoteCommand */
+        RequestCreditNoteCommand: {
+            /** Amount */
+            amount: number | string;
+            /** Currency */
+            currency: string;
+            /** Reason */
+            reason: string;
+        };
         /** RequestDeliveryCorrection */
         RequestDeliveryCorrection: {
             /**
@@ -5258,6 +5417,11 @@ export interface components {
              * @constant
              */
             status: "received";
+        };
+        /** ReverseCreditNoteCommand */
+        ReverseCreditNoteCommand: {
+            /** Reason */
+            reason: string;
         };
         /** ReversePickCommand */
         ReversePickCommand: {
@@ -8240,6 +8404,353 @@ export interface operations {
             };
         };
     };
+    list_credit_notes_v1_finance_credit_notes_get: {
+        parameters: {
+            query?: {
+                draft_invoice_id?: string | null;
+                status?: string | null;
+                customer_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditNoteListResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_credit_note_v1_finance_credit_notes__credit_note_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                credit_note_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditNoteResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    authorize_and_post_credit_note_v1_finance_credit_notes__credit_note_id__post_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                credit_note_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandModel"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditNotePostedResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    reverse_credit_note_v1_finance_credit_notes__credit_note_id__reverse_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                credit_note_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReverseCreditNoteCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditNoteReversedResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     get_customer_statement_v1_finance_customers__customer_id__statement_get: {
         parameters: {
             query: {
@@ -8475,7 +8986,7 @@ export interface operations {
             };
         };
     };
-    post_credit_note_v1_finance_invoices__draft_invoice_id__credit_notes_post: {
+    request_credit_note_v1_finance_invoices__draft_invoice_id__credit_notes_post: {
         parameters: {
             query?: never;
             header?: {
@@ -8488,7 +8999,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PostCreditNoteCommand"];
+                "application/json": components["schemas"]["RequestCreditNoteCommand"];
             };
         };
         responses: {
