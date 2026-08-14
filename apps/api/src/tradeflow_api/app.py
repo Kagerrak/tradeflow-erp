@@ -18,6 +18,7 @@ from tradeflow_api.auth import (
 from tradeflow_api.catalog_inventory import router as catalog_inventory_router
 from tradeflow_api.commercial_approval import router as commercial_approval_router
 from tradeflow_api.config import Settings, get_settings
+from tradeflow_api.credit_notes import router as credit_notes_router
 from tradeflow_api.customer_statement import router as customer_statement_router
 from tradeflow_api.customers import router as customers_router
 from tradeflow_api.database import (
@@ -109,6 +110,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(goods_receipts_router)
     app.include_router(landed_costs_router)
     app.include_router(invoice_posting_router)
+    app.include_router(credit_notes_router)
     app.include_router(payment_allocation_router)
     app.include_router(customer_statement_router)
     app.include_router(payment_fulfillment_router)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pytest
 from alembic import command
@@ -21,7 +22,7 @@ def postgres_url() -> str:
 
 @pytest.fixture(scope="session", autouse=True)
 def migrated_database(postgres_url: str) -> None:
-    config = Config("apps/api/alembic.ini")
+    config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", postgres_url)
     command.upgrade(config, "head")
 
