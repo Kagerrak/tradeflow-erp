@@ -3676,6 +3676,12 @@ document_series_number_audit = Table(
         ForeignKey("delivery_receipts.delivery_receipt_id"),
         nullable=True,
     ),
+    Column(
+        "credit_note_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("credit_notes.credit_note_id"),
+        nullable=True,
+    ),
     Column("reason", String(500), nullable=True),
     Column("recorded_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     UniqueConstraint("document_series_id", "series_number", name="uq_document_series_number_audit"),
@@ -3891,7 +3897,7 @@ customer_ledger_entries = Table(
     ),
     CheckConstraint(
         "source_type IN ('draft_invoice', 'payment_receipt', 'payment_allocation', "
-        "'credit_note', 'invoice_void')",
+        "'credit_note', 'invoice_void', 'credit_note_reversal')",
         name="ck_customer_ledger_source_type",
     ),
     CheckConstraint(
@@ -3908,5 +3914,161 @@ customer_ledger_entries = Table(
         "idx_customer_ledger_entries_customer_created",
         "customer_id",
         "created_at",
+    ),
+)
+
+credit_notes = Table(
+    "credit_notes",
+    metadata,
+    Column("credit_note_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "draft_invoice_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("draft_invoices.draft_invoice_id"),
+        nullable=False,
+    ),
+    Column(
+        "customer_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("customer_accounts.customer_id"),
+        nullable=False,
+    ),
+    Column(
+        "branch_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("branches.branch_id"),
+        nullable=False,
+    ),
+    Column(
+        "document_series_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("document_series.document_series_id"),
+        nullable=True,
+    ),
+    Column("series_number", Integer, nullable=True),
+    Column("number", String(80), nullable=True, unique=True),
+    Column("amount", Numeric(24, 6), nullable=False),
+    Column("currency", String(3), nullable=False),
+    Column("reason", String(500), nullable=False),
+    Column(
+        "requested_by",
+        String(200),
+        ForeignKey("users.subject"),
+        nullable=False,
+    ),
+    Column(
+        "requested_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    Column(
+        "posted_by",
+        String(200),
+        ForeignKey("users.subject"),
+        nullable=True,
+    ),
+    Column("posted_at", DateTime(timezone=True), nullable=True),
+    Column(
+        "ledger_entry_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("customer_ledger_entries.entry_id"),
+        nullable=True,
+    ),
+    Column(
+        "reversed_by",
+        String(200),
+        ForeignKey("users.subject"),
+        nullable=True,
+    ),
+    Column("reversed_at", DateTime(timezone=True), nullable=True),
+    Column("reversal_reason", String(500), nullable=True),
+    Column(
+        "reversal_ledger_entry_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("customer_ledger_entries.entry_id"),
+        nullable=True,
+    ),
+    Column(
+        "status",
+        String(30),
+        nullable=False,
+        server_default="pending_authorization",
+    ),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False),
+    CheckConstraint("amount > 0", name="ck_credit_note_amount_positive"),
+    CheckConstraint(
+        "status IN ('pending_authorization', 'posted', 'reversed')",
+        name="ck_credit_note_status",
+    ),
+    CheckConstraint("btrim(reason) <> ''", name="ck_credit_note_reason_non_empty"),
+    CheckConstraint(
+        "(status = 'pending_authorization' "
+        "AND document_series_id IS NULL AND series_number IS NULL AND number IS NULL "
+        "AND posted_by IS NULL AND posted_at IS NULL AND ledger_entry_id IS NULL "
+        "AND reversed_by IS NULL AND reversed_at IS NULL "
+        "AND reversal_reason IS NULL AND reversal_ledger_entry_id IS NULL) "
+        "OR "
+        "(status = 'posted' "
+        "AND document_series_id IS NOT NULL AND series_number IS NOT NULL "
+        "AND number IS NOT NULL AND posted_by IS NOT NULL AND posted_at IS NOT NULL "
+        "AND ledger_entry_id IS NOT NULL AND reversed_by IS NULL "
+        "AND reversed_at IS NULL AND reversal_reason IS NULL "
+        "AND reversal_ledger_entry_id IS NULL) "
+        "OR "
+        "(status = 'reversed' "
+        "AND document_series_id IS NOT NULL AND series_number IS NOT NULL "
+        "AND number IS NOT NULL AND posted_by IS NOT NULL AND posted_at IS NOT NULL "
+        "AND ledger_entry_id IS NOT NULL AND reversed_by IS NOT NULL "
+        "AND reversed_at IS NOT NULL AND reversal_reason IS NOT NULL "
+        "AND reversal_ledger_entry_id IS NOT NULL)",
+        name="ck_credit_note_posted_shape",
+    ),
+    UniqueConstraint("requested_by", "idempotency_key", name="uq_credit_note_actor_key"),
+)
+
+Index(
+    "uq_credit_note_series_number",
+    credit_notes.c.document_series_id,
+    credit_notes.c.series_number,
+    unique=True,
+    postgresql_where=(credit_notes.c.document_series_id.is_not(None)),
+)
+
+
+credit_note_authorizations = Table(
+    "credit_note_authorizations",
+    metadata,
+    Column(
+        "credit_note_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("credit_notes.credit_note_id"),
+        primary_key=True,
+    ),
+    Column(
+        "authorized_by",
+        String(200),
+        ForeignKey("users.subject"),
+        nullable=False,
+    ),
+    Column(
+        "approval_authority_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("approval_authorities.approval_authority_id"),
+        nullable=False,
+    ),
+    Column("idempotency_key", String(200), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column(
+        "authorized_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    UniqueConstraint(
+        "authorized_by",
+        "idempotency_key",
+        name="uq_credit_note_authorization_key",
     ),
 )

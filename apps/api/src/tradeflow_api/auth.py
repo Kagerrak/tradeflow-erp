@@ -422,10 +422,22 @@ async def require_invoice_voider(
     return require_capability(user, "finance:invoice-void")
 
 
-async def require_credit_note_poster(
+async def require_credit_note_requester(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:
-    return require_capability(user, "finance:credit-note-post")
+    return require_capability(user, "finance:credit-note-request")
+
+
+async def require_credit_note_approver(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:credit-note-approve")
+
+
+async def require_credit_note_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:credit-note-read")
 
 
 async def require_payment_allocator(
