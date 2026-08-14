@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator
+import os
+from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 
 import pytest
@@ -25,9 +26,18 @@ def fake_storage() -> FakeObjectStorage:
 
 
 @pytest.fixture
-def migration_database_url(postgres_url: str) -> str:
+def migration_database_url(postgres_url: str) -> Iterator[str]:
     base = postgres_url.rsplit("/", 1)[0]
-    return f"{base}/tradeflow_migration_test"
+    url = f"{base}/tradeflow_migration_test"
+    previous = os.environ.get("TRADEFLOW_DATABASE_URL")
+    os.environ["TRADEFLOW_DATABASE_URL"] = url
+    try:
+        yield url
+    finally:
+        if previous is None:
+            os.environ.pop("TRADEFLOW_DATABASE_URL", None)
+        else:
+            os.environ["TRADEFLOW_DATABASE_URL"] = previous
 
 
 @pytest.fixture
