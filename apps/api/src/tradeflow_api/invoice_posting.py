@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from tradeflow_api.auth import (
     AuthorizedUser,
-    require_credit_note_poster,
     require_invoice_poster,
     require_invoice_reader,
     require_invoice_voider,
@@ -45,13 +44,6 @@ class PostInvoiceCommand(CommandModel):
 
 
 class VoidInvoiceCommand(CommandModel):
-    reason: str = Field(min_length=1, max_length=500)
-
-
-class PostCreditNoteCommand(CommandModel):
-    credit_note_id: UUID
-    amount: Decimal = Field(gt=0, max_digits=24, decimal_places=6)
-    currency: str = Field(pattern=r"^[A-Z]{3}$")
     reason: str = Field(min_length=1, max_length=500)
 
 
@@ -102,12 +94,6 @@ class InvoiceVoidResponse(BaseModel):
     draft_invoice_id: UUID
     ledger_entry_id: UUID
     status: str
-
-
-class CreditNoteResponse(BaseModel):
-    credit_note_id: UUID
-    draft_invoice_id: UUID
-    ledger_entry_id: UUID
 
 
 def _hash_request(draft_invoice_id: UUID, body: dict[str, Any]) -> str:
@@ -543,120 +529,6 @@ async def void_invoice(
             draft_invoice_id=draft_invoice_id,
             ledger_entry_id=entry_id,
             status="voided",
-        )
-        await store_command_result(
-            session,
-            actor_subject=actor.subject,
-            idempotency_key=idempotency_key,
-            request_hash=request_hash,
-            result=result,
-        )
-        response.headers["X-Idempotency-Replayed"] = "false"
-        return result
-
-
-@router.post(
-    "/{draft_invoice_id}/credit-notes",
-    response_model=CreditNoteResponse,
-    responses=error_responses(400, 401, 403, 404, 409, 422, 503),
-    status_code=201,
-)
-async def post_credit_note(
-    draft_invoice_id: UUID,
-    command: PostCreditNoteCommand,
-    request: Request,
-    response: Response,
-    actor: Annotated[AuthorizedUser, Depends(require_credit_note_poster)],
-    session: Annotated[AsyncSession, Depends(get_database_session)],
-    idempotency_key: Annotated[
-        str | None,
-        Header(alias="Idempotency-Key", min_length=1, max_length=200),
-    ] = None,
-) -> CreditNoteResponse:
-    if idempotency_key is None:
-        raise AppError(
-            status_code=400,
-            code="idempotency_key_required",
-            message="Idempotency-Key is required for this command.",
-        )
-
-    request_hash = _hash_request(
-        draft_invoice_id,
-        {
-            "credit_note_id": str(command.credit_note_id),
-            "amount": str(command.amount),
-            "currency": command.currency,
-            "reason": command.reason,
-        },
-    )
-    await session.rollback()
-    async with session.begin():
-        replay = await get_command_replay(
-            session,
-            actor_subject=actor.subject,
-            idempotency_key=idempotency_key,
-            request_hash=request_hash,
-        )
-        if replay is not None:
-            response.status_code = 200
-            response.headers["X-Idempotency-Replayed"] = "true"
-            return CreditNoteResponse.model_validate(replay)
-
-        await _lock(session, f"invoice-credit-note:{draft_invoice_id}")
-        invoice = await _load_invoice(session, draft_invoice_id)
-        await _require_branch_scope(actor, invoice["branch_id"])
-
-        base_currency = await _base_currency(session)
-        if invoice["currency"] != base_currency or command.currency != base_currency:
-            raise AppError(
-                status_code=422,
-                code="unsupported_invoice_currency",
-                message="Credit notes must use the company base currency.",
-            )
-
-        status, _ = await _invoice_ledger_facts(session, draft_invoice_id)
-        if status != "posted":
-            raise AppError(
-                status_code=409,
-                code="invoice_not_creditable",
-                message="Credit notes can only be posted against posted invoices.",
-            )
-
-        entry_id = uuid4()
-        await session.execute(
-            insert(customer_ledger_entries).values(
-                entry_id=entry_id,
-                customer_id=invoice["customer_id"],
-                entry_type="credit_note",
-                source_type="credit_note",
-                source_id=command.credit_note_id,
-                invoice_id=draft_invoice_id,
-                amount=-command.amount,
-                currency=command.currency,
-                branch_id=invoice["branch_id"],
-                actor_subject=actor.subject,
-                correlation_id=request.state.correlation_id,
-                idempotency_key=idempotency_key,
-                posted_at=datetime.now(UTC),
-            )
-        )
-        await _update_credit_exposure(
-            session,
-            customer_id=invoice["customer_id"],
-            commercial_approval_id=None,
-            sales_order_id=invoice["sales_order_id"],
-            open_balance_delta=-command.amount,
-            approved_uninvoiced_delta=ZERO,
-            source_type="credit_note",
-            source_id=command.credit_note_id,
-            actor_subject=actor.subject,
-            correlation_id=request.state.correlation_id,
-            idempotency_key=idempotency_key,
-        )
-        result = CreditNoteResponse(
-            credit_note_id=command.credit_note_id,
-            draft_invoice_id=draft_invoice_id,
-            ledger_entry_id=entry_id,
         )
         await store_command_result(
             session,
