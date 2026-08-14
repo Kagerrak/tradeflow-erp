@@ -22,6 +22,7 @@ const navigation = [
   ["Orders", "02", "/sales-orders/new"],
   ["Fulfillment", "03", "/picking"],
   ["Inventory", "04", "/inventory"],
+  ["Transfers", "04a", "/inventory/transfers"],
   ["Customers", "05", "/customers"],
   ["Finance", "06", "/finance"],
   ["Credit notes", "07", "/finance/credit-notes"],

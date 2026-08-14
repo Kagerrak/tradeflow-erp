@@ -320,6 +320,18 @@ async def require_inventory_rebuilder(
     return require_capability(user, "inventory:rebuild")
 
 
+async def require_inventory_transfer_requester(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "inventory:transfer-request")
+
+
+async def require_inventory_transfer_receiver(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "inventory:transfer-receive")
+
+
 async def require_sales_order_writer(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:

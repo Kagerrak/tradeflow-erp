@@ -193,7 +193,7 @@ async def test_populated_delivery_correction_history_refuses_downgrade_without_d
             .mappings()
             .one()
         )
-    assert preserved["version_num"] == "d524a29c32b8"
+    assert preserved["version_num"] == "0018"
     assert preserved["correction_id"] == UUID(correction_id)
     assert preserved["number"] == authorized.json()["receipt_effect"]["original_number"]
     assert preserved["snapshot"]["delivery_id"] == confirmation["delivery_id"]

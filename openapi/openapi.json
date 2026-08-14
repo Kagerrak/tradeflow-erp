@@ -8797,6 +8797,12 @@
         "title": "ReceiptLineCommand",
         "type": "object"
       },
+      "ReceiveTransferCommand": {
+        "additionalProperties": false,
+        "properties": {},
+        "title": "ReceiveTransferCommand",
+        "type": "object"
+      },
       "RecordPaymentReceiptCommand": {
         "additionalProperties": false,
         "properties": {
@@ -8970,6 +8976,91 @@
           "lines"
         ],
         "title": "RequestDeliveryCorrection",
+        "type": "object"
+      },
+      "RequestTransferCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "from_location_id": {
+            "format": "uuid",
+            "title": "From Location Id",
+            "type": "string"
+          },
+          "from_warehouse_id": {
+            "format": "uuid",
+            "title": "From Warehouse Id",
+            "type": "string"
+          },
+          "lot_code": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Code"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "source_reference": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Source Reference",
+            "type": "string"
+          },
+          "to_location_id": {
+            "format": "uuid",
+            "title": "To Location Id",
+            "type": "string"
+          },
+          "to_warehouse_id": {
+            "format": "uuid",
+            "title": "To Warehouse Id",
+            "type": "string"
+          },
+          "unit_code": {
+            "pattern": "^[A-Z][A-Z0-9_-]{0,29}$",
+            "title": "Unit Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sku_id",
+          "from_warehouse_id",
+          "to_warehouse_id",
+          "from_location_id",
+          "to_location_id",
+          "quantity",
+          "unit_code",
+          "reason",
+          "source_reference"
+        ],
+        "title": "RequestTransferCommand",
         "type": "object"
       },
       "ReservationLineResponse": {
@@ -10632,6 +10723,278 @@
           "effective_to"
         ],
         "title": "TaxCodeVersionResponse",
+        "type": "object"
+      },
+      "TransferListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TransferReceivedItem"
+                },
+                {
+                  "$ref": "#/components/schemas/TransferReleasedItem"
+                }
+              ]
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "TransferListResponse",
+        "type": "object"
+      },
+      "TransferReceivedItem": {
+        "properties": {
+          "base_currency": {
+            "title": "Base Currency",
+            "type": "string"
+          },
+          "from_location_id": {
+            "format": "uuid",
+            "title": "From Location Id",
+            "type": "string"
+          },
+          "from_warehouse_id": {
+            "format": "uuid",
+            "title": "From Warehouse Id",
+            "type": "string"
+          },
+          "lot_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Code"
+          },
+          "quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity Base",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "receive_movement_group_id": {
+            "format": "uuid",
+            "title": "Receive Movement Group Id",
+            "type": "string"
+          },
+          "received_at": {
+            "title": "Received At",
+            "type": "string"
+          },
+          "received_by": {
+            "title": "Received By",
+            "type": "string"
+          },
+          "release_movement_group_id": {
+            "format": "uuid",
+            "title": "Release Movement Group Id",
+            "type": "string"
+          },
+          "requested_at": {
+            "title": "Requested At",
+            "type": "string"
+          },
+          "requested_by": {
+            "title": "Requested By",
+            "type": "string"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "source_reference": {
+            "title": "Source Reference",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "to_location_id": {
+            "format": "uuid",
+            "title": "To Location Id",
+            "type": "string"
+          },
+          "to_warehouse_id": {
+            "format": "uuid",
+            "title": "To Warehouse Id",
+            "type": "string"
+          },
+          "transfer_id": {
+            "format": "uuid",
+            "title": "Transfer Id",
+            "type": "string"
+          },
+          "unit_cost": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unit Cost",
+            "type": "string"
+          }
+        },
+        "required": [
+          "transfer_id",
+          "status",
+          "sku_id",
+          "from_warehouse_id",
+          "to_warehouse_id",
+          "from_location_id",
+          "to_location_id",
+          "quantity_base",
+          "unit_cost",
+          "base_currency",
+          "reason",
+          "source_reference",
+          "lot_code",
+          "requested_by",
+          "requested_at",
+          "release_movement_group_id",
+          "received_by",
+          "received_at",
+          "receive_movement_group_id"
+        ],
+        "title": "TransferReceivedItem",
+        "type": "object"
+      },
+      "TransferReleasedItem": {
+        "properties": {
+          "base_currency": {
+            "title": "Base Currency",
+            "type": "string"
+          },
+          "from_location_id": {
+            "format": "uuid",
+            "title": "From Location Id",
+            "type": "string"
+          },
+          "from_warehouse_id": {
+            "format": "uuid",
+            "title": "From Warehouse Id",
+            "type": "string"
+          },
+          "lot_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Code"
+          },
+          "quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity Base",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "release_movement_group_id": {
+            "format": "uuid",
+            "title": "Release Movement Group Id",
+            "type": "string"
+          },
+          "requested_at": {
+            "title": "Requested At",
+            "type": "string"
+          },
+          "requested_by": {
+            "title": "Requested By",
+            "type": "string"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "source_reference": {
+            "title": "Source Reference",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "to_location_id": {
+            "format": "uuid",
+            "title": "To Location Id",
+            "type": "string"
+          },
+          "to_warehouse_id": {
+            "format": "uuid",
+            "title": "To Warehouse Id",
+            "type": "string"
+          },
+          "transfer_id": {
+            "format": "uuid",
+            "title": "Transfer Id",
+            "type": "string"
+          },
+          "unit_cost": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unit Cost",
+            "type": "string"
+          }
+        },
+        "required": [
+          "transfer_id",
+          "status",
+          "sku_id",
+          "from_warehouse_id",
+          "to_warehouse_id",
+          "from_location_id",
+          "to_location_id",
+          "quantity_base",
+          "unit_cost",
+          "base_currency",
+          "reason",
+          "source_reference",
+          "lot_code",
+          "requested_by",
+          "requested_at",
+          "release_movement_group_id"
+        ],
+        "title": "TransferReleasedItem",
+        "type": "object"
+      },
+      "TransferResponse": {
+        "properties": {
+          "transfer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TransferReceivedItem"
+              },
+              {
+                "$ref": "#/components/schemas/TransferReleasedItem"
+              }
+            ],
+            "title": "Transfer"
+          }
+        },
+        "required": [
+          "transfer"
+        ],
+        "title": "TransferResponse",
         "type": "object"
       },
       "UpdateAddressCommand": {
@@ -18533,6 +18896,513 @@
         "summary": "Rebuild Inventory Projections",
         "tags": [
           "catalog and inventory"
+        ]
+      }
+    },
+    "/v1/inventory/transfers": {
+      "get": {
+        "operationId": "list_transfers_v1_inventory_transfers_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "sku_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sku Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(released|received)?$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from_warehouse_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From Warehouse Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to_warehouse_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To Warehouse Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Transfers",
+        "tags": [
+          "inventory movements"
+        ]
+      },
+      "post": {
+        "operationId": "request_transfer_v1_inventory_transfers_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestTransferCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Request Transfer",
+        "tags": [
+          "inventory movements"
+        ]
+      }
+    },
+    "/v1/inventory/transfers/{transfer_id}": {
+      "get": {
+        "operationId": "get_transfer_v1_inventory_transfers__transfer_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transfer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transfer Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Transfer",
+        "tags": [
+          "inventory movements"
+        ]
+      }
+    },
+    "/v1/inventory/transfers/{transfer_id}/receive": {
+      "post": {
+        "operationId": "receive_transfer_v1_inventory_transfers__transfer_id__receive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transfer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transfer Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceiveTransferCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Receive Transfer",
+        "tags": [
+          "inventory movements"
         ]
       }
     },

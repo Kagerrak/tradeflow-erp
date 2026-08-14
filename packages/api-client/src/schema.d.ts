@@ -1011,6 +1011,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/inventory/transfers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Transfers */
+        get: operations["list_transfers_v1_inventory_transfers_get"];
+        put?: never;
+        /** Request Transfer */
+        post: operations["request_transfer_v1_inventory_transfers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inventory/transfers/{transfer_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Transfer */
+        get: operations["get_transfer_v1_inventory_transfers__transfer_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inventory/transfers/{transfer_id}/receive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receive Transfer */
+        post: operations["receive_transfer_v1_inventory_transfers__transfer_id__receive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organization/bootstrap": {
         parameters: {
             query?: never;
@@ -4975,6 +5027,8 @@ export interface components {
             /** Serial Numbers */
             serial_numbers?: string[];
         };
+        /** ReceiveTransferCommand */
+        ReceiveTransferCommand: Record<string, never>;
         /** RecordPaymentReceiptCommand */
         RecordPaymentReceiptCommand: {
             /** Amount */
@@ -5034,6 +5088,44 @@ export interface components {
             lines: components["schemas"]["CorrectionLine-Input"][];
             /** Reason */
             reason: string;
+        };
+        /** RequestTransferCommand */
+        RequestTransferCommand: {
+            /**
+             * From Location Id
+             * Format: uuid
+             */
+            from_location_id: string;
+            /**
+             * From Warehouse Id
+             * Format: uuid
+             */
+            from_warehouse_id: string;
+            /** Lot Code */
+            lot_code?: string | null;
+            /** Quantity */
+            quantity: number | string;
+            /** Reason */
+            reason: string;
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+            /** Source Reference */
+            source_reference: string;
+            /**
+             * To Location Id
+             * Format: uuid
+             */
+            to_location_id: string;
+            /**
+             * To Warehouse Id
+             * Format: uuid
+             */
+            to_warehouse_id: string;
+            /** Unit Code */
+            unit_code: string;
         };
         /** ReservationLineResponse */
         ReservationLineResponse: {
@@ -5742,6 +5834,139 @@ export interface components {
             tax_code_version_id: string;
             /** Version */
             version: number;
+        };
+        /** TransferListResponse */
+        TransferListResponse: {
+            /** Items */
+            items: (components["schemas"]["TransferReceivedItem"] | components["schemas"]["TransferReleasedItem"])[];
+            /** Total */
+            total: number;
+        };
+        /** TransferReceivedItem */
+        TransferReceivedItem: {
+            /** Base Currency */
+            base_currency: string;
+            /**
+             * From Location Id
+             * Format: uuid
+             */
+            from_location_id: string;
+            /**
+             * From Warehouse Id
+             * Format: uuid
+             */
+            from_warehouse_id: string;
+            /** Lot Code */
+            lot_code: string | null;
+            /** Quantity Base */
+            quantity_base: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Receive Movement Group Id
+             * Format: uuid
+             */
+            receive_movement_group_id: string;
+            /** Received At */
+            received_at: string;
+            /** Received By */
+            received_by: string;
+            /**
+             * Release Movement Group Id
+             * Format: uuid
+             */
+            release_movement_group_id: string;
+            /** Requested At */
+            requested_at: string;
+            /** Requested By */
+            requested_by: string;
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+            /** Source Reference */
+            source_reference: string;
+            /** Status */
+            status: string;
+            /**
+             * To Location Id
+             * Format: uuid
+             */
+            to_location_id: string;
+            /**
+             * To Warehouse Id
+             * Format: uuid
+             */
+            to_warehouse_id: string;
+            /**
+             * Transfer Id
+             * Format: uuid
+             */
+            transfer_id: string;
+            /** Unit Cost */
+            unit_cost: string;
+        };
+        /** TransferReleasedItem */
+        TransferReleasedItem: {
+            /** Base Currency */
+            base_currency: string;
+            /**
+             * From Location Id
+             * Format: uuid
+             */
+            from_location_id: string;
+            /**
+             * From Warehouse Id
+             * Format: uuid
+             */
+            from_warehouse_id: string;
+            /** Lot Code */
+            lot_code: string | null;
+            /** Quantity Base */
+            quantity_base: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Release Movement Group Id
+             * Format: uuid
+             */
+            release_movement_group_id: string;
+            /** Requested At */
+            requested_at: string;
+            /** Requested By */
+            requested_by: string;
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+            /** Source Reference */
+            source_reference: string;
+            /** Status */
+            status: string;
+            /**
+             * To Location Id
+             * Format: uuid
+             */
+            to_location_id: string;
+            /**
+             * To Warehouse Id
+             * Format: uuid
+             */
+            to_warehouse_id: string;
+            /**
+             * Transfer Id
+             * Format: uuid
+             */
+            transfer_id: string;
+            /** Unit Cost */
+            unit_cost: string;
+        };
+        /** TransferResponse */
+        TransferResponse: {
+            /** Transfer */
+            transfer: components["schemas"]["TransferReceivedItem"] | components["schemas"]["TransferReleasedItem"];
         };
         /** UpdateAddressCommand */
         UpdateAddressCommand: {
@@ -10971,6 +11196,316 @@ export interface operations {
             };
             /** @description Stable TradeFlow error envelope. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    list_transfers_v1_inventory_transfers_get: {
+        parameters: {
+            query?: {
+                sku_id?: string | null;
+                status?: string | null;
+                from_warehouse_id?: string | null;
+                to_warehouse_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferListResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    request_transfer_v1_inventory_transfers_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestTransferCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_transfer_v1_inventory_transfers__transfer_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transfer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    receive_transfer_v1_inventory_transfers__transfer_id__receive_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                transfer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReceiveTransferCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

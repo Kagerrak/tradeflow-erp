@@ -1,0 +1,56 @@
+# Inventory transfers (immutable, source-cost)
+
+**Scope:** Warehouse-to-warehouse stock transfers at source cost.
+**Date:** 2026-08-14
+**Issue:** #107 (part 1 of 2; counted-variance adjustments deferred to next slice)
+
+## What changed
+
+- Added `inventory_transfers` table with immutable-history trigger and
+  `released` → `received` transition guard.
+- Extended `stock_movements` with `transfer` movement type and four transfer legs:
+  `transfer_source_out`, `transfer_in_transit_in`, `transfer_in_transit_out`,
+  `transfer_destination_in`.
+- New API capabilities:
+  - `inventory:transfer-request`
+  - `inventory:transfer-receive`
+- New API endpoints under `/v1/inventory`:
+  - `POST /v1/inventory/transfers`
+  - `POST /v1/inventory/transfers/{transfer_id}/receive`
+  - `GET /v1/inventory/transfers`
+  - `GET /v1/inventory/transfers/{transfer_id}`
+- Source cost is preserved: source valuation decreases by
+  `qty × source_moving_average_unit_cost`; destination valuation increases by the
+  same amount. Total company inventory value is unchanged.
+- Lot identity is carried; serial-tracked SKU transfers are rejected for this slice.
+- Commands are idempotent via `Idempotency-Key` and command receipts.
+- Concurrent transfers serialize through per-SKU/warehouse advisory locks and the
+  projection-rebuild lock.
+
+## Web console
+
+- New workspace: `/inventory/transfers`
+- BFF routes:
+  - `/api/inventory/transfers`
+  - `/api/inventory/transfers/{transferId}`
+  - `/api/inventory/transfers/{transferId}/receive`
+- Navigation: "Transfers" added to primary rail and inventory landing page.
+
+## Verification
+
+- `apps/api/tests/test_inventory_transfer_contract.py`
+- `apps/api/tests/test_inventory_transfer_database_invariants.py`
+- `apps/api/tests/test_inventory_transfer_migration.py`
+- `apps/web/tests/inventory-transfers.spec.ts`
+
+## Out of scope
+
+- Counted-variance inventory adjustments (next slice).
+- Serial-tracked SKU transfers.
+- Transfer cancellation after release.
+
+## Related documents
+
+- `docs/adr/0019-immutable-inventory-transfers.md`
+- `contexts/inventory/CONTEXT.md`
+- `checkpoint/WORKFLOW_CHECKPOINT_2026-08-14-inventory-transfers.md`

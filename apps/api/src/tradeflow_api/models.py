@@ -840,7 +840,7 @@ stock_movements = Table(
     CheckConstraint(
         "movement_type IN ('opening_stock', 'pick', 'pick_reversal', 'dispatch', "
         "'delivery_confirmation', 'delivery_exception', 'return_to_warehouse', "
-        "'investigation_resolution', 'delivery_correction', 'goods_receipt')",
+        "'investigation_resolution', 'delivery_correction', 'goods_receipt', 'transfer')",
         name="ck_stock_movements_type",
     ),
     CheckConstraint(
@@ -869,7 +869,10 @@ stock_movements = Table(
         "'correction_exception_replacement_transit_out', "
         "'correction_exception_replacement_investigation_in')) "
         "OR (movement_type = 'goods_receipt' "
-        "AND movement_leg = 'goods_receipt_in')",
+        "AND movement_leg = 'goods_receipt_in') "
+        "OR (movement_type = 'transfer' "
+        "AND movement_leg IN ('transfer_source_out', 'transfer_in_transit_in', "
+        "'transfer_in_transit_out', 'transfer_destination_in'))",
         name="ck_stock_movements_leg",
     ),
     CheckConstraint("quantity_base > 0", name="ck_stock_movements_quantity_positive"),
@@ -930,6 +933,81 @@ stock_serial_allocations = Table(
     Column("sku_id", PostgresUUID(as_uuid=True), ForeignKey("skus.sku_id"), nullable=False),
     Column("serial_number", String(100), nullable=False, unique=True),
     Column("expiration_date", Date, nullable=True),
+)
+
+inventory_transfers = Table(
+    "inventory_transfers",
+    metadata,
+    Column("transfer_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column("sku_id", PostgresUUID(as_uuid=True), ForeignKey("skus.sku_id"), nullable=False),
+    Column(
+        "from_warehouse_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouses.warehouse_id"),
+        nullable=False,
+    ),
+    Column(
+        "to_warehouse_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouses.warehouse_id"),
+        nullable=False,
+    ),
+    Column(
+        "from_location_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouse_stock_locations.location_id"),
+        nullable=False,
+    ),
+    Column(
+        "to_location_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouse_stock_locations.location_id"),
+        nullable=False,
+    ),
+    Column("quantity_base", Numeric(18, 6), nullable=False),
+    Column("unit_cost", Numeric(18, 6), nullable=False),
+    Column("base_currency", String(3), nullable=False),
+    Column("status", String(20), nullable=False, server_default="released"),
+    Column("reason", String(500), nullable=False),
+    Column("source_reference", String(100), nullable=False),
+    Column("lot_code", String(100), nullable=True),
+    Column("requested_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("requested_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("received_by", String(200), ForeignKey("users.subject"), nullable=True),
+    Column("received_at", DateTime(timezone=True), nullable=True),
+    Column("release_movement_group_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("receive_movement_group_id", PostgresUUID(as_uuid=True), nullable=True),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    CheckConstraint(
+        "status IN ('released', 'received')",
+        name="ck_inventory_transfers_status",
+    ),
+    CheckConstraint("quantity_base > 0", name="ck_inventory_transfers_quantity"),
+    CheckConstraint("btrim(reason) <> ''", name="ck_inventory_transfers_reason"),
+    CheckConstraint(
+        "unit_cost >= 0",
+        name="ck_inventory_transfers_unit_cost",
+    ),
+    CheckConstraint(
+        "(status = 'released' AND received_by IS NULL AND received_at IS NULL "
+        "AND receive_movement_group_id IS NULL) "
+        "OR (status = 'received' AND received_by IS NOT NULL AND received_at IS NOT NULL "
+        "AND receive_movement_group_id IS NOT NULL)",
+        name="ck_inventory_transfers_received_shape",
+    ),
+    Index(
+        "ix_inventory_transfers_sku_from",
+        "sku_id",
+        "from_warehouse_id",
+        "status",
+    ),
+    Index(
+        "ix_inventory_transfers_sku_to",
+        "sku_id",
+        "to_warehouse_id",
+        "status",
+    ),
 )
 
 inventory_availability = Table(
