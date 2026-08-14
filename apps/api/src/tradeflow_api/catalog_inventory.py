@@ -180,7 +180,9 @@ class LocationResponse(BaseModel):
     warehouse_id: UUID
     code: str
     name: str
-    custody: Literal["available", "quarantine", "dispatch_staging", "in_transit"]
+    custody: Literal[
+        "available", "quarantine", "dispatch_staging", "in_transit", "transfer_in_transit"
+    ]
     version: int
 
 
@@ -220,7 +222,9 @@ class AvailabilityItem(BaseModel):
     warehouse_id: UUID
     warehouse_code: str
     location_code: str
-    custody: Literal["available", "quarantine", "dispatch_staging", "in_transit"]
+    custody: Literal[
+        "available", "quarantine", "dispatch_staging", "in_transit", "transfer_in_transit"
+    ]
     base_stocking_unit: str
     tracking_policy: Literal["untracked", "lot", "serial"]
     expiration_control: bool

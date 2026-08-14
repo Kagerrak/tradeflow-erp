@@ -19,10 +19,12 @@
   - `POST /v1/inventory/transfers/{transfer_id}/receive`
   - `GET /v1/inventory/transfers`
   - `GET /v1/inventory/transfers/{transfer_id}`
-- Source cost is preserved: release retains quantity and value under the source
-  Warehouse while custody is in transit; receipt reduces source valuation and
-  increases destination valuation by the same amount. Total Company inventory
-  value is unchanged throughout.
+- The proposed valuation policy preserves source cost: release retains quantity
+  and value under the source Warehouse while custody is in transit; receipt
+  reduces source valuation and increases destination valuation by the same
+  amount. Total Company inventory value is unchanged throughout. This timing
+  remains pending explicit business approval under ADR-0019.
+- Transfer In Transit uses dedicated custody, distinct from Delivery In Transit.
 - Lot expiration is preserved on every movement leg and projection rebuild.
 - Lot identity is carried; serial-tracked SKU transfers are rejected for this slice.
 - Commands are idempotent via `Idempotency-Key` and command receipts.
@@ -32,6 +34,8 @@
   receive work is retried after an ambiguous network failure.
 - Concurrent transfers serialize through per-SKU/warehouse advisory locks and the
   projection-rebuild lock.
+- The database boundary requires complete, balanced release and receipt movement
+  groups before accepting the corresponding Transfer lifecycle state.
 
 ## Web console
 
@@ -54,6 +58,11 @@
 - Counted-variance inventory adjustments (next slice).
 - Serial-tracked SKU transfers.
 - Transfer cancellation after release.
+
+## Decision required
+
+- Approve or revise ADR-0019's proposed Warehouse valuation-ownership timing.
+  The slice must not merge while that material business policy remains pending.
 
 ## Related documents
 

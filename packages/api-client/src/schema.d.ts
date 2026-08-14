@@ -1782,7 +1782,7 @@ export interface components {
              * Custody
              * @enum {string}
              */
-            custody: "available" | "quarantine" | "dispatch_staging" | "in_transit";
+            custody: "available" | "quarantine" | "dispatch_staging" | "in_transit" | "transfer_in_transit";
             /** Expiration Control */
             expiration_control: boolean;
             /** Expiration Date */
@@ -4041,7 +4041,7 @@ export interface components {
              * Custody
              * @enum {string}
              */
-            custody: "available" | "quarantine" | "dispatch_staging" | "in_transit";
+            custody: "available" | "quarantine" | "dispatch_staging" | "in_transit" | "transfer_in_transit";
             /**
              * Location Id
              * Format: uuid

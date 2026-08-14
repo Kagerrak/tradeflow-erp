@@ -773,7 +773,8 @@ warehouse_stock_locations = Table(
     Column("version", Integer, nullable=False, server_default="1"),
     Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
     CheckConstraint(
-        "custody IN ('available', 'quarantine', 'dispatch_staging', 'in_transit', 'investigation')",
+        "custody IN ('available', 'quarantine', 'dispatch_staging', 'in_transit', "
+        "'transfer_in_transit', 'investigation')",
         name="ck_warehouse_stock_locations_custody",
     ),
     UniqueConstraint("warehouse_id", "code", name="uq_warehouse_stock_location_code"),
@@ -790,6 +791,13 @@ Index(
     warehouse_stock_locations.c.warehouse_id,
     unique=True,
     postgresql_where=(warehouse_stock_locations.c.custody == "in_transit")
+    & warehouse_stock_locations.c.is_active,
+)
+Index(
+    "uq_warehouse_active_transfer_in_transit",
+    warehouse_stock_locations.c.warehouse_id,
+    unique=True,
+    postgresql_where=(warehouse_stock_locations.c.custody == "transfer_in_transit")
     & warehouse_stock_locations.c.is_active,
 )
 Index(

@@ -17,6 +17,16 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     statements = """
+      ALTER TABLE warehouse_stock_locations
+        DROP CONSTRAINT ck_warehouse_stock_locations_custody;
+      ALTER TABLE warehouse_stock_locations
+        ADD CONSTRAINT ck_warehouse_stock_locations_custody CHECK (
+          custody IN ('available','quarantine','dispatch_staging','in_transit',
+            'transfer_in_transit','investigation')
+        );
+      CREATE UNIQUE INDEX uq_warehouse_active_transfer_in_transit
+        ON warehouse_stock_locations(warehouse_id)
+        WHERE custody = 'transfer_in_transit' AND is_active;
       ALTER TABLE stock_movements DROP CONSTRAINT ck_stock_movements_type;
       ALTER TABLE stock_movements DROP CONSTRAINT ck_stock_movements_leg;
       ALTER TABLE stock_movements ADD CONSTRAINT ck_stock_movements_type CHECK (
@@ -98,8 +108,94 @@ def upgrade() -> None:
 
     op.execute(
         """
+        CREATE FUNCTION inventory_transfer_group_is_valid(
+          target_group_id uuid,
+          target_transfer_id uuid,
+          target_phase varchar,
+          target_sku_id uuid,
+          target_from_warehouse_id uuid,
+          target_to_warehouse_id uuid,
+          target_from_location_id uuid,
+          target_to_location_id uuid,
+          target_quantity numeric,
+          target_unit_cost numeric,
+          target_currency varchar
+        ) RETURNS boolean LANGUAGE sql STABLE AS $$
+          WITH expected AS (
+            SELECT round(
+              target_quantity * target_unit_cost,
+              CASE
+                WHEN target_currency IN (
+                  'BIF','CLP','DJF','GNF','ISK','JPY','KMF','KRW','PYG','RWF','UGX',
+                  'VND','VUV','XAF','XOF','XPF'
+                ) THEN 0
+                WHEN target_currency IN ('BHD','IQD','JOD','KWD','LYD','OMR','TND') THEN 3
+                WHEN target_currency IN ('CLF','UYW') THEN 4
+                ELSE 2
+              END
+            ) AS inventory_value
+          ), group_rows AS (
+            SELECT movement.*, location.custody
+            FROM stock_movements movement
+            JOIN warehouse_stock_locations location
+              ON location.location_id = movement.location_id
+            WHERE movement.movement_group_id = target_group_id
+              AND movement.movement_type = 'transfer'
+              AND movement.sku_id = target_sku_id
+              AND movement.quantity_base = target_quantity
+              AND movement.unit_cost = target_unit_cost
+              AND movement.base_currency = target_currency
+              AND movement.source_reference = 'TRANSFER:' || target_transfer_id
+          )
+          SELECT (SELECT count(*) FROM stock_movements
+                  WHERE movement_group_id = target_group_id) = 2
+             AND (SELECT count(*) FROM group_rows) = 2
+             AND CASE target_phase
+               WHEN 'release' THEN
+                 (SELECT count(*) FROM group_rows, expected
+                  WHERE movement_leg = 'transfer_source_out'
+                    AND warehouse_id = target_from_warehouse_id
+                    AND location_id = target_from_location_id
+                    AND custody = 'available'
+                    AND value_delta = -expected.inventory_value) = 1
+                 AND
+                 (SELECT count(*) FROM group_rows, expected
+                  WHERE movement_leg = 'transfer_in_transit_in'
+                    AND warehouse_id = target_from_warehouse_id
+                    AND custody = 'transfer_in_transit'
+                    AND value_delta = expected.inventory_value) = 1
+               WHEN 'receive' THEN
+                 (SELECT count(*) FROM group_rows, expected
+                  WHERE movement_leg = 'transfer_in_transit_out'
+                    AND warehouse_id = target_from_warehouse_id
+                    AND custody = 'transfer_in_transit'
+                    AND value_delta = -expected.inventory_value) = 1
+                 AND
+                 (SELECT count(*) FROM group_rows, expected
+                  WHERE movement_leg = 'transfer_destination_in'
+                    AND warehouse_id = target_to_warehouse_id
+                    AND location_id = target_to_location_id
+                    AND custody = 'available'
+                    AND value_delta = expected.inventory_value) = 1
+               ELSE false
+             END
+        $$
+        """
+    )
+    op.execute(
+        """
         CREATE FUNCTION reject_inventory_transfer_mutation() RETURNS trigger AS $$
         BEGIN
+          IF TG_OP = 'INSERT'
+             AND NEW.status = 'released'
+             AND inventory_transfer_group_is_valid(
+               NEW.release_movement_group_id, NEW.transfer_id, 'release', NEW.sku_id,
+               NEW.from_warehouse_id, NEW.to_warehouse_id,
+               NEW.from_location_id, NEW.to_location_id,
+               NEW.quantity_base, NEW.unit_cost, NEW.base_currency
+             ) THEN
+            RETURN NEW;
+          END IF;
           IF TG_OP = 'UPDATE' AND OLD.status = 'released' AND NEW.status = 'received'
              AND OLD.received_by IS NULL AND OLD.received_at IS NULL
              AND OLD.receive_movement_group_id IS NULL
@@ -109,7 +205,19 @@ def upgrade() -> None:
              AND (to_jsonb(OLD) - 'status' - 'version' - 'received_by' - 'received_at'
                   - 'receive_movement_group_id')
                  = (to_jsonb(NEW) - 'status' - 'version' - 'received_by' - 'received_at'
-                    - 'receive_movement_group_id') THEN
+                    - 'receive_movement_group_id')
+             AND inventory_transfer_group_is_valid(
+               NEW.release_movement_group_id, NEW.transfer_id, 'release', NEW.sku_id,
+               NEW.from_warehouse_id, NEW.to_warehouse_id,
+               NEW.from_location_id, NEW.to_location_id,
+               NEW.quantity_base, NEW.unit_cost, NEW.base_currency
+             )
+             AND inventory_transfer_group_is_valid(
+               NEW.receive_movement_group_id, NEW.transfer_id, 'receive', NEW.sku_id,
+               NEW.from_warehouse_id, NEW.to_warehouse_id,
+               NEW.from_location_id, NEW.to_location_id,
+               NEW.quantity_base, NEW.unit_cost, NEW.base_currency
+             ) THEN
             RETURN NEW;
           END IF;
           RAISE EXCEPTION 'Inventory Transfer history is immutable';
@@ -119,7 +227,7 @@ def upgrade() -> None:
     )
     op.execute(
         """CREATE TRIGGER trg_inventory_transfers_immutable
-        BEFORE UPDATE OR DELETE ON inventory_transfers
+        BEFORE INSERT OR UPDATE OR DELETE ON inventory_transfers
         FOR EACH ROW EXECUTE FUNCTION reject_inventory_transfer_mutation()"""
     )
 
@@ -137,9 +245,22 @@ def downgrade() -> None:
     )
     op.execute("DROP TRIGGER IF EXISTS trg_inventory_transfers_immutable ON inventory_transfers")
     op.execute("DROP FUNCTION IF EXISTS reject_inventory_transfer_mutation()")
+    op.execute(
+        "DROP FUNCTION IF EXISTS inventory_transfer_group_is_valid("
+        "uuid,uuid,varchar,uuid,uuid,uuid,uuid,uuid,numeric,numeric,varchar)"
+    )
     op.execute("DROP INDEX IF EXISTS ix_inventory_transfers_sku_to")
     op.execute("DROP INDEX IF EXISTS ix_inventory_transfers_sku_from")
     op.execute("DROP TABLE inventory_transfers")
+    op.execute("DROP INDEX IF EXISTS uq_warehouse_active_transfer_in_transit")
+    op.execute(
+        "ALTER TABLE warehouse_stock_locations DROP CONSTRAINT ck_warehouse_stock_locations_custody"
+    )
+    op.execute(
+        "ALTER TABLE warehouse_stock_locations ADD CONSTRAINT "
+        "ck_warehouse_stock_locations_custody CHECK (custody IN "
+        "('available','quarantine','dispatch_staging','in_transit','investigation'))"
+    )
     op.execute("ALTER TABLE stock_movements DROP CONSTRAINT ck_stock_movements_type")
     op.execute("ALTER TABLE stock_movements DROP CONSTRAINT ck_stock_movements_leg")
     op.execute(

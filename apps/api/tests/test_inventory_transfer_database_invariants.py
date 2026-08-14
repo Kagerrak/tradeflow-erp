@@ -9,6 +9,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 from test_inventory_transfer_contract import (
+    _auth,
     _bootstrap_transfer_environment,
     _create_released_transfer,
     transfer_client,
@@ -86,23 +87,39 @@ async def test_inventory_transfer_received_shape_is_enforced(
 
 
 @pytest.mark.asyncio
-async def test_inventory_transfer_status_transition_is_allowed(
+async def test_inventory_transfer_status_transition_requires_receive_movements(
     transfer_env: dict[str, object],
 ) -> None:
     transfer_id = transfer_env["transfer_id"]
     postgres_url = str(transfer_env["settings"].database_url)
     engine = create_async_engine(postgres_url)
-    async with engine.begin() as connection:
-        await connection.execute(
-            text(
-                "UPDATE inventory_transfers SET status = 'received', "
-                "version = version + 1, "
-                "received_by = requested_by, received_at = now(), "
-                "receive_movement_group_id = release_movement_group_id "
-                "WHERE transfer_id = :transfer_id"
-            ),
-            {"transfer_id": transfer_id},
-        )
+    with pytest.raises(Exception, match="Inventory Transfer history is immutable"):  # noqa: B017
+        async with engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "UPDATE inventory_transfers SET status = 'received', "
+                    "version = version + 1, "
+                    "received_by = requested_by, received_at = now(), "
+                    "receive_movement_group_id = release_movement_group_id "
+                    "WHERE transfer_id = :transfer_id"
+                ),
+                {"transfer_id": transfer_id},
+            )
+
+    client = transfer_env["client"]
+    settings = transfer_env["settings"]
+    received = await client.post(
+        f"/v1/inventory/transfers/{transfer_id}/receive",
+        headers=_auth(
+            settings,
+            "warehouse-cross",
+            **{"Idempotency-Key": f"invariant-receive-{uuid4()}"},
+        ),
+        json={"expected_version": 1},
+    )
+    assert received.status_code == 201, received.text
+
+    async with engine.connect() as connection:
         result = await connection.execute(
             text(
                 "SELECT status, version FROM inventory_transfers WHERE transfer_id = :transfer_id"

@@ -1,8 +1,9 @@
 # TradeFlow workflow checkpoint
 
 - Date: August 14, 2026
-- Phase: Issue #107 part 1 ready for review — immutable warehouse stock transfers
-  at source cost
+- Last reconciled: August 15, 2026
+- Phase: Issue #107 part 1 implemented; current-head final review and CI gate
+  pending, with valuation timing awaiting explicit business approval
 - Branch: `feature/inventory-transfers`
 - Base branch: `main`
 - Release PR: #114 (draft)
@@ -13,7 +14,10 @@
   - Extended `ck_stock_movements_type` and `ck_stock_movements_leg` with
     `transfer` legs.
   - Created `inventory_transfers` table with immutable-history trigger and
-    received-shape, positive-version, and monotonic-transition guards.
+    received-shape, positive-version, monotonic-transition, and complete balanced
+    movement-group guards.
+  - Added dedicated Transfer In Transit custody and its single-active-location
+    invariant, distinct from Delivery In Transit.
   - Blocked downgrade when transfer history or movement rows exist.
 - Expanded `apps/api/src/tradeflow_api/models.py` with transfer constraints and
   the `inventory_transfers` table.
@@ -42,9 +46,10 @@
   response header, and require the expected Transfer version at receipt.
 - Preserve Lot Identity and expiration on all four movement legs and during
   projection rebuild.
-- Keep source Warehouse valuation intact while stock is in transfer custody;
-  receipt moves source quantity and value to the destination at captured source
-  cost without changing total Company value.
+- Implement the ADR-0019 proposal to keep source Warehouse valuation intact while
+  stock is in transfer custody; receipt moves source quantity and value to the
+  destination at captured source cost without changing total Company value.
+  Explicit business approval of this timing is still required before merge.
 - Added contract tests (`apps/api/tests/test_inventory_transfer_contract.py`),
   database invariant tests
   (`apps/api/tests/test_inventory_transfer_database_invariants.py`), and
@@ -54,9 +59,10 @@
   `contexts/catalog-inventory/CONTEXT.md`, and release notes at
   `docs/release-notes/inventory-transfers-2026-08-14.md`.
 
-## Verification evidence
+## Historical verification evidence
 
-All gates passed on `feature/inventory-transfers`:
+The prior pre-reconciliation head passed these gates. They do not qualify the
+current head after its merge from `main` and safety corrections:
 
 - `uv run ruff check apps/api/src apps/api/tests apps/worker/src` — passed.
 - `uv run ruff format --check .` — passed.
@@ -81,7 +87,13 @@ All gates passed on `feature/inventory-transfers`:
 - `git diff --check` — passed.
 - Alembic `downgrade base` / `upgrade head` full migration cycle — passed.
 
-## Final review
+## Current-head verification
+
+- Focused transfer Python suite — **16 passed** on August 15, 2026.
+- Ruff checks for all touched Python implementation and test files — passed.
+- One final review and one complete CI gate remain pending.
+
+## Historical review
 
 - One independent standards/specification review found two P1 stock/rebuild
   issues and two P2 contract/domain-document issues.
@@ -92,13 +104,17 @@ All gates passed on `feature/inventory-transfers`:
 - Deferred one P3 BFF helper duplication finding; it does not affect transfer
   correctness or replacement risk.
 
-## Closed / ready for review
+The current reconciled head requires its one final review after implementation
+and focused verification are complete.
+
+## Implemented / pending qualification
 
 - Issue #107 part 1 — Immutable warehouse stock transfers at source cost.
 
 ## Shipped
 
-- Not merged; this is a green draft PR awaiting review.
+- Not merged. Current-head review, CI, and the explicit valuation policy decision
+  are pending.
 
 ## Residual risks and follow-ups
 

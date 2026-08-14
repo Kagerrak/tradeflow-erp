@@ -187,6 +187,15 @@ async def _load_transfer_context(
                 "lot_identity_not_found",
                 "The requested Lot Identity does not exist for this SKU.",
             )
+        if sku["expiration_control"] and (
+            lot_identity["expiration_date"] is None
+            or lot_identity["expiration_date"] < date.today()
+        ):
+            raise AppError(
+                409,
+                "expired_lot_transfer_forbidden",
+                "Expired Lot Identity cannot be released for Inventory Transfer.",
+            )
 
     factor = await _resolve_conversion_factor(
         session,
@@ -524,6 +533,16 @@ async def request_transfer(
         text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
         {"key": f"inventory-transfer-request:{command.from_warehouse_id}:{sku['sku_id']}"},
     )
+    replay = await get_command_replay(
+        session,
+        actor_subject=actor.subject,
+        idempotency_key=idempotency_key,
+        request_hash=request_hash,
+    )
+    if replay is not None:
+        response.status_code = 200
+        response.headers["X-Idempotency-Replayed"] = "true"
+        return TransferResponse.model_validate(replay)
 
     await _ensure_source_available(
         session,
@@ -549,7 +568,7 @@ async def request_transfer(
     in_transit_location_id = await ensure_custody_location(
         session,
         warehouse_id=command.from_warehouse_id,
-        custody="in_transit",
+        custody="transfer_in_transit",
         actor_subject=actor.subject,
     )
 
@@ -677,6 +696,7 @@ async def request_transfer(
         request_hash=request_hash,
         result=result,
     )
+    response.headers["X-Idempotency-Replayed"] = "false"
     await session.commit()
     return result
 
@@ -732,6 +752,16 @@ async def receive_transfer(
         text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
         {"key": f"inventory-transfer:{transfer_id}"},
     )
+    replay = await get_command_replay(
+        session,
+        actor_subject=actor.subject,
+        idempotency_key=idempotency_key,
+        request_hash=request_hash,
+    )
+    if replay is not None:
+        response.status_code = 200
+        response.headers["X-Idempotency-Replayed"] = "true"
+        return TransferResponse.model_validate(replay)
 
     transfer = await _load_transfer_for_receive(
         session,
@@ -748,7 +778,7 @@ async def receive_transfer(
     in_transit_location_id = await ensure_custody_location(
         session,
         warehouse_id=transfer["from_warehouse_id"],
-        custody="in_transit",
+        custody="transfer_in_transit",
         actor_subject=actor.subject,
     )
 
@@ -892,6 +922,7 @@ async def receive_transfer(
         request_hash=request_hash,
         result=result,
     )
+    response.headers["X-Idempotency-Replayed"] = "false"
     await session.commit()
     return result
 

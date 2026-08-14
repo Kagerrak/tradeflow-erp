@@ -680,7 +680,8 @@
               "available",
               "quarantine",
               "dispatch_staging",
-              "in_transit"
+              "in_transit",
+              "transfer_in_transit"
             ],
             "title": "Custody",
             "type": "string"
@@ -6348,7 +6349,8 @@
               "available",
               "quarantine",
               "dispatch_staging",
-              "in_transit"
+              "in_transit",
+              "transfer_in_transit"
             ],
             "title": "Custody",
             "type": "string"

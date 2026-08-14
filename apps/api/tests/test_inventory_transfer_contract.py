@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID, uuid4
 
@@ -342,6 +343,14 @@ async def test_transfer_request_and_receive_happy_path(transfer_env: dict[str, o
     assert data["unit_cost"] == "10.000000"
     assert data["base_currency"] == "PHP"
     transfer_id = data["transfer_id"]
+    transfer_custody = await _availability_for(
+        client, settings, sku_id, from_warehouse_id, "TRANSFER-IN-TRANSIT"
+    )
+    assert transfer_custody is not None
+    assert transfer_custody["custody"] == "transfer_in_transit"
+    # The module fixture keeps a separate 10-unit transfer released so list and
+    # receive tests can share a stable command target.
+    assert Decimal(transfer_custody["on_hand"]) == Decimal("50")
 
     replay = await client.post(
         "/v1/inventory/transfers",
@@ -428,6 +437,63 @@ async def test_transfer_request_and_receive_happy_path(transfer_env: dict[str, o
     rebuilt_destination = await _valuation_for(client, settings, sku_id, to_warehouse_id)
     assert rebuilt_source == source_after
     assert rebuilt_destination == dest_after
+
+
+@pytest.mark.asyncio
+async def test_concurrent_identical_transfer_commands_replay_one_effect(
+    transfer_env: dict[str, object],
+) -> None:
+    client = transfer_env["client"]
+    settings = transfer_env["settings"]
+    command = {
+        "sku_id": str(transfer_env["sku_id"]),
+        "from_warehouse_id": str(transfer_env["mnl_warehouse_id"]),
+        "to_warehouse_id": str(transfer_env["ceb_warehouse_id"]),
+        "from_location_id": str(transfer_env["mnl_location_id"]),
+        "to_location_id": str(transfer_env["ceb_location_id"]),
+        "quantity": "5.000000",
+        "unit_code": "EA",
+        "reason": "Concurrent retry verification.",
+        "source_reference": "CONCURRENT-RETRY",
+    }
+    request_headers = _auth(
+        settings,
+        "warehouse-cross",
+        **{"Idempotency-Key": f"concurrent-transfer-{uuid4()}"},
+    )
+    requests = await asyncio.gather(
+        *[
+            client.post("/v1/inventory/transfers", headers=request_headers, json=command)
+            for _ in range(2)
+        ]
+    )
+    assert sorted(response.status_code for response in requests) == [200, 201]
+    assert requests[0].json() == requests[1].json()
+    assert sorted(
+        response.headers.get("X-Idempotency-Replayed", "false") for response in requests
+    ) == ["false", "true"]
+
+    transfer_id = requests[0].json()["transfer"]["transfer_id"]
+    receive_headers = _auth(
+        settings,
+        "warehouse-cross",
+        **{"Idempotency-Key": f"concurrent-receive-{uuid4()}"},
+    )
+    receives = await asyncio.gather(
+        *[
+            client.post(
+                f"/v1/inventory/transfers/{transfer_id}/receive",
+                headers=receive_headers,
+                json={"expected_version": 1},
+            )
+            for _ in range(2)
+        ]
+    )
+    assert sorted(response.status_code for response in receives) == [200, 201]
+    assert receives[0].json() == receives[1].json()
+    assert sorted(
+        response.headers.get("X-Idempotency-Replayed", "false") for response in receives
+    ) == ["false", "true"]
 
 
 @pytest.mark.asyncio
@@ -638,6 +704,8 @@ async def _setup_transfer_with_lot(
     postgres_url: str,
     client: AsyncClient,
     settings: Settings,
+    *,
+    expiration_date: str = "2027-12-31",
 ) -> dict[str, object]:
     sku = await client.post(
         "/v1/catalog/skus",
@@ -696,7 +764,7 @@ async def _setup_transfer_with_lot(
             "unit_cost": "8.000000",
             "source_reference": "LOT-OPENING",
             "lot_code": "LOT-A",
-            "expiration_date": "2027-12-31",
+            "expiration_date": expiration_date,
         },
     )
     assert opening.status_code == 201, opening.text
@@ -771,6 +839,52 @@ async def test_transfer_lot_identity_is_carried(
     assert rebuilt_dest_item["lot_code"] == "LOT-A"
     assert rebuilt_dest_item["expiration_date"] == "2027-12-31"
     assert Decimal(rebuilt_dest_item["on_hand"]) == Decimal("20")
+
+
+@pytest.mark.asyncio
+async def test_transfer_rejects_lot_that_expired_after_receipt(
+    transfer_env: dict[str, object],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = transfer_env["client"]
+    settings = transfer_env["settings"]
+    tomorrow = date.today() + timedelta(days=1)
+    lot_fixture = await _setup_transfer_with_lot(
+        str(settings.database_url),
+        client,
+        settings,
+        expiration_date=tomorrow.isoformat(),
+    )
+
+    class AfterExpiration(date):
+        @classmethod
+        def today(cls) -> date:
+            return tomorrow + timedelta(days=1)
+
+    monkeypatch.setattr("tradeflow_api.inventory_movements.date", AfterExpiration)
+
+    response = await client.post(
+        "/v1/inventory/transfers",
+        headers=_auth(
+            settings,
+            "warehouse-cross",
+            **{"Idempotency-Key": f"transfer-expired-lot-{uuid4()}"},
+        ),
+        json={
+            "sku_id": str(lot_fixture["sku_id"]),
+            "from_warehouse_id": str(lot_fixture["warehouse_id"]),
+            "to_warehouse_id": str(transfer_env["ceb_warehouse_id"]),
+            "from_location_id": str(lot_fixture["location_id"]),
+            "to_location_id": str(transfer_env["ceb_location_id"]),
+            "quantity": "1.000000",
+            "unit_code": "EA",
+            "reason": "Expired lot must not move outbound.",
+            "source_reference": "EXPIRED-LOT",
+            "lot_code": "LOT-A",
+        },
+    )
+    assert response.status_code == 409, response.text
+    assert response.json()["error"]["code"] == "expired_lot_transfer_forbidden"
 
 
 @pytest.mark.asyncio

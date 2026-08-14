@@ -114,6 +114,16 @@ async def test_inventory_transfer_migration_round_trip(
     async with engine.begin() as connection:
         await connection.execute(text("TRUNCATE TABLE inventory_transfers CASCADE"))
         await connection.execute(text("TRUNCATE TABLE stock_movements CASCADE"))
+        await connection.execute(
+            text(
+                "DELETE FROM inventory_availability WHERE location_id IN ("
+                "SELECT location_id FROM warehouse_stock_locations "
+                "WHERE custody = 'transfer_in_transit')"
+            )
+        )
+        await connection.execute(
+            text("DELETE FROM warehouse_stock_locations WHERE custody = 'transfer_in_transit'")
+        )
     await engine.dispose()
 
     # Empty downgrade to the credit-note merge baseline and re-upgrade succeeds.
@@ -156,9 +166,21 @@ async def test_inventory_transfer_migration_schema_includes_expected_objects(
                 )
             ).mappings()
         }
+        transfer_custody_index = await connection.scalar(
+            text("SELECT to_regclass('uq_warehouse_active_transfer_in_transit')")
+        )
+        transfer_group_guard = await connection.scalar(
+            text(
+                "SELECT to_regprocedure('inventory_transfer_group_is_valid("
+                "uuid,uuid,character varying,uuid,uuid,uuid,uuid,uuid,numeric,numeric,"
+                "character varying)')"
+            )
+        )
     await engine.dispose()
 
     assert "inventory_transfers" in tables
     # The table exists; constraint validation is covered by model parity and
     # contract tests. The empty result above just confirms the connection.
     assert movement_types == set()
+    assert transfer_custody_index is not None
+    assert transfer_group_guard is not None
