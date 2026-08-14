@@ -1,6 +1,6 @@
 # ADR-0019: Immutable warehouse stock transfers at source cost
 
-- Status: Accepted
+- Status: Proposed — transfer valuation timing requires explicit business approval
 - Date: 2026-08-14
 
 ## Context

@@ -116,3 +116,11 @@ supporting evidence.
 
 **Expense Claim**: A request for reimbursement. It is not a posted expense until
 approved under the configured policy.
+
+**Expense Category**: An effective-dated classification used to apply Expense
+Policy and reporting rules. A posted Expense retains the Category version it
+used.
+
+**Expense Policy**: An effective-dated set of evidence, amount, currency,
+attribution, and approval requirements applied to an Expense Claim. Published
+versions are immutable; exceptions require explicit approval evidence.
