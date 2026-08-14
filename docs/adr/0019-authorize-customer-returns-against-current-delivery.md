@@ -1,4 +1,4 @@
-# ADR-0018: Authorize customer returns against current delivered quantity
+# ADR-0019: Authorize customer returns against current delivered quantity
 
 - Status: Accepted
 - Date: 2026-08-13

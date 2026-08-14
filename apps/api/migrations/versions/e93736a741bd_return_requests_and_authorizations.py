@@ -1,7 +1,7 @@
 """Add immutable Return Requests and maker-checker authorizations.
 
 Revision ID: e93736a741bd
-Revises: d524a29c32b8
+Revises: 0017
 Create Date: 2026-08-13
 """
 
@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from alembic import op
 
 revision: str = "e93736a741bd"
-down_revision: str | None = "d524a29c32b8"
+down_revision: str | None = "0017"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

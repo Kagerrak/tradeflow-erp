@@ -16,7 +16,7 @@ async def test_return_authorization_migration_upgrade_downgrade_reupgrade(
     config = Config("apps/api/alembic.ini")
     config.set_main_option("sqlalchemy.url", postgres_url)
     try:
-        await asyncio.to_thread(command.downgrade, config, "d524a29c32b8")
+        await asyncio.to_thread(command.downgrade, config, "0017")
         engine = create_async_engine(postgres_url)
         async with engine.connect() as connection:
             assert await connection.scalar(text("SELECT to_regclass('return_requests')")) is None

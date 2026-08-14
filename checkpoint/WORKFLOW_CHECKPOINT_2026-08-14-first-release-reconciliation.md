@@ -28,10 +28,9 @@
 - PR #114 completed its agent final review and remote CI gate. GitHub/human
   review remains pending, and Inventory Transfer does not count as complete
   without explicit merge approval and merge.
-- PR #112 remains draft and stacked on PR #111. Its Return Authorization work
-  has migration `e93736a741bd` descending from `d524a29c32b8`, bypassing the
-  current Credit Note merge head `0017`; it requires reconciliation onto
-  current `main` before final review and a new full gate.
+- PR #112 is now retargeted and reconciled onto current `main`. Its Return
+  Authorization migration `e93736a741bd` descends from the Credit Note merge
+  head `0017`; final review and a new full gate remain pending.
 - Decisions #63 and #64 still require named business/finance-owner judgment.
 - Issue #115 now owns the authorized final production migration and cutover
   control-total reconciliation after the explicit Go decision.
@@ -48,9 +47,9 @@
 
 ## Next dependency
 
-- Human review and explicit merge approval for PR #111.
-- After PR #111 is integrated, reconcile PR #112 onto the current migration and
-  Finance foundation; do not treat its historical green run as current evidence.
+- PR #111 merged with explicit approval as `5832ba6`.
+- Complete final review and a current-head full gate for PR #112; do not treat
+  its historical stacked green run as current evidence.
 
 ## Merge status
 
