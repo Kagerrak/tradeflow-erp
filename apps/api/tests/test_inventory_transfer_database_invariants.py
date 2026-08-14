@@ -96,15 +96,20 @@ async def test_inventory_transfer_status_transition_is_allowed(
         await connection.execute(
             text(
                 "UPDATE inventory_transfers SET status = 'received', "
+                "version = version + 1, "
                 "received_by = requested_by, received_at = now(), "
                 "receive_movement_group_id = release_movement_group_id "
                 "WHERE transfer_id = :transfer_id"
             ),
             {"transfer_id": transfer_id},
         )
-        row = await connection.execute(
-            text("SELECT status FROM inventory_transfers WHERE transfer_id = :transfer_id"),
+        result = await connection.execute(
+            text(
+                "SELECT status, version FROM inventory_transfers WHERE transfer_id = :transfer_id"
+            ),
             {"transfer_id": transfer_id},
         )
-        assert row.mappings().one()["status"] == "received"
+        row = result.mappings().one()
+        assert row["status"] == "received"
+        assert row["version"] == 2
     await engine.dispose()

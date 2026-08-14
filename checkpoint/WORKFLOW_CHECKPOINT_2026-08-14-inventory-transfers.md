@@ -5,7 +5,7 @@
   at source cost
 - Branch: `feature/inventory-transfers`
 - Base branch: `main`
-- Release PR: (draft)
+- Release PR: #114 (draft)
 
 ## Established
 
@@ -13,7 +13,7 @@
   - Extended `ck_stock_movements_type` and `ck_stock_movements_leg` with
     `transfer` legs.
   - Created `inventory_transfers` table with immutable-history trigger and
-    received-shape guard.
+    received-shape, positive-version, and monotonic-transition guards.
   - Blocked downgrade when transfer history or movement rows exist.
 - Expanded `apps/api/src/tradeflow_api/models.py` with transfer constraints and
   the `inventory_transfers` table.
@@ -35,13 +35,23 @@
   - `apps/web/app/api/inventory/transfers/[transferId]/receive/route.ts`
 - Added **Transfers** navigation in `apps/web/components/tradeflow-shell.tsx` and
   the `/inventory` landing page.
+- Retained request identities for unchanged transfer commands and receive
+  identities per transfer until success, so response-loss retries cannot create
+  duplicate stock or valuation effects.
+- Revalidate current dual-Warehouse scope on command replay, return the replay
+  response header, and require the expected Transfer version at receipt.
+- Preserve Lot Identity and expiration on all four movement legs and during
+  projection rebuild.
+- Keep source Warehouse valuation intact while stock is in transfer custody;
+  receipt moves source quantity and value to the destination at captured source
+  cost without changing total Company value.
 - Added contract tests (`apps/api/tests/test_inventory_transfer_contract.py`),
   database invariant tests
   (`apps/api/tests/test_inventory_transfer_database_invariants.py`), and
   migration tests (`apps/api/tests/test_inventory_transfer_migration.py`).
 - Added Playwright test `apps/web/tests/inventory-transfers.spec.ts`.
-- Added ADR `docs/adr/0019-immutable-inventory-transfers.md`, created
-  `contexts/inventory/CONTEXT.md`, and release notes at
+- Added ADR `docs/adr/0019-immutable-inventory-transfers.md`, updated
+  `contexts/catalog-inventory/CONTEXT.md`, and release notes at
   `docs/release-notes/inventory-transfers-2026-08-14.md`.
 
 ## Verification evidence
@@ -63,11 +73,24 @@ All gates passed on `feature/inventory-transfers`:
   — **14 passed**.
 - Playwright web suite for transfers:
   `pnpm --filter @tradeflow/web exec playwright test tests/inventory-transfers.spec.ts`
-  — passed.
+  — **8 passed** across desktop and mobile-web, including request and receive
+  identity reuse after an ambiguous failure.
 - `pnpm build` / `uv build --all-packages` — passed.
+- Complete `pnpm test` gate — **227 Python passed / 4 skipped, 146 Playwright
+  passed / 10 skipped, 78 native passed / 4 skipped**, plus all package tests.
 - `git diff --check` — passed.
-- Alembic `downgrade 0017` / `upgrade head` round-trip on the migration test
-  database — passed.
+- Alembic `downgrade base` / `upgrade head` full migration cycle — passed.
+
+## Final review
+
+- One independent standards/specification review found two P1 stock/rebuild
+  issues and two P2 contract/domain-document issues.
+- Resolved all P1/P2 findings: Lot expiration and allocation history now
+  rebuild, transfer valuation remains conserved in transit, replays revalidate
+  scope and expose their header, receipt uses an expected version, and transfer
+  language is consolidated in the mapped Catalog & Inventory context.
+- Deferred one P3 BFF helper duplication finding; it does not affect transfer
+  correctness or replacement risk.
 
 ## Closed / ready for review
 
@@ -79,8 +102,6 @@ All gates passed on `feature/inventory-transfers`:
 
 ## Residual risks and follow-ups
 
-- The web workspace does not yet retain the idempotency key for manual retries
-  after a network failure.
 - Counted-variance adjustments, serial-tracked SKU transfers, and transfer
   cancellation after release are intentionally out of scope for this slice.
 

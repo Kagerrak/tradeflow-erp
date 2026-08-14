@@ -968,6 +968,7 @@ inventory_transfers = Table(
     Column("unit_cost", Numeric(18, 6), nullable=False),
     Column("base_currency", String(3), nullable=False),
     Column("status", String(20), nullable=False, server_default="released"),
+    Column("version", Integer, nullable=False, server_default="1"),
     Column("reason", String(500), nullable=False),
     Column("source_reference", String(100), nullable=False),
     Column("lot_code", String(100), nullable=True),
@@ -983,6 +984,7 @@ inventory_transfers = Table(
         "status IN ('released', 'received')",
         name="ck_inventory_transfers_status",
     ),
+    CheckConstraint("version > 0", name="ck_inventory_transfers_version"),
     CheckConstraint("quantity_base > 0", name="ck_inventory_transfers_quantity"),
     CheckConstraint("btrim(reason) <> ''", name="ck_inventory_transfers_reason"),
     CheckConstraint(

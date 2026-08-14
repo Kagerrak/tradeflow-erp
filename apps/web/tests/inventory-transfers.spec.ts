@@ -13,6 +13,7 @@ const transfer = {
   sku_id: "d6a72680-6334-434d-8969-d2fc87da6397",
   source_reference: "REPL-001",
   status: "released",
+  version: 1,
   to_location_id: "22222222-2222-2222-2222-222222222222",
   to_warehouse_id: "22222222-2222-2222-2222-222222222222",
   transfer_id: "33333333-3333-3333-3333-333333333333",
@@ -60,7 +61,7 @@ test("requests and receives a transfer through the workspace", async ({
     });
   });
   await page.route("**/api/inventory/transfers/*/receive", async (route) => {
-    const received = { ...transfer, status: "received" };
+    const received = { ...transfer, status: "received", version: 2 };
     transfers = [received];
     await route.fulfill({
       contentType: "application/json",
@@ -145,6 +146,104 @@ test("shows scope denial as a workspace message", async ({ page }) => {
   await page.getByTestId("transfer-request").click();
 
   await expect(page.getByTestId("transfer-message")).toContainText("rejected");
+});
+
+test("reuses transfer command identities after an ambiguous failure", async ({
+  page,
+}) => {
+  const requestKeys: string[] = [];
+  let requestAttempts = 0;
+  let transfers: unknown[] = [];
+  await page.route("**/api/inventory/transfers", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        contentType: "application/json",
+        json: { items: transfers, total: transfers.length },
+      });
+      return;
+    }
+    const body = (await route.request().postDataJSON()) as {
+      idempotencyKey: string;
+    };
+    requestKeys.push(body.idempotencyKey);
+    requestAttempts += 1;
+    if (requestAttempts === 1) {
+      await route.fulfill({
+        contentType: "application/json",
+        json: { correlationId: "request-response-lost", kind: "unavailable" },
+        status: 503,
+      });
+      return;
+    }
+    transfers = [transfer];
+    await route.fulfill({
+      contentType: "application/json",
+      json: { transfer },
+      status: 201,
+    });
+  });
+
+  const receiveKeys: string[] = [];
+  let receiveAttempts = 0;
+  await page.route("**/api/inventory/transfers/*/receive", async (route) => {
+    const body = (await route.request().postDataJSON()) as {
+      idempotencyKey: string;
+    };
+    receiveKeys.push(body.idempotencyKey);
+    receiveAttempts += 1;
+    if (receiveAttempts === 1) {
+      await route.fulfill({
+        contentType: "application/json",
+        json: { correlationId: "receive-response-lost", kind: "unavailable" },
+        status: 503,
+      });
+      return;
+    }
+    const received = { ...transfer, status: "received", version: 2 };
+    transfers = [received];
+    await route.fulfill({
+      contentType: "application/json",
+      json: { transfer: received },
+      status: 201,
+    });
+  });
+
+  await page.goto("/inventory/transfers");
+  await page
+    .getByTestId("transfer-sku-id")
+    .fill("d6a72680-6334-434d-8969-d2fc87da6397");
+  await page
+    .getByTestId("transfer-from-warehouse")
+    .fill("6cadf528-a2ff-4d05-b25c-940c79b112ad");
+  await page
+    .getByTestId("transfer-to-warehouse")
+    .fill("22222222-2222-2222-2222-222222222222");
+  await page
+    .getByTestId("transfer-from-location")
+    .fill("6cadf528-a2ff-4d05-b25c-940c79b112ad");
+  await page
+    .getByTestId("transfer-to-location")
+    .fill("22222222-2222-2222-2222-222222222222");
+  await page.getByTestId("transfer-quantity").fill("10");
+  await page.getByTestId("transfer-reason").fill("Replenishment.");
+  await page.getByTestId("transfer-source-reference").fill("REPL-001");
+
+  await page.getByTestId("transfer-request").click();
+  await expect(page.getByTestId("transfer-message")).toContainText("rejected");
+  await page.getByTestId("transfer-request").click();
+  await expect(page.getByTestId("transfer-message")).toContainText("released");
+  expect(requestKeys).toHaveLength(2);
+  expect(requestKeys[1]).toBe(requestKeys[0]);
+
+  const receiveButton = page.getByTestId(
+    `transfer-receive-${transfer.transfer_id}`,
+  );
+  await receiveButton.click();
+  await expect(page.getByTestId("transfer-message")).toContainText("rejected");
+  await receiveButton.click();
+  await expect(page.getByTestId("transfer-message")).toContainText("received");
+  expect(receiveKeys).toHaveLength(2);
+  expect(receiveKeys[1]).toBe(receiveKeys[0]);
 });
 
 test("offers recovery when the transfer service is unavailable", async ({

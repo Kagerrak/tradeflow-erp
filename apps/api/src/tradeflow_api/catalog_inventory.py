@@ -1348,6 +1348,8 @@ async def rebuild_projections(
             "correction_accepted_reversal_in",
             "correction_exception_reversal_transit_in",
             "correction_exception_replacement_investigation_in",
+            "transfer_in_transit_in",
+            "transfer_destination_in",
         }
         signed_quantity = movement["quantity_base"] if incoming else -movement["quantity_base"]
         if movement_identities:

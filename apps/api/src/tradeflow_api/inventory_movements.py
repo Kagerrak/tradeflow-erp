@@ -34,7 +34,9 @@ from tradeflow_api.models import (
     inventory_availability,
     inventory_transfers,
     inventory_valuation,
+    lot_identities,
     skus,
+    stock_lot_allocations,
     stock_movements,
     unit_conversions,
     warehouse_stock_locations,
@@ -70,12 +72,13 @@ class RequestTransferCommand(CommandModel):
 
 
 class ReceiveTransferCommand(CommandModel):
-    pass
+    expected_version: int = Field(ge=1)
 
 
 class TransferReleasedItem(BaseModel):
     transfer_id: UUID
     status: str
+    version: int
     sku_id: UUID
     from_warehouse_id: UUID
     to_warehouse_id: UUID
@@ -112,23 +115,29 @@ def command_hash(operation: str, command: BaseModel, context: str = "") -> str:
     return sha256(payload.encode()).hexdigest()
 
 
-async def _load_transfer_context(
-    session: AsyncSession,
-    command: RequestTransferCommand,
-    actor: AuthorizedUser,
-) -> dict[str, Any]:
-    if command.from_warehouse_id not in actor.warehouse_ids:
+def _ensure_transfer_scope(
+    actor: AuthorizedUser, from_warehouse_id: UUID, to_warehouse_id: UUID
+) -> None:
+    if from_warehouse_id not in actor.warehouse_ids:
         raise AppError(
             403,
             "transfer_source_forbidden",
             "You are not authorized to transfer from the source warehouse.",
         )
-    if command.to_warehouse_id not in actor.warehouse_ids:
+    if to_warehouse_id not in actor.warehouse_ids:
         raise AppError(
             403,
             "transfer_destination_forbidden",
             "You are not authorized to transfer into the destination warehouse.",
         )
+
+
+async def _load_transfer_context(
+    session: AsyncSession,
+    command: RequestTransferCommand,
+    actor: AuthorizedUser,
+) -> dict[str, Any]:
+    _ensure_transfer_scope(actor, command.from_warehouse_id, command.to_warehouse_id)
 
     sku = await _load_sku(session, command.sku_id)
     from_location = await _load_location(
@@ -158,6 +167,27 @@ async def _load_transfer_context(
             "Lot tracking requires a Lot Code for the transfer.",
         )
 
+    lot_identity = None
+    if command.lot_code is not None:
+        lot_identity = (
+            (
+                await session.execute(
+                    select(lot_identities).where(
+                        lot_identities.c.sku_id == command.sku_id,
+                        lot_identities.c.lot_code == command.lot_code,
+                    )
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+        if lot_identity is None:
+            raise AppError(
+                409,
+                "lot_identity_not_found",
+                "The requested Lot Identity does not exist for this SKU.",
+            )
+
     factor = await _resolve_conversion_factor(
         session,
         sku_id=command.sku_id,
@@ -172,6 +202,15 @@ async def _load_transfer_context(
         "to_location": to_location,
         "quantity_base": quantity_base,
         "factor": factor,
+        "identity": AvailabilityIdentity(
+            identity_key=f"lot:{command.lot_code}",
+            lot_code=command.lot_code,
+            serial_numbers=(),
+            expiration_date=lot_identity["expiration_date"],
+        )
+        if lot_identity is not None
+        else AvailabilityIdentity(identity_key="", serial_numbers=()),
+        "lot_identity_id": lot_identity["lot_identity_id"] if lot_identity is not None else None,
     }
 
 
@@ -333,15 +372,57 @@ async def _read_source_cost(
     return valuation["moving_average_unit_cost"], base_currency
 
 
-def _build_identity(*, lot_code: str | None, sku_tracking_policy: str) -> AvailabilityIdentity:
-    if sku_tracking_policy == "lot":
-        return AvailabilityIdentity(
+async def _load_transfer_identity(
+    session: AsyncSession, *, sku_id: UUID, lot_code: str | None
+) -> tuple[AvailabilityIdentity, UUID | None]:
+    if lot_code is None:
+        return AvailabilityIdentity(identity_key="", serial_numbers=()), None
+    lot_identity = (
+        (
+            await session.execute(
+                select(lot_identities).where(
+                    lot_identities.c.sku_id == sku_id,
+                    lot_identities.c.lot_code == lot_code,
+                )
+            )
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if lot_identity is None:
+        raise AppError(409, "lot_identity_not_found", "The transfer Lot Identity no longer exists.")
+    return (
+        AvailabilityIdentity(
             identity_key=f"lot:{lot_code}",
             lot_code=lot_code,
             serial_numbers=(),
-            expiration_date=None,
-        )
-    return AvailabilityIdentity(identity_key="", serial_numbers=())
+            expiration_date=lot_identity["expiration_date"],
+        ),
+        lot_identity["lot_identity_id"],
+    )
+
+
+async def _record_lot_allocations(
+    session: AsyncSession,
+    *,
+    movement_ids: tuple[UUID, UUID],
+    lot_identity_id: UUID | None,
+    quantity_base: Decimal,
+) -> None:
+    if lot_identity_id is None:
+        return
+    await session.execute(
+        insert(stock_lot_allocations),
+        [
+            {
+                "lot_allocation_id": uuid4(),
+                "movement_id": movement_id,
+                "lot_identity_id": lot_identity_id,
+                "quantity_base": quantity_base,
+            }
+            for movement_id in movement_ids
+        ],
+    )
 
 
 async def _insert_movement(
@@ -412,6 +493,7 @@ async def request_transfer(
             message="Idempotency-Key is required for this command.",
         )
 
+    _ensure_transfer_scope(actor, command.from_warehouse_id, command.to_warehouse_id)
     request_hash = command_hash("request_inventory_transfer", command)
     replay = await get_command_replay(
         session,
@@ -421,15 +503,15 @@ async def request_transfer(
     )
     if replay is not None:
         response.status_code = 200
+        response.headers["X-Idempotency-Replayed"] = "true"
         return TransferResponse.model_validate(replay)
 
     context = await _load_transfer_context(session, command, actor)
     sku = context["sku"]
     quantity_base = context["quantity_base"]
     factor = context["factor"]
-    identity = _build_identity(
-        lot_code=command.lot_code, sku_tracking_policy=sku["tracking_policy"]
-    )
+    identity = context["identity"]
+    lot_identity_id = context["lot_identity_id"]
 
     first_warehouse = min(command.from_warehouse_id, command.to_warehouse_id)
     second_warehouse = max(command.from_warehouse_id, command.to_warehouse_id)
@@ -517,6 +599,12 @@ async def request_transfer(
         correlation_id=request.state.correlation_id,
         idempotency_key=f"{idempotency_key}:transit-in",
     )
+    await _record_lot_allocations(
+        session,
+        movement_ids=(source_movement_id, transit_in_movement_id),
+        lot_identity_id=lot_identity_id,
+        quantity_base=quantity_base,
+    )
 
     await apply_availability_delta(
         session,
@@ -535,16 +623,6 @@ async def request_transfer(
         quantity=quantity_base,
         identity=identity,
     )
-    await apply_valuation_delta(
-        session,
-        sku_id=sku["sku_id"],
-        warehouse_id=command.from_warehouse_id,
-        quantity_delta=-quantity_base,
-        value_delta=-value,
-        allow_create=False,
-        missing_code="inventory_valuation_missing",
-    )
-
     await session.execute(
         insert(inventory_transfers).values(
             transfer_id=transfer_id,
@@ -557,6 +635,7 @@ async def request_transfer(
             unit_cost=unit_cost,
             base_currency=base_currency,
             status="released",
+            version=1,
             reason=command.reason,
             source_reference=command.source_reference,
             lot_code=command.lot_code,
@@ -574,6 +653,7 @@ async def request_transfer(
     released_item = TransferReleasedItem(
         transfer_id=transfer_id,
         status="released",
+        version=1,
         sku_id=sku["sku_id"],
         from_warehouse_id=command.from_warehouse_id,
         to_warehouse_id=command.to_warehouse_id,
@@ -626,6 +706,7 @@ async def receive_transfer(
             message="Idempotency-Key is required for this command.",
         )
 
+    transfer = await _load_transfer_for_read(session, transfer_id, actor)
     request_hash = command_hash("receive_inventory_transfer", command, str(transfer_id))
     replay = await get_command_replay(
         session,
@@ -635,13 +716,10 @@ async def receive_transfer(
     )
     if replay is not None:
         response.status_code = 200
+        response.headers["X-Idempotency-Replayed"] = "true"
         return TransferResponse.model_validate(replay)
 
-    transfer = await _load_transfer_for_receive(session, transfer_id, actor)
     sku = await _load_sku(session, transfer["sku_id"])
-    identity = _build_identity(
-        lot_code=transfer["lot_code"], sku_tracking_policy=sku["tracking_policy"]
-    )
 
     first_warehouse = min(transfer["from_warehouse_id"], transfer["to_warehouse_id"])
     second_warehouse = max(transfer["from_warehouse_id"], transfer["to_warehouse_id"])
@@ -653,6 +731,18 @@ async def receive_transfer(
     await session.execute(
         text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
         {"key": f"inventory-transfer:{transfer_id}"},
+    )
+
+    transfer = await _load_transfer_for_receive(
+        session,
+        transfer_id,
+        actor,
+        expected_version=command.expected_version,
+    )
+    identity, lot_identity_id = await _load_transfer_identity(
+        session,
+        sku_id=transfer["sku_id"],
+        lot_code=transfer["lot_code"],
     )
 
     in_transit_location_id = await ensure_custody_location(
@@ -718,6 +808,12 @@ async def receive_transfer(
         correlation_id=request.state.correlation_id,
         idempotency_key=f"{idempotency_key}:destination-in",
     )
+    await _record_lot_allocations(
+        session,
+        movement_ids=(transit_out_movement_id, destination_in_movement_id),
+        lot_identity_id=lot_identity_id,
+        quantity_base=quantity_base,
+    )
 
     await apply_availability_delta(
         session,
@@ -739,6 +835,15 @@ async def receive_transfer(
     await apply_valuation_delta(
         session,
         sku_id=sku["sku_id"],
+        warehouse_id=transfer["from_warehouse_id"],
+        quantity_delta=-quantity_base,
+        value_delta=-value,
+        allow_create=False,
+        missing_code="inventory_valuation_missing",
+    )
+    await apply_valuation_delta(
+        session,
+        sku_id=sku["sku_id"],
         warehouse_id=transfer["to_warehouse_id"],
         quantity_delta=quantity_base,
         value_delta=value,
@@ -750,6 +855,7 @@ async def receive_transfer(
         .where(inventory_transfers.c.transfer_id == transfer_id)
         .values(
             status="received",
+            version=inventory_transfers.c.version + 1,
             received_by=actor.subject,
             received_at=func.now(),
             receive_movement_group_id=receive_group_id,
@@ -759,6 +865,7 @@ async def receive_transfer(
     received_item = TransferReceivedItem(
         transfer_id=transfer_id,
         status="received",
+        version=transfer["version"] + 1,
         sku_id=sku["sku_id"],
         from_warehouse_id=transfer["from_warehouse_id"],
         to_warehouse_id=transfer["to_warehouse_id"],
@@ -793,11 +900,15 @@ async def _load_transfer_for_receive(
     session: AsyncSession,
     transfer_id: UUID,
     actor: AuthorizedUser,
+    *,
+    expected_version: int,
 ) -> dict[str, Any]:
     transfer = (
         (
             await session.execute(
-                select(inventory_transfers).where(inventory_transfers.c.transfer_id == transfer_id)
+                select(inventory_transfers)
+                .where(inventory_transfers.c.transfer_id == transfer_id)
+                .with_for_update()
             )
         )
         .mappings()
@@ -819,6 +930,12 @@ async def _load_transfer_for_receive(
             409,
             "transfer_already_received",
             "The transfer has already been received.",
+        )
+    if transfer["version"] != expected_version:
+        raise AppError(
+            409,
+            "transfer_version_conflict",
+            "The transfer changed after it was loaded. Refresh and retry.",
         )
     return dict(transfer)
 
@@ -913,6 +1030,7 @@ def _transfer_item(transfer: dict[str, Any]) -> TransferReceivedItem | TransferR
     common = {
         "transfer_id": transfer["transfer_id"],
         "status": transfer["status"],
+        "version": transfer["version"],
         "sku_id": transfer["sku_id"],
         "from_warehouse_id": transfer["from_warehouse_id"],
         "to_warehouse_id": transfer["to_warehouse_id"],

@@ -28,18 +28,21 @@ Requesting a transfer records one `inventory_transfers` row with
 `status='released'` and posts a movement group with two legs:
 `transfer_source_out` from the source `available` location and
 `transfer_in_transit_in` to the source warehouse's `in_transit` custody location.
-Source valuation is reduced by `qty × source_moving_average_unit_cost`;
-destination valuation is not yet touched because the goods are still in transit.
+Source valuation remains unchanged while the goods are in transfer custody;
+the source Warehouse continues to own both quantity and value until receipt.
 
 A user with `inventory:transfer-receive`, also scoped to both warehouses,
 completes the transfer by posting a second movement group:
 `transfer_in_transit_out` from source `in_transit` and
 `transfer_destination_in` to the destination `available` location. Destination
-valuation is increased by the source cost captured at release time. Total company
-inventory value does not change; only custody and warehouse ownership move.
+valuation is increased by the source cost captured at release time, while source
+valuation is reduced by the same quantity and value. Total Company inventory
+value never changes; receipt changes warehouse ownership while preserving cost.
 
-Both commands require an `Idempotency-Key` header. Replays return the stored
-response. Concurrent transfers for the same SKU and warehouses serialize through
+Both commands require an `Idempotency-Key` header. Replays revalidate current
+Warehouse scope and return the stored response with
+`X-Idempotency-Replayed: true`. Receipt also requires the expected Transfer
+version. Concurrent transfers for the same SKU and warehouses serialize through
 per-warehouse SKU advisory locks and the projection-rebuild lock.
 
 The `inventory_transfers` table is protected by a trigger that rejects `UPDATE`

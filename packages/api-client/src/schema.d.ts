@@ -5028,7 +5028,10 @@ export interface components {
             serial_numbers?: string[];
         };
         /** ReceiveTransferCommand */
-        ReceiveTransferCommand: Record<string, never>;
+        ReceiveTransferCommand: {
+            /** Expected Version */
+            expected_version: number;
+        };
         /** RecordPaymentReceiptCommand */
         RecordPaymentReceiptCommand: {
             /** Amount */
@@ -5906,6 +5909,8 @@ export interface components {
             transfer_id: string;
             /** Unit Cost */
             unit_cost: string;
+            /** Version */
+            version: number;
         };
         /** TransferReleasedItem */
         TransferReleasedItem: {
@@ -5962,6 +5967,8 @@ export interface components {
             transfer_id: string;
             /** Unit Cost */
             unit_cost: string;
+            /** Version */
+            version: number;
         };
         /** TransferResponse */
         TransferResponse: {

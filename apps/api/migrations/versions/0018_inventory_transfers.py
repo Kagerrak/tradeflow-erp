@@ -64,6 +64,7 @@ def upgrade() -> None:
         unit_cost numeric(18,6) NOT NULL,
         base_currency varchar(3) NOT NULL,
         status varchar(20) NOT NULL DEFAULT 'released',
+        version integer NOT NULL DEFAULT 1,
         reason varchar(500) NOT NULL,
         source_reference varchar(100) NOT NULL,
         lot_code varchar(100) NULL,
@@ -76,6 +77,7 @@ def upgrade() -> None:
         correlation_id varchar(100) NOT NULL,
         idempotency_key varchar(200) NOT NULL UNIQUE,
         CONSTRAINT ck_inventory_transfers_status CHECK (status IN ('released','received')),
+        CONSTRAINT ck_inventory_transfers_version CHECK (version > 0),
         CONSTRAINT ck_inventory_transfers_quantity CHECK (quantity_base > 0),
         CONSTRAINT ck_inventory_transfers_reason CHECK (btrim(reason) <> ''),
         CONSTRAINT ck_inventory_transfers_unit_cost CHECK (unit_cost >= 0),
@@ -103,9 +105,10 @@ def upgrade() -> None:
              AND OLD.receive_movement_group_id IS NULL
              AND NEW.received_by IS NOT NULL AND NEW.received_at IS NOT NULL
              AND NEW.receive_movement_group_id IS NOT NULL
-             AND (to_jsonb(OLD) - 'status' - 'received_by' - 'received_at'
+             AND NEW.version = OLD.version + 1
+             AND (to_jsonb(OLD) - 'status' - 'version' - 'received_by' - 'received_at'
                   - 'receive_movement_group_id')
-                 = (to_jsonb(NEW) - 'status' - 'received_by' - 'received_at'
+                 = (to_jsonb(NEW) - 'status' - 'version' - 'received_by' - 'received_at'
                     - 'receive_movement_group_id') THEN
             RETURN NEW;
           END IF;

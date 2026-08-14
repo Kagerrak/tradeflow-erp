@@ -8799,7 +8799,16 @@
       },
       "ReceiveTransferCommand": {
         "additionalProperties": false,
-        "properties": {},
+        "properties": {
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_version"
+        ],
         "title": "ReceiveTransferCommand",
         "type": "object"
       },
@@ -10847,11 +10856,16 @@
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Unit Cost",
             "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
           }
         },
         "required": [
           "transfer_id",
           "status",
+          "version",
           "sku_id",
           "from_warehouse_id",
           "to_warehouse_id",
@@ -10954,11 +10968,16 @@
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Unit Cost",
             "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
           }
         },
         "required": [
           "transfer_id",
           "status",
+          "version",
           "sku_id",
           "from_warehouse_id",
           "to_warehouse_id",

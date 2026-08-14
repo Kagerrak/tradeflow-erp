@@ -2,7 +2,7 @@
 
 import type { components } from "@tradeflow/api-client";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type TransferList = components["schemas"]["TransferListResponse"];
 type TransferItem =
@@ -13,6 +13,7 @@ type ListState =
   | { kind: "loading" }
   | { kind: "ready"; transfers: TransferList }
   | { kind: "unavailable"; correlationId: string };
+type CommandIdentity = { fingerprint: string; key: string };
 
 function readCorrelationId(body: unknown): string {
   if (
@@ -56,6 +57,8 @@ export function InventoryTransferWorkspace() {
   const [reason, setReason] = useState("");
   const [sourceReference, setSourceReference] = useState("");
   const [lotCode, setLotCode] = useState("");
+  const requestIdentity = useRef<CommandIdentity | null>(null);
+  const receiveIdentities = useRef(new Map<string, string>());
 
   const refresh = useCallback(async () => {
     setState(await fetchTransfers());
@@ -87,22 +90,29 @@ export function InventoryTransferWorkspace() {
       setMessage("All fields except Lot Code are required.");
       return;
     }
+    const command = {
+      fromLocationId,
+      fromWarehouseId,
+      lotCode: lotCode || undefined,
+      quantity,
+      reason,
+      skuId,
+      sourceReference,
+      toLocationId,
+      toWarehouseId,
+      unitCode,
+    };
+    const fingerprint = JSON.stringify(command);
+    if (requestIdentity.current?.fingerprint !== fingerprint) {
+      requestIdentity.current = { fingerprint, key: crypto.randomUUID() };
+    }
     setBusy(true);
     setMessage(null);
     try {
       const response = await fetch("/api/inventory/transfers", {
         body: JSON.stringify({
-          fromLocationId,
-          fromWarehouseId,
-          idempotencyKey: crypto.randomUUID(),
-          lotCode: lotCode || undefined,
-          quantity,
-          reason,
-          skuId,
-          sourceReference,
-          toLocationId,
-          toWarehouseId,
-          unitCode,
+          ...command,
+          idempotencyKey: requestIdentity.current.key,
         }),
         headers: { "Content-Type": "application/json" },
         method: "POST",
@@ -111,6 +121,7 @@ export function InventoryTransferWorkspace() {
         transfer?: { status?: string };
       };
       if (response.ok) {
+        requestIdentity.current = null;
         setMessage(
           `Transfer requested · ${data.transfer?.status ?? "released"}`,
         );
@@ -135,13 +146,21 @@ export function InventoryTransferWorkspace() {
   };
 
   const receive = async (transfer: TransferItem) => {
+    let idempotencyKey = receiveIdentities.current.get(transfer.transfer_id);
+    if (idempotencyKey === undefined) {
+      idempotencyKey = crypto.randomUUID();
+      receiveIdentities.current.set(transfer.transfer_id, idempotencyKey);
+    }
     setBusy(true);
     setMessage(null);
     try {
       const response = await fetch(
         `/api/inventory/transfers/${transfer.transfer_id}/receive`,
         {
-          body: JSON.stringify({ idempotencyKey: crypto.randomUUID() }),
+          body: JSON.stringify({
+            expectedVersion: transfer.version,
+            idempotencyKey,
+          }),
           headers: { "Content-Type": "application/json" },
           method: "POST",
         },
@@ -150,6 +169,7 @@ export function InventoryTransferWorkspace() {
         transfer?: { status?: string };
       };
       if (response.ok) {
+        receiveIdentities.current.delete(transfer.transfer_id);
         setMessage(
           `Transfer received · ${data.transfer?.status ?? "received"}`,
         );

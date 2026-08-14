@@ -19,11 +19,17 @@
   - `POST /v1/inventory/transfers/{transfer_id}/receive`
   - `GET /v1/inventory/transfers`
   - `GET /v1/inventory/transfers/{transfer_id}`
-- Source cost is preserved: source valuation decreases by
-  `qty × source_moving_average_unit_cost`; destination valuation increases by the
-  same amount. Total company inventory value is unchanged.
+- Source cost is preserved: release retains quantity and value under the source
+  Warehouse while custody is in transit; receipt reduces source valuation and
+  increases destination valuation by the same amount. Total Company inventory
+  value is unchanged throughout.
+- Lot expiration is preserved on every movement leg and projection rebuild.
 - Lot identity is carried; serial-tracked SKU transfers are rejected for this slice.
 - Commands are idempotent via `Idempotency-Key` and command receipts.
+- Replays revalidate current Warehouse scope and are explicitly identified;
+  receipt rejects stale expected versions before posting.
+- The web workspace retains the same command identity when unchanged request or
+  receive work is retried after an ambiguous network failure.
 - Concurrent transfers serialize through per-SKU/warehouse advisory locks and the
   projection-rebuild lock.
 
@@ -52,5 +58,5 @@
 ## Related documents
 
 - `docs/adr/0019-immutable-inventory-transfers.md`
-- `contexts/inventory/CONTEXT.md`
+- `contexts/catalog-inventory/CONTEXT.md`
 - `checkpoint/WORKFLOW_CHECKPOINT_2026-08-14-inventory-transfers.md`

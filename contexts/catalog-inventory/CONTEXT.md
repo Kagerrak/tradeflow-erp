@@ -41,6 +41,11 @@ warehouse on-hand but is no longer available.
 **In Transit**: A Custody Location holding dispatched quantity until accepted
 delivery or physical return.
 
+**Transfer In Transit**: A Custody Location holding stock released from one
+Warehouse for an authorized Inventory Transfer but not yet received by the
+destination Warehouse. Its quantity and value remain owned by the source
+Warehouse until receipt.
+
 **Investigation**: A Custody Location holding short or missing dispatched
 quantity until approved recovery, claim, or Inventory Adjustment.
 
@@ -63,6 +68,14 @@ remains awaiting later reservation and is not eligible for fulfillment.
 
 **Inventory Adjustment**: An authorized stock movement correcting a verified
 physical difference. It is not a direct balance edit.
+
+**Inventory Transfer**: An authorized source document that moves identified
+stock between Warehouses at its source cost. Release moves quantity from the
+source Available location to Transfer In Transit without changing Company or
+source-Warehouse value. Receipt moves quantity and value from the source
+Warehouse to the destination Warehouse. Both commands require scope to both
+Warehouses, expected lifecycle version where state changes, and stable replay
+identity.
 
 **Tracking Policy**: A SKU rule requiring no tracked identity, a Lot Identity,
 or a Serial Identity for received and outbound stock.

@@ -3,6 +3,7 @@ import { createTradeFlowClient } from "@tradeflow/api-client";
 const baseUrl = process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000";
 
 type Body = {
+  expectedVersion: number;
   idempotencyKey: string;
 };
 
@@ -34,7 +35,7 @@ export async function POST(
     const result = await client.POST(
       "/v1/inventory/transfers/{transfer_id}/receive",
       {
-        body: {},
+        body: { expected_version: body.expectedVersion },
         headers: { "Idempotency-Key": body.idempotencyKey },
         params: { path: { transfer_id: transferId } },
       },

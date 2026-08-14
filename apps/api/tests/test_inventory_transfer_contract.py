@@ -337,6 +337,7 @@ async def test_transfer_request_and_receive_happy_path(transfer_env: dict[str, o
     assert request.status_code == 201, request.text
     data = request.json()["transfer"]
     assert data["status"] == "released"
+    assert data["version"] == 1
     assert data["quantity_base"] == "40.000000"
     assert data["unit_cost"] == "10.000000"
     assert data["base_currency"] == "PHP"
@@ -362,12 +363,13 @@ async def test_transfer_request_and_receive_happy_path(transfer_env: dict[str, o
         },
     )
     assert replay.status_code == 200
+    assert replay.headers["X-Idempotency-Replayed"] == "true"
     assert replay.json() == request.json()
 
     source_before_receive = await _valuation_for(client, settings, sku_id, from_warehouse_id)
     assert source_before_receive is not None
     assert Decimal(source_before_receive["quantity_on_hand"]) == Decimal("50")
-    assert Decimal(source_before_receive["inventory_value"]) == Decimal("500")
+    assert Decimal(source_before_receive["inventory_value"]) == Decimal("1000")
 
     receive_key = f"transfer-receive-{uuid4()}"
     receive = await client.post(
@@ -377,11 +379,12 @@ async def test_transfer_request_and_receive_happy_path(transfer_env: dict[str, o
             "warehouse-cross",
             **{"Idempotency-Key": receive_key},
         ),
-        json={},
+        json={"expected_version": 1},
     )
     assert receive.status_code == 201, receive.text
     received = receive.json()["transfer"]
     assert received["status"] == "received"
+    assert received["version"] == 2
     assert received["received_by"] == "warehouse-cross"
     assert received["receive_movement_group_id"] is not None
 
@@ -392,9 +395,10 @@ async def test_transfer_request_and_receive_happy_path(transfer_env: dict[str, o
             "warehouse-cross",
             **{"Idempotency-Key": receive_key},
         ),
-        json={},
+        json={"expected_version": 1},
     )
     assert receive_replay.status_code == 200
+    assert receive_replay.headers["X-Idempotency-Replayed"] == "true"
     assert receive_replay.json() == receive.json()
 
     source_after = await _valuation_for(client, settings, sku_id, from_warehouse_id)
@@ -402,7 +406,7 @@ async def test_transfer_request_and_receive_happy_path(transfer_env: dict[str, o
     assert source_after is not None
     assert dest_after is not None
     assert Decimal(source_after["quantity_on_hand"]) == Decimal("50")
-    assert Decimal(source_after["inventory_value"]) == Decimal("500")
+    assert Decimal(source_after["inventory_value"]) == Decimal("600")
     assert Decimal(dest_after["quantity_on_hand"]) == Decimal("40")
     assert Decimal(dest_after["inventory_value"]) == Decimal("400")
     assert Decimal(dest_after["moving_average_unit_cost"]) == Decimal("10")
@@ -413,6 +417,17 @@ async def test_transfer_request_and_receive_happy_path(transfer_env: dict[str, o
     )
     assert detail.status_code == 200
     assert detail.json()["transfer"]["status"] == "received"
+    assert detail.json()["transfer"]["version"] == 2
+
+    rebuild = await client.post(
+        "/v1/inventory/projections/rebuild",
+        headers=_auth(settings, "warehouse-cross"),
+    )
+    assert rebuild.status_code == 200, rebuild.text
+    rebuilt_source = await _valuation_for(client, settings, sku_id, from_warehouse_id)
+    rebuilt_destination = await _valuation_for(client, settings, sku_id, to_warehouse_id)
+    assert rebuilt_source == source_after
+    assert rebuilt_destination == dest_after
 
 
 @pytest.mark.asyncio
@@ -546,6 +561,18 @@ async def test_transfer_receive_rejects_already_received(
     assert request.status_code == 201
     transfer_id = request.json()["transfer"]["transfer_id"]
 
+    stale = await client.post(
+        f"/v1/inventory/transfers/{transfer_id}/receive",
+        headers=_auth(
+            settings,
+            "warehouse-cross",
+            **{"Idempotency-Key": f"receive-stale-{uuid4()}"},
+        ),
+        json={"expected_version": 2},
+    )
+    assert stale.status_code == 409
+    assert stale.json()["error"]["code"] == "transfer_version_conflict"
+
     receive1 = await client.post(
         f"/v1/inventory/transfers/{transfer_id}/receive",
         headers=_auth(
@@ -553,7 +580,7 @@ async def test_transfer_receive_rejects_already_received(
             "warehouse-cross",
             **{"Idempotency-Key": f"receive-already-{uuid4()}"},
         ),
-        json={},
+        json={"expected_version": 1},
     )
     assert receive1.status_code == 201
 
@@ -564,7 +591,7 @@ async def test_transfer_receive_rejects_already_received(
             "warehouse-cross",
             **{"Idempotency-Key": f"receive-already-2-{uuid4()}"},
         ),
-        json={},
+        json={"expected_version": 1},
     )
     assert receive2.status_code == 409
 
@@ -720,7 +747,7 @@ async def test_transfer_lot_identity_is_carried(
             "warehouse-cross",
             **{"Idempotency-Key": f"transfer-lot-rec-{uuid4()}"},
         ),
-        json={},
+        json={"expected_version": 1},
     )
     assert receive.status_code == 201, receive.text
 
@@ -729,7 +756,21 @@ async def test_transfer_lot_identity_is_carried(
     )
     assert dest_item is not None
     assert dest_item["lot_code"] == "LOT-A"
+    assert dest_item["expiration_date"] == "2027-12-31"
     assert Decimal(dest_item["on_hand"]) == Decimal("20")
+
+    rebuild = await client.post(
+        "/v1/inventory/projections/rebuild",
+        headers=_auth(settings, "warehouse-cross"),
+    )
+    assert rebuild.status_code == 200, rebuild.text
+    rebuilt_dest_item = await _availability_for(
+        client, settings, lot_fixture["sku_id"], ceb_warehouse_id, "CEB-AVAILABLE"
+    )
+    assert rebuilt_dest_item is not None
+    assert rebuilt_dest_item["lot_code"] == "LOT-A"
+    assert rebuilt_dest_item["expiration_date"] == "2027-12-31"
+    assert Decimal(rebuilt_dest_item["on_hand"]) == Decimal("20")
 
 
 @pytest.mark.asyncio
