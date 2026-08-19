@@ -1,14 +1,14 @@
 # First-release scope reconciliation
 
-- Date: August 19, 2026
-- Baseline: `origin/main` at `3f382ca`
+- Date: August 20, 2026
+- Baseline: `origin/main` at `2218cde`
 - Tracker reconciliation: GitHub issue #55
 - Pending evidence: Return Authorization PR #112 at `e9abb2f` (green, awaiting
   explicit PR-specific approval); Inventory Transfer PR #114 local head
   `5466111` (unpushed pending two policy decisions); Issue #72 closed by PR #116;
   Issue #110 current-system baseline closed by PR #117; Issue #77 closed by PR
   #118; Issue #78 closed by PR #119 at `4cca220`; Issue #108 closed by PR #120
-  at `3f382ca`.
+  at `3f382ca`; Issue #83 closed by PR #121 at `2218cde`.
 
 ## Why the tracker was reopened
 
@@ -82,7 +82,7 @@ PRD behavior or release evidence does not.
 | Supplier, Purchase Request/approval, Purchase Order and Goods Receipt                                                   | `suppliers.py`, `purchase_orders.py`, `goods_receipts.py`, and `purchase_requests.py` with contract tests and web workspace; variance/backorder shipped by PR #119 | Shipped foundation; supplier config remains #58                                                                     |
 | Partial receipt, Receipt Variance, Purchase Backorder and Supplier Return                                               | Goods Receipt variance, accepted/rejected/damaged/quarantine quantities, purchase backorder and over-receipt approval implemented by PR #119; Supplier Return remains open | Partial: #78 shipped; Supplier Return remains #79                                                                 |
 | Foreign currency, Inbound Shipment, customs evidence and Landed Cost                                                    | `landed_costs.py` implements line-value allocation; approved Exchange Rate Snapshot and shipment/customs workflow are absent                                                     | Partial and policy-gated: #63, #80–#81                                                                |
-| Expense categories, claims, evidence, duplicate checks, attribution, approval, posting and payment                      | Finance context defines Expense/Expense Claim; no runtime code, migration, client or UI exists                                                                                   | Missing: #59, #83–#87                                                                                 |
+| Expense categories, claims, evidence, duplicate checks, attribution, approval, posting and payment                      | Effective-dated, immutable Expense Categories and Policies with capability/scope guards and maker-checker publication implemented by PR #121; claims/posting/payment remain open | Partial: #83 shipped; claims/evidence/posting/payment remain #84–#87                                  |
 | Effective-dated Commission plans, attribution, accrual, reversal and payout                                             | Only `contexts/commissions/CONTEXT.md` exists                                                                                                                                    | Missing and policy-gated: #60, #64, #88–#93                                                           |
 | Customer Product/Category history, drill-down, filters and role-aware export                                            | No reporting/export runtime module or worker exists                                                                                                                              | Missing: #61, #94–#96                                                                                 |
 | Responsive web approvals, purchasing, finance, statements, reports and configuration                                    | Existing web routes cover shipped order/delivery/initial finance/procurement slices                                                                                              | Partial: each functional issue plus configuration #108 and reporting #94–#96                          |
@@ -134,12 +134,14 @@ and staging/security.
   purchase backorder) to `main` at `4cca220`.
 - PR #120 merged issue #108 (configurable operational policies and versioned
   document templates) to `main` at `3f382ca`.
+- PR #121 merged issue #83 (effective-dated expense categories and policies)
+  to `main` at `2218cde`.
 
 ## Dependency-ready work
 
-The active slice is now closed. The next dependency-ready slices include #83,
-#94, #97, and #105–#109. Delivery still proceeds one vertical slice at a time;
-the additional ready issues make blockers visible rather than inviting parallel
+The active slice is now closed. The next dependency-ready slices include #94,
+#97, and #105–#109. Delivery still proceeds one vertical slice at a time; the
+additional ready issues make blockers visible rather than inviting parallel
 mutation of shared domain foundations.
 
 ## Completion rule
