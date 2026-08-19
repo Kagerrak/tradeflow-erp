@@ -46,6 +46,7 @@ companies = Table(
     Column("code", String(30), nullable=False, unique=True),
     Column("name", String(200), nullable=False),
     Column("base_currency", String(3), nullable=False),
+    Column("timezone", String(64), nullable=False, server_default="UTC"),
     Column("version", Integer, nullable=False, server_default="1"),
     Column(
         "created_at",
@@ -55,6 +56,7 @@ companies = Table(
     ),
     CheckConstraint("singleton_key = 'tradeflow'", name="ck_companies_singleton"),
     CheckConstraint("version > 0", name="ck_companies_version_positive"),
+    CheckConstraint("btrim(timezone) <> ''", name="ck_companies_timezone_not_empty"),
 )
 
 suppliers = Table(
@@ -490,9 +492,11 @@ branches = Table(
     ),
     Column("code", String(30), nullable=False, unique=True),
     Column("name", String(200), nullable=False),
+    Column("timezone", String(64), nullable=False, server_default="UTC"),
     Column("is_active", Boolean, nullable=False, server_default="true"),
     Column("version", Integer, nullable=False, server_default="1"),
     CheckConstraint("version > 0", name="ck_branches_version_positive"),
+    CheckConstraint("btrim(timezone) <> ''", name="ck_branches_timezone_not_empty"),
 )
 
 warehouses = Table(
@@ -3731,7 +3735,55 @@ document_series = Table(
     Column("document_type", String(40), nullable=False),
     Column("prefix", String(30), nullable=False),
     Column("next_number", Integer, nullable=False, server_default="1"),
+    Column("version", Integer, nullable=False, server_default="1"),
+    CheckConstraint("version > 0", name="ck_document_series_version_positive"),
     UniqueConstraint("branch_id", "document_type", name="uq_document_series_branch_type"),
+)
+
+document_templates = Table(
+    "document_templates",
+    metadata,
+    Column("document_template_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "company_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("companies.company_id"),
+        nullable=False,
+    ),
+    Column(
+        "branch_id", PostgresUUID(as_uuid=True), ForeignKey("branches.branch_id"), nullable=True
+    ),
+    Column("document_type", String(40), nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("name", String(200), nullable=False),
+    Column("template_body", String, nullable=False),
+    Column("effective_from", Date, nullable=False),
+    Column("effective_to", Date, nullable=True),
+    Column("is_active", Boolean, nullable=False, server_default="true"),
+    Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    CheckConstraint("version > 0", name="ck_document_templates_version_positive"),
+    CheckConstraint(
+        "effective_to IS NULL OR effective_to >= effective_from",
+        name="ck_document_templates_effective_range",
+    ),
+    UniqueConstraint(
+        "company_id", "document_type", "version", name="uq_document_template_company_type_version"
+    ),
+)
+
+Index(
+    "uq_document_template_branch_type_version",
+    document_templates.c.branch_id,
+    document_templates.c.document_type,
+    document_templates.c.version,
+    unique=True,
+    postgresql_where=document_templates.c.branch_id.is_not(None),
 )
 
 delivery_receipts = Table(
