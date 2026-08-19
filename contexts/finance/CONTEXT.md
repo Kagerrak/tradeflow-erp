@@ -81,8 +81,9 @@ invoices.
 
 **Application State**: The derived state of a Payment Receipt's cleared value:
 `not_cleared`, `unapplied`, `partially_applied`, or `fully_applied`. It is
-computed from the cleared, reversed, refunded, allocated, and
-coverage-designated amounts and is never edited directly.
+computed from the cleared, reversed, refunded, and allocated amounts and is
+never edited directly. Coverage-designated value affects
+`available_for_coverage`, not application state.
 
 **Allocated Amount**: The portion of a Payment Receipt's cleared value already
 applied to invoices.

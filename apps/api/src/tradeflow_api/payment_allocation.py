@@ -630,6 +630,16 @@ async def rebuild_payment_receipt_projections(
                   allocated_amount = excluded.allocated_amount,
                   coverage_designated_amount = excluded.coverage_designated_amount,
                   version = payment_receipt_balances.version + 1
+                WHERE payment_receipt_balances.cleared_amount
+                  IS DISTINCT FROM excluded.cleared_amount
+                   OR payment_receipt_balances.reversed_amount
+                  IS DISTINCT FROM excluded.reversed_amount
+                   OR payment_receipt_balances.refunded_amount
+                  IS DISTINCT FROM excluded.refunded_amount
+                   OR payment_receipt_balances.allocated_amount
+                  IS DISTINCT FROM excluded.allocated_amount
+                   OR payment_receipt_balances.coverage_designated_amount
+                  IS DISTINCT FROM excluded.coverage_designated_amount
                 """
             ),
             {"branch_ids": list(actor.branch_ids)},

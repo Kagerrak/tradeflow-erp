@@ -25,6 +25,7 @@ export type PaymentReceiptCaptureProps = {
   accessToken: string | undefined;
   baseUrl: string;
   createId?: () => string;
+  currency?: string;
   fetch?: (request: Request) => Promise<Response>;
   isOnline?: () => Promise<boolean>;
   store: PaymentReceiptStore;
@@ -34,6 +35,7 @@ export function PaymentReceiptCapture({
   accessToken,
   baseUrl,
   createId = randomUUID,
+  currency = "PHP",
   fetch,
   isOnline = async () => {
     const state = await getNetworkStateAsync();
@@ -132,7 +134,7 @@ export function PaymentReceiptCapture({
     const command = {
       amount,
       branch_id: branchId.trim(),
-      currency: "PHP",
+      currency,
       customer_id: customerId.trim(),
       evidence:
         method === "cash"

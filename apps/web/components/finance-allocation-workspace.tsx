@@ -154,7 +154,7 @@ export function FinanceAllocationWorkspace() {
       );
       const data = (await response.json()) as { amount?: string }[];
       if (response.ok) {
-        const successMessage = `Allocated PHP ${data[0]?.amount ?? amount} to invoice ${invoiceId}.`;
+        const successMessage = `Allocated ${selectedReceipt.currency} ${data[0]?.amount ?? amount} to invoice ${invoiceId}.`;
         setInvoiceId("");
         setAmount("");
         allocationIdentity.current = null;

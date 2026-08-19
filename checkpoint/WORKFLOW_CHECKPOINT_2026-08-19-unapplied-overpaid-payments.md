@@ -54,9 +54,9 @@
 ## Verification evidence
 
 - `uv run pytest -q apps/api/tests/test_payment_allocation_contract.py
-  apps/api/tests/test_customer_statement_contract.py
-  apps/api/tests/test_payment_clearance_contract.py
-  apps/api/tests/test_invoice_posting_contract.py` — **38 passed**.
+apps/api/tests/test_customer_statement_contract.py
+apps/api/tests/test_payment_clearance_contract.py
+apps/api/tests/test_invoice_posting_contract.py` — **38 passed**.
 - `uv run pytest -q apps/api/tests` — **216 passed, 4 skipped**.
 - `uv run pytest` (full Python gate incl. worker tests) — **217 passed, 4 skipped**.
 - `pnpm test` (full Node + Python gate):
