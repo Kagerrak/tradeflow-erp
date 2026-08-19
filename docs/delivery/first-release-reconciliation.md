@@ -1,13 +1,13 @@
 # First-release scope reconciliation
 
 - Date: August 19, 2026
-- Baseline: `origin/main` at `d344918`
+- Baseline: `origin/main` at `4cca220`
 - Tracker reconciliation: GitHub issue #55
 - Pending evidence: Return Authorization PR #112 at `e9abb2f` (green, awaiting
   explicit PR-specific approval); Inventory Transfer PR #114 local head
   `5466111` (unpushed pending two policy decisions); Issue #72 closed by PR #116;
   Issue #110 current-system baseline closed by PR #117; Issue #77 closed by PR
-  #118.
+  #118; Issue #78 closed by PR #119 at `4cca220`.
 
 ## Why the tracker was reopened
 
@@ -78,8 +78,8 @@ PRD behavior or release evidence does not.
 | Return request/approval against Delivered Quantity                                                                      | Draft PR #112 implements Return Authorization but is stacked on unmerged PR #111 and its migration descends from `d524a29c32b8`, bypassing current Credit Note merge head `0017` | Missing on `main`; pending reconciliation and review: #56, #65, PR #112                               |
 | Offline return evidence, Return Receipt/Inspection and controlled damaged custody                                       | Delivery-exception Return-to-Warehouse Receipt exists, but not the customer Returns lifecycle                                                                                    | Missing: #66–#67                                                                                      |
 | Restock, Replacement, repair, Supplier Return, write-off and finance credit outcomes                                    | No Return Disposition or outcome model exists                                                                                                                                    | Missing: #68–#70, with Finance #71 and Supplier Return #79                                            |
-| Supplier, Purchase Request/approval, Purchase Order and Goods Receipt                                                   | `suppliers.py`, `purchase_orders.py`, `goods_receipts.py`, and `purchase_requests.py` with contract tests and web workspace via PR #118                                          | Partial: #58 supplier config; #77 implemented and merged; variance/backorder remains #78–#79          |
-| Partial receipt, Receipt Variance, Purchase Backorder and Supplier Return                                               | Basic partial Goods Receipt exists; explicit variance/quality/backorder and Supplier Return do not                                                                               | Partial: #78–#79                                                                                      |
+| Supplier, Purchase Request/approval, Purchase Order and Goods Receipt                                                   | `suppliers.py`, `purchase_orders.py`, `goods_receipts.py`, and `purchase_requests.py` with contract tests and web workspace; variance/backorder shipped by PR #119 | Shipped foundation; supplier config remains #58                                                                     |
+| Partial receipt, Receipt Variance, Purchase Backorder and Supplier Return                                               | Goods Receipt variance, accepted/rejected/damaged/quarantine quantities, purchase backorder and over-receipt approval implemented by PR #119; Supplier Return remains open | Partial: #78 shipped; Supplier Return remains #79                                                                 |
 | Foreign currency, Inbound Shipment, customs evidence and Landed Cost                                                    | `landed_costs.py` implements line-value allocation; approved Exchange Rate Snapshot and shipment/customs workflow are absent                                                     | Partial and policy-gated: #63, #80–#81                                                                |
 | Expense categories, claims, evidence, duplicate checks, attribution, approval, posting and payment                      | Finance context defines Expense/Expense Claim; no runtime code, migration, client or UI exists                                                                                   | Missing: #59, #83–#87                                                                                 |
 | Effective-dated Commission plans, attribution, accrual, reversal and payout                                             | Only `contexts/commissions/CONTEXT.md` exists                                                                                                                                    | Missing and policy-gated: #60, #64, #88–#93                                                           |
@@ -129,13 +129,15 @@ and staging/security.
   `main` at `f195560`.
 - PR #118 merged issue #77 (create and approve Purchase Requests before
   Purchase Orders) to `main` at `d344918`.
+- PR #119 merged issue #78 (record receipt variance, quality outcome and
+  purchase backorder) to `main` at `4cca220`.
 
 ## Dependency-ready work
 
-The active slice is now closed. The next dependency-ready slices include #78,
-#83, #94, #97, and #105–#109. Delivery still proceeds one vertical slice at a
-time; the additional ready issues make blockers visible rather than inviting
-parallel mutation of shared domain foundations.
+The active slice is now closed. The next dependency-ready slices include #83,
+#94, #97, and #105–#109. Delivery still proceeds one vertical slice at a time;
+the additional ready issues make blockers visible rather than inviting parallel
+mutation of shared domain foundations.
 
 ## Completion rule
 
