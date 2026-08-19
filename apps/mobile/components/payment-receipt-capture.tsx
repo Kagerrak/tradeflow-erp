@@ -291,6 +291,13 @@ export function PaymentReceiptCapture({
           <Text style={styles.resultBody}>
             {paymentStateContent[state.receipt.status].nextAction}
           </Text>
+          {state.receipt.status === "cleared" && (
+            <Text style={styles.cashWarning}>
+              {state.receipt.currency} {state.receipt.unappliedAmount} remains{" "}
+              {state.receipt.applicationState.replaceAll("_", " ")}; it has not
+              reduced an unrelated invoice.
+            </Text>
+          )}
           {state.receipt.cashReconciliationStatus === "unreconciled" && (
             <Text style={styles.cashWarning}>
               Cash reconciliation remains due for this cleared receipt.

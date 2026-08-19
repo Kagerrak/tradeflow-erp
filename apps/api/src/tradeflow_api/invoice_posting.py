@@ -73,6 +73,7 @@ class DraftInvoiceResponse(BaseModel):
     discount_total: Decimal
     tax_total: Decimal
     grand_total: Decimal
+    open_balance: Decimal
     posted_at: datetime | None
     created_at: datetime
     lines: list[DraftInvoiceLineResponse]
@@ -209,6 +210,24 @@ async def _ledger_status_map(
         elif row["entry_type"] == "invoice" and current_status != "voided":
             result[invoice_id] = ("posted", row["posted_at"])
     return result
+
+
+async def _invoice_open_balance_map(
+    session: AsyncSession, invoice_ids: list[UUID]
+) -> dict[UUID, Decimal]:
+    if not invoice_ids:
+        return {}
+    rows = (
+        await session.execute(
+            select(
+                customer_ledger_entries.c.invoice_id,
+                func.sum(customer_ledger_entries.c.amount).label("open_balance"),
+            )
+            .where(customer_ledger_entries.c.invoice_id.in_(invoice_ids))
+            .group_by(customer_ledger_entries.c.invoice_id)
+        )
+    ).mappings()
+    return {row["invoice_id"]: row["open_balance"] for row in rows}
 
 
 async def _load_invoice(session: AsyncSession, draft_invoice_id: UUID) -> dict[str, Any]:
@@ -565,6 +584,9 @@ async def get_invoice(
         .all()
     )
     status, posted_at = await _invoice_ledger_facts(session, draft_invoice_id)
+    open_balance = (await _invoice_open_balance_map(session, [draft_invoice_id])).get(
+        draft_invoice_id, ZERO
+    )
     return DraftInvoiceResponse(
         draft_invoice_id=invoice["draft_invoice_id"],
         delivery_confirmation_id=invoice["delivery_confirmation_id"],
@@ -579,6 +601,7 @@ async def get_invoice(
         discount_total=invoice["discount_total"],
         tax_total=invoice["tax_total"],
         grand_total=invoice["grand_total"],
+        open_balance=open_balance,
         posted_at=posted_at,
         created_at=invoice["created_at"],
         lines=[
@@ -608,6 +631,7 @@ async def list_invoices(
     session: Annotated[AsyncSession, Depends(get_database_session)],
     customer_id: Annotated[UUID | None, Query()] = None,
     status: Annotated[str | None, Query()] = None,
+    open_only: Annotated[bool, Query()] = False,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> DraftInvoiceListResponse:
@@ -620,12 +644,16 @@ async def list_invoices(
 
     invoice_ids = [invoice["draft_invoice_id"] for invoice in invoices]
     status_map = await _ledger_status_map(session, invoice_ids)
+    open_balance_map = await _invoice_open_balance_map(session, invoice_ids)
 
     items: list[DraftInvoiceResponse] = []
     for invoice in invoices:
         invoice_id = invoice["draft_invoice_id"]
         invoice_status, posted_at = status_map.get(invoice_id, ("draft", None))
+        open_balance = open_balance_map.get(invoice_id, ZERO)
         if status is not None and invoice_status != status:
+            continue
+        if open_only and open_balance <= ZERO:
             continue
         lines = (
             (
@@ -653,6 +681,7 @@ async def list_invoices(
                 discount_total=invoice["discount_total"],
                 tax_total=invoice["tax_total"],
                 grand_total=invoice["grand_total"],
+                open_balance=open_balance,
                 posted_at=posted_at,
                 created_at=invoice["created_at"],
                 lines=[

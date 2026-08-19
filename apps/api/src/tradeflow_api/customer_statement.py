@@ -8,7 +8,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import func, select
+from sqlalchemy import case, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tradeflow_api.auth import AuthorizedUser, require_statement_reader
@@ -18,6 +18,14 @@ from tradeflow_api.models import (
     companies,
     customer_accounts,
     customer_ledger_entries,
+    payment_allocations,
+    payment_receipt_events,
+    payment_receipts,
+)
+from tradeflow_api.payment_balance import (
+    PaymentApplicationState,
+    payment_application_state,
+    unapplied_payment_amount,
 )
 
 router = APIRouter(prefix="/v1/finance/customers", tags=["finance"])
@@ -49,6 +57,18 @@ class StatementDocument(BaseModel):
     aging_bucket: str
 
 
+class StatementUnappliedPayment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    payment_receipt_id: UUID
+    received_at: date
+    payment_method: str
+    amount: Decimal = Field(decimal_places=6)
+    allocated_amount: Decimal = Field(decimal_places=6)
+    unapplied_amount: Decimal = Field(decimal_places=6)
+    application_state: PaymentApplicationState
+
+
 class StatementResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -59,8 +79,10 @@ class StatementResponse(BaseModel):
     as_of: date
     opening_balance: Decimal = Field(decimal_places=6)
     closing_balance: Decimal = Field(decimal_places=6)
+    unapplied_payment_total: Decimal = Field(decimal_places=6)
     lines: list[StatementLine]
     documents: list[StatementDocument]
+    unapplied_payments: list[StatementUnappliedPayment]
 
 
 def _start_of_day(d: date) -> datetime:
@@ -231,6 +253,89 @@ def _build_documents(
     return documents
 
 
+async def _unapplied_payments(
+    session: AsyncSession,
+    *,
+    customer_id: UUID,
+    branch_ids: list[UUID],
+    as_of: date,
+) -> list[StatementUnappliedPayment]:
+    as_of_dt = _end_of_day(as_of)
+    cleared = (
+        select(payment_receipt_events.c.payment_receipt_event_id)
+        .where(
+            payment_receipt_events.c.payment_receipt_id == payment_receipts.c.payment_receipt_id,
+            payment_receipt_events.c.event_type == "cleared",
+            payment_receipt_events.c.occurred_at <= as_of_dt,
+        )
+        .exists()
+    )
+    reversed_or_refunded = (
+        select(payment_receipt_events.c.payment_receipt_event_id)
+        .where(
+            payment_receipt_events.c.payment_receipt_id == payment_receipts.c.payment_receipt_id,
+            payment_receipt_events.c.event_type.in_(("reversed", "refunded")),
+            payment_receipt_events.c.occurred_at <= as_of_dt,
+        )
+        .exists()
+    )
+    allocated = (
+        select(func.coalesce(func.sum(payment_allocations.c.amount), ZERO))
+        .where(
+            payment_allocations.c.payment_receipt_id == payment_receipts.c.payment_receipt_id,
+            payment_allocations.c.created_at <= as_of_dt,
+        )
+        .scalar_subquery()
+    )
+    rows = (
+        (
+            await session.execute(
+                select(
+                    payment_receipts.c.payment_receipt_id,
+                    payment_receipts.c.received_at,
+                    payment_receipts.c.payment_method_kind,
+                    payment_receipts.c.amount,
+                    case((cleared & ~reversed_or_refunded, "cleared"), else_="not_cleared").label(
+                        "state"
+                    ),
+                    case((cleared, payment_receipts.c.amount), else_=ZERO).label("cleared_amount"),
+                    case((reversed_or_refunded, payment_receipts.c.amount), else_=ZERO).label(
+                        "reversed_amount"
+                    ),
+                    literal(ZERO).label("refunded_amount"),
+                    allocated.label("allocated_amount"),
+                )
+                .where(
+                    payment_receipts.c.customer_id == customer_id,
+                    payment_receipts.c.branch_id.in_(branch_ids),
+                    payment_receipts.c.received_at <= as_of_dt,
+                    cleared,
+                    ~reversed_or_refunded,
+                    payment_receipts.c.amount - allocated > ZERO,
+                )
+                .order_by(
+                    payment_receipts.c.received_at,
+                    payment_receipts.c.payment_receipt_id,
+                )
+            )
+        )
+        .mappings()
+        .all()
+    )
+    return [
+        StatementUnappliedPayment(
+            payment_receipt_id=row["payment_receipt_id"],
+            received_at=row["received_at"].date(),
+            payment_method=row["payment_method_kind"],
+            amount=row["amount"],
+            allocated_amount=row["allocated_amount"],
+            unapplied_amount=unapplied_payment_amount(dict(row)),
+            application_state=payment_application_state(dict(row)),
+        )
+        for row in rows
+    ]
+
+
 @router.get(
     "/{customer_id}/statement",
     response_model=StatementResponse,
@@ -294,6 +399,12 @@ async def get_customer_statement(
         )
 
     documents = _build_documents(entries, effective_as_of)
+    unapplied_payments = await _unapplied_payments(
+        session,
+        customer_id=customer_id,
+        branch_ids=branch_ids,
+        as_of=effective_as_of,
+    )
 
     return StatementResponse(
         customer_id=customer_id,
@@ -303,6 +414,10 @@ async def get_customer_statement(
         as_of=effective_as_of,
         opening_balance=opening,
         closing_balance=running,
+        unapplied_payment_total=sum(
+            (payment.unapplied_amount for payment in unapplied_payments), ZERO
+        ),
         lines=lines,
         documents=documents,
+        unapplied_payments=unapplied_payments,
     )

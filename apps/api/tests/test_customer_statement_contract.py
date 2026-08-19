@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
@@ -128,6 +128,21 @@ async def _create_cleared_receipt(
         )
         await connection.execute(
             text(
+                "INSERT INTO payment_receipt_events "
+                "(payment_receipt_event_id, payment_receipt_id, event_type, actor_subject, "
+                "reason, source_id, correlation_id, idempotency_key, occurred_at) "
+                "VALUES (:event_id, :receipt_id, 'cleared', 'finance-recorder', "
+                "'Test cleared funds', :receipt_id, :correlation_id, :idempotency_key, now())"
+            ),
+            {
+                "event_id": str(uuid4()),
+                "receipt_id": payment_receipt_id,
+                "correlation_id": str(uuid4()),
+                "idempotency_key": str(uuid4()),
+            },
+        )
+        await connection.execute(
+            text(
                 "INSERT INTO payment_receipt_balances "
                 "(payment_receipt_id, cleared_amount, allocated_amount, "
                 "coverage_designated_amount, version) "
@@ -154,7 +169,7 @@ async def _allocate(
             "finance-recorder",
             **{"Idempotency-Key": idempotency_key},
         ),
-        json={"allocations": [{"invoice_id": invoice_id, "amount": amount}]},
+        json={"expected_version": 1, "allocations": [{"invoice_id": invoice_id, "amount": amount}]},
     )
     assert response.status_code == 201, response.text
 
@@ -172,7 +187,7 @@ async def test_statement_empty_range_returns_zero_balances(
         postgres_url,
         fake_storage,
     )
-    today = date.today().isoformat()
+    today = datetime.now(UTC).date().isoformat()
     response = await statement_client.get(
         f"/v1/finance/customers/{fixture['customer_id']}/statement",
         headers=auth(statement_settings, "finance-recorder"),
@@ -203,7 +218,7 @@ async def test_statement_shows_posted_invoice_and_open_document(
     )
     await _post_invoice(statement_client, statement_settings, draft_invoice_id)
 
-    today = date.today().isoformat()
+    today = datetime.now(UTC).date().isoformat()
     response = await statement_client.get(
         f"/v1/finance/customers/{fixture['customer_id']}/statement",
         headers=auth(statement_settings, "finance-recorder"),
@@ -255,7 +270,7 @@ async def test_statement_reflects_partial_allocation(
         "allocate-partial",
     )
 
-    today = date.today().isoformat()
+    today = datetime.now(UTC).date().isoformat()
     response = await statement_client.get(
         f"/v1/finance/customers/{fixture['customer_id']}/statement",
         headers=auth(statement_settings, "finance-recorder"),
@@ -301,7 +316,7 @@ async def test_statement_reflects_full_payment(
         "allocate-full",
     )
 
-    today = date.today().isoformat()
+    today = datetime.now(UTC).date().isoformat()
     response = await statement_client.get(
         f"/v1/finance/customers/{fixture['customer_id']}/statement",
         headers=auth(statement_settings, "finance-recorder"),
@@ -313,6 +328,63 @@ async def test_statement_reflects_full_payment(
     document = body["documents"][0]
     assert document["state"] == "paid"
     assert Decimal(document["open_amount"]) == Decimal("0")
+
+
+@pytest.mark.asyncio
+async def test_statement_discloses_overpayment_without_reducing_other_receivables(
+    statement_client: AsyncClient,
+    statement_settings: Settings,
+    postgres_url: str,
+    fake_storage: FakeObjectStorage,
+) -> None:
+    fixture, draft_invoice_id = await confirmed_delivery_and_invoice(
+        statement_client,
+        statement_settings,
+        postgres_url,
+        fake_storage,
+    )
+    await _post_invoice(statement_client, statement_settings, draft_invoice_id)
+    receipt_id = await _create_cleared_receipt(
+        postgres_url,
+        customer_id=fixture["customer_id"],
+        branch_id=fixture["branch_id"],
+        amount="300.00",
+    )
+    await _allocate(
+        statement_client,
+        statement_settings,
+        receipt_id,
+        draft_invoice_id,
+        "224.00",
+        "statement-overpayment",
+    )
+
+    today = datetime.now(UTC).date().isoformat()
+    response = await statement_client.get(
+        f"/v1/finance/customers/{fixture['customer_id']}/statement",
+        headers=auth(statement_settings, "finance-recorder"),
+        params={"from_date": today, "to_date": today, "as_of": today},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert Decimal(body["closing_balance"]) == Decimal("0")
+    assert Decimal(body["unapplied_payment_total"]) == sum(
+        Decimal(payment["unapplied_amount"]) for payment in body["unapplied_payments"]
+    )
+    overpayment = next(
+        payment
+        for payment in body["unapplied_payments"]
+        if payment["payment_receipt_id"] == receipt_id
+    )
+    assert overpayment == {
+        "payment_receipt_id": receipt_id,
+        "received_at": today,
+        "payment_method": "cash",
+        "amount": "300.000000",
+        "allocated_amount": "224.000000",
+        "unapplied_amount": "76.000000",
+        "application_state": "partially_applied",
+    }
 
 
 @pytest.mark.asyncio
@@ -336,7 +408,7 @@ async def test_statement_aging_buckets_overdue_invoice(
         posted_at=posted_at,
     )
 
-    as_of = date.today().isoformat()
+    as_of = datetime.now(UTC).date().isoformat()
     from_date = posted_at.date().isoformat()
     response = await statement_client.get(
         f"/v1/finance/customers/{fixture['customer_id']}/statement",
@@ -365,7 +437,7 @@ async def test_statement_branch_scope_hides_other_branch(
     )
     await _post_invoice(statement_client, statement_settings, draft_invoice_id)
 
-    today = date.today().isoformat()
+    today = datetime.now(UTC).date().isoformat()
     response = await statement_client.get(
         f"/v1/finance/customers/{fixture['customer_id']}/statement",
         headers=auth(statement_settings, "finance-ceb"),
@@ -391,7 +463,7 @@ async def test_statement_rejects_missing_capability(
         postgres_url,
         fake_storage,
     )
-    today = date.today().isoformat()
+    today = datetime.now(UTC).date().isoformat()
     response = await statement_client.get(
         f"/v1/finance/customers/{fixture['customer_id']}/statement",
         headers=auth(statement_settings, "sales-mnl"),
@@ -430,7 +502,7 @@ async def test_statement_rebuild_reconciles_credit_exposure(
         "allocate-partial",
     )
 
-    today = date.today().isoformat()
+    today = datetime.now(UTC).date().isoformat()
     response = await statement_client.get(
         f"/v1/finance/customers/{fixture['customer_id']}/statement",
         headers=auth(statement_settings, "finance-recorder"),

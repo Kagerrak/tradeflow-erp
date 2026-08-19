@@ -179,9 +179,15 @@
             "minItems": 1,
             "title": "Allocations",
             "type": "array"
+          },
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
           }
         },
         "required": [
+          "expected_version",
           "allocations"
         ],
         "title": "AllocatePaymentCommand",
@@ -5460,6 +5466,11 @@
             "title": "Lines",
             "type": "array"
           },
+          "open_balance": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Open Balance",
+            "type": "string"
+          },
           "posted_at": {
             "anyOf": [
               {
@@ -5511,6 +5522,7 @@
           "discount_total",
           "tax_total",
           "grand_total",
+          "open_balance",
           "posted_at",
           "created_at",
           "lines"
@@ -7110,6 +7122,31 @@
         "title": "PaymentEvidence",
         "type": "object"
       },
+      "PaymentProjectionRebuildResponse": {
+        "properties": {
+          "allocated_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Allocated Total",
+            "type": "string"
+          },
+          "receipt_rows": {
+            "title": "Receipt Rows",
+            "type": "integer"
+          },
+          "unapplied_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unapplied Total",
+            "type": "string"
+          }
+        },
+        "required": [
+          "receipt_rows",
+          "allocated_total",
+          "unapplied_total"
+        ],
+        "title": "PaymentProjectionRebuildResponse",
+        "type": "object"
+      },
       "PaymentReceiptAllocationListResponse": {
         "properties": {
           "allocated_amount": {
@@ -7123,6 +7160,16 @@
             },
             "title": "Allocations",
             "type": "array"
+          },
+          "application_state": {
+            "enum": [
+              "not_cleared",
+              "unapplied",
+              "partially_applied",
+              "fully_applied"
+            ],
+            "title": "Application State",
+            "type": "string"
           },
           "available_amount": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -7143,6 +7190,10 @@
             "format": "uuid",
             "title": "Payment Receipt Id",
             "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
           }
         },
         "required": [
@@ -7151,6 +7202,8 @@
           "allocated_amount",
           "available_amount",
           "coverage_designated_amount",
+          "application_state",
+          "version",
           "allocations"
         ],
         "title": "PaymentReceiptAllocationListResponse",
@@ -7179,15 +7232,34 @@
       },
       "PaymentReceiptResponse": {
         "properties": {
+          "allocated_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Allocated Amount",
+            "type": "string"
+          },
           "amount": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Amount",
+            "type": "string"
+          },
+          "application_state": {
+            "enum": [
+              "not_cleared",
+              "unapplied",
+              "partially_applied",
+              "fully_applied"
+            ],
+            "title": "Application State",
             "type": "string"
           },
           "available_for_coverage": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Available For Coverage",
             "type": "string"
+          },
+          "balance_version": {
+            "title": "Balance Version",
+            "type": "integer"
           },
           "branch_id": {
             "format": "uuid",
@@ -7317,7 +7389,10 @@
           "external_reference_normalized",
           "status",
           "cleared_amount",
+          "allocated_amount",
           "unapplied_amount",
+          "application_state",
+          "balance_version",
           "available_for_coverage",
           "cash_reconciliation_status",
           "recorded_by",
@@ -10374,6 +10449,18 @@
             "format": "date",
             "title": "To Date",
             "type": "string"
+          },
+          "unapplied_payment_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,6}0*$",
+            "title": "Unapplied Payment Total",
+            "type": "string"
+          },
+          "unapplied_payments": {
+            "items": {
+              "$ref": "#/components/schemas/StatementUnappliedPayment"
+            },
+            "title": "Unapplied Payments",
+            "type": "array"
           }
         },
         "required": [
@@ -10384,10 +10471,67 @@
           "as_of",
           "opening_balance",
           "closing_balance",
+          "unapplied_payment_total",
           "lines",
-          "documents"
+          "documents",
+          "unapplied_payments"
         ],
         "title": "StatementResponse",
+        "type": "object"
+      },
+      "StatementUnappliedPayment": {
+        "additionalProperties": false,
+        "properties": {
+          "allocated_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,6}0*$",
+            "title": "Allocated Amount",
+            "type": "string"
+          },
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,6}0*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "application_state": {
+            "enum": [
+              "not_cleared",
+              "unapplied",
+              "partially_applied",
+              "fully_applied"
+            ],
+            "title": "Application State",
+            "type": "string"
+          },
+          "payment_method": {
+            "title": "Payment Method",
+            "type": "string"
+          },
+          "payment_receipt_id": {
+            "format": "uuid",
+            "title": "Payment Receipt Id",
+            "type": "string"
+          },
+          "received_at": {
+            "format": "date",
+            "title": "Received At",
+            "type": "string"
+          },
+          "unapplied_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,6}0*$",
+            "title": "Unapplied Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payment_receipt_id",
+          "received_at",
+          "payment_method",
+          "amount",
+          "allocated_amount",
+          "unapplied_amount",
+          "application_state"
+        ],
+        "title": "StatementUnappliedPayment",
         "type": "object"
       },
       "StockEffect": {
@@ -14974,6 +15118,16 @@
           },
           {
             "in": "query",
+            "name": "open_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Open Only",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
             "name": "limit",
             "required": false,
             "schema": {
@@ -15628,6 +15782,45 @@
           },
           {
             "in": "query",
+            "name": "customer_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Customer Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "application_state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "not_cleared",
+                    "unapplied",
+                    "partially_applied",
+                    "fully_applied"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Application State"
+            }
+          },
+          {
+            "in": "query",
             "name": "status",
             "required": false,
             "schema": {
@@ -15647,6 +15840,29 @@
                 }
               ],
               "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
             }
           }
         ],
@@ -15836,6 +16052,62 @@
         "tags": [
           "finance",
           "fulfillment"
+        ]
+      }
+    },
+    "/v1/finance/payment-receipts/projections/rebuild": {
+      "post": {
+        "operationId": "rebuild_payment_receipt_projections_v1_finance_payment_receipts_projections_rebuild_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentProjectionRebuildResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rebuild Payment Receipt Projections",
+        "tags": [
+          "finance"
         ]
       }
     },

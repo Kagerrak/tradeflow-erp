@@ -47,8 +47,11 @@ it("records online cash as cleared but still calls out reconciliation", async ()
       fetch={async () =>
         new Response(
           JSON.stringify({
+            allocated_amount: "0.00",
             amount: "224.00",
+            application_state: "unapplied",
             available_for_coverage: "224.00",
+            balance_version: 1,
             branch_id: branchId,
             cash_reconciliation_status: "unreconciled",
             cleared_amount: "224.00",
@@ -87,6 +90,10 @@ it("records online cash as cleared but still calls out reconciliation", async ()
   );
   await fireEvent.press(screen.getByLabelText("Queue payment receipt"));
   await screen.findByRole("header", { name: "Cleared payment" });
+  expect(screen.getByText(/224\.00 remains unapplied/)).toBeOnTheScreen();
+  expect(
+    screen.getByText(/it has not reduced an unrelated invoice/),
+  ).toBeOnTheScreen();
   expect(screen.getByText(/Cash reconciliation remains due/)).toBeOnTheScreen();
   expect(await store.listPending()).toHaveLength(0);
 });

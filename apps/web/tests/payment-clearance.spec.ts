@@ -1,8 +1,11 @@
 import { expect, test } from "@playwright/test";
 
 const pendingReceipt = {
+  allocatedAmount: "0.00",
   amount: "224.00",
+  applicationState: "not_cleared",
   availableForCoverage: "0.00",
+  balanceVersion: 1,
   branchId: "efad4205-5060-49fb-b752-3faca649ca6e",
   cashReconciliationStatus: null,
   clearedAmount: "0.00",
@@ -48,6 +51,10 @@ test("records cash and gives the checker a method-specific next action", async (
         kind: "recorded",
         receipt: {
           ...pendingReceipt,
+          allocatedAmount: "0.00",
+          applicationState: "unapplied",
+          availableForCoverage: "224.00",
+          balanceVersion: 2,
           cashReconciliationStatus: "unreconciled",
           clearedAmount: "224.00",
           externalReference: null,
@@ -71,7 +78,10 @@ test("records cash and gives the checker a method-specific next action", async (
         kind: "updated",
         receipt: {
           ...pendingReceipt,
+          allocatedAmount: "0.00",
+          applicationState: "unapplied",
           availableForCoverage: "224.00",
+          balanceVersion: 2,
           clearedAmount: "224.00",
           status: "cleared",
           unappliedAmount: "224.00",

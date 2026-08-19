@@ -159,6 +159,36 @@ export function FinanceStatementWorkspace() {
 
             <div className="finance-section-head">
               <div>
+                <span>Customer funds not applied to invoices</span>
+                <h3>Unapplied Payment</h3>
+              </div>
+              <strong>
+                {formatCurrency(statement.unapplied_payment_total)}
+              </strong>
+            </div>
+
+            {statement.unapplied_payments.length > 0 && (
+              <div className="finance-queue">
+                {statement.unapplied_payments.map((payment) => (
+                  <article key={payment.payment_receipt_id}>
+                    <div>
+                      <span className="finance-status attention">
+                        {payment.application_state.replaceAll("_", " ")}
+                      </span>
+                      <h3>{formatCurrency(payment.unapplied_amount)}</h3>
+                      <p>
+                        Receipt {formatCurrency(payment.amount)} · allocated{" "}
+                        {formatCurrency(payment.allocated_amount)}
+                      </p>
+                      <small>{payment.payment_receipt_id}</small>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+
+            <div className="finance-section-head">
+              <div>
                 <span>Opening</span>
                 <h3>{formatCurrency(statement.opening_balance)}</h3>
               </div>
