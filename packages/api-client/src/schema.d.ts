@@ -652,6 +652,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/finance/payment-receipts/projections/rebuild": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rebuild Payment Receipt Projections */
+        post: operations["rebuild_payment_receipt_projections_v1_finance_payment_receipts_projections_rebuild_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/finance/payment-receipts/{payment_receipt_id}": {
         parameters: {
             query?: never;
@@ -1530,6 +1547,8 @@ export interface components {
         AllocatePaymentCommand: {
             /** Allocations */
             allocations: components["schemas"]["AllocationApplication"][];
+            /** Expected Version */
+            expected_version: number;
         };
         /** AllocationApplication */
         AllocationApplication: {
@@ -3595,6 +3614,8 @@ export interface components {
             invoice_kind: string;
             /** Lines */
             lines: components["schemas"]["DraftInvoiceLineResponse"][];
+            /** Open Balance */
+            open_balance: string;
             /** Posted At */
             posted_at: string | null;
             /**
@@ -4280,12 +4301,26 @@ export interface components {
             /** Value Date */
             value_date: string;
         };
+        /** PaymentProjectionRebuildResponse */
+        PaymentProjectionRebuildResponse: {
+            /** Allocated Total */
+            allocated_total: string;
+            /** Receipt Rows */
+            receipt_rows: number;
+            /** Unapplied Total */
+            unapplied_total: string;
+        };
         /** PaymentReceiptAllocationListResponse */
         PaymentReceiptAllocationListResponse: {
             /** Allocated Amount */
             allocated_amount: string;
             /** Allocations */
             allocations: components["schemas"]["AppliedAllocation"][];
+            /**
+             * Application State
+             * @enum {string}
+             */
+            application_state: "not_cleared" | "unapplied" | "partially_applied" | "fully_applied";
             /** Available Amount */
             available_amount: string;
             /** Cleared Amount */
@@ -4297,6 +4332,8 @@ export interface components {
              * Format: uuid
              */
             payment_receipt_id: string;
+            /** Version */
+            version: number;
         };
         /** PaymentReceiptListResponse */
         PaymentReceiptListResponse: {
@@ -4307,10 +4344,19 @@ export interface components {
         };
         /** PaymentReceiptResponse */
         PaymentReceiptResponse: {
+            /** Allocated Amount */
+            allocated_amount: string;
             /** Amount */
             amount: string;
+            /**
+             * Application State
+             * @enum {string}
+             */
+            application_state: "not_cleared" | "unapplied" | "partially_applied" | "fully_applied";
             /** Available For Coverage */
             available_for_coverage: string;
+            /** Balance Version */
+            balance_version: number;
             /**
              * Branch Id
              * Format: uuid
@@ -5647,6 +5693,36 @@ export interface components {
              * Format: date
              */
             to_date: string;
+            /** Unapplied Payment Total */
+            unapplied_payment_total: string;
+            /** Unapplied Payments */
+            unapplied_payments: components["schemas"]["StatementUnappliedPayment"][];
+        };
+        /** StatementUnappliedPayment */
+        StatementUnappliedPayment: {
+            /** Allocated Amount */
+            allocated_amount: string;
+            /** Amount */
+            amount: string;
+            /**
+             * Application State
+             * @enum {string}
+             */
+            application_state: "not_cleared" | "unapplied" | "partially_applied" | "fully_applied";
+            /** Payment Method */
+            payment_method: string;
+            /**
+             * Payment Receipt Id
+             * Format: uuid
+             */
+            payment_receipt_id: string;
+            /**
+             * Received At
+             * Format: date
+             */
+            received_at: string;
+            /** Unapplied Amount */
+            unapplied_amount: string;
         };
         /** StockEffect */
         StockEffect: {
@@ -8522,6 +8598,7 @@ export interface operations {
             query?: {
                 customer_id?: string | null;
                 status?: string | null;
+                open_only?: boolean;
                 limit?: number;
                 offset?: number;
             };
@@ -8967,7 +9044,11 @@ export interface operations {
         parameters: {
             query?: {
                 branch_id?: string | null;
+                customer_id?: string | null;
+                application_state?: ("not_cleared" | "unapplied" | "partially_applied" | "fully_applied") | null;
                 status?: ("pending_verification" | "awaiting_bank_clearance" | "cleared" | "rejected" | "reversed") | null;
+                limit?: number;
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -9093,6 +9174,53 @@ export interface operations {
             };
             /** @description Stable TradeFlow error envelope. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    rebuild_payment_receipt_projections_v1_finance_payment_receipts_projections_rebuild_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentProjectionRebuildResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

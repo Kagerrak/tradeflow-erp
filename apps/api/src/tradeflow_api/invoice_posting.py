@@ -73,6 +73,7 @@ class DraftInvoiceResponse(BaseModel):
     discount_total: Decimal
     tax_total: Decimal
     grand_total: Decimal
+    open_balance: Decimal
     posted_at: datetime | None
     created_at: datetime
     lines: list[DraftInvoiceLineResponse]
@@ -209,6 +210,24 @@ async def _ledger_status_map(
         elif row["entry_type"] == "invoice" and current_status != "voided":
             result[invoice_id] = ("posted", row["posted_at"])
     return result
+
+
+async def _invoice_open_balance_map(
+    session: AsyncSession, invoice_ids: list[UUID]
+) -> dict[UUID, Decimal]:
+    if not invoice_ids:
+        return {}
+    rows = (
+        await session.execute(
+            select(
+                customer_ledger_entries.c.invoice_id,
+                func.sum(customer_ledger_entries.c.amount).label("open_balance"),
+            )
+            .where(customer_ledger_entries.c.invoice_id.in_(invoice_ids))
+            .group_by(customer_ledger_entries.c.invoice_id)
+        )
+    ).mappings()
+    return {row["invoice_id"]: row["open_balance"] for row in rows}
 
 
 async def _load_invoice(session: AsyncSession, draft_invoice_id: UUID) -> dict[str, Any]:
@@ -565,6 +584,9 @@ async def get_invoice(
         .all()
     )
     status, posted_at = await _invoice_ledger_facts(session, draft_invoice_id)
+    open_balance = (await _invoice_open_balance_map(session, [draft_invoice_id])).get(
+        draft_invoice_id, ZERO
+    )
     return DraftInvoiceResponse(
         draft_invoice_id=invoice["draft_invoice_id"],
         delivery_confirmation_id=invoice["delivery_confirmation_id"],
@@ -579,6 +601,7 @@ async def get_invoice(
         discount_total=invoice["discount_total"],
         tax_total=invoice["tax_total"],
         grand_total=invoice["grand_total"],
+        open_balance=open_balance,
         posted_at=posted_at,
         created_at=invoice["created_at"],
         lines=[
@@ -608,18 +631,44 @@ async def list_invoices(
     session: Annotated[AsyncSession, Depends(get_database_session)],
     customer_id: Annotated[UUID | None, Query()] = None,
     status: Annotated[str | None, Query()] = None,
+    open_only: Annotated[bool, Query()] = False,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> DraftInvoiceListResponse:
     query = select(draft_invoices).where(draft_invoices.c.branch_id.in_(actor.branch_ids))
     if customer_id is not None:
         query = query.where(draft_invoices.c.customer_id == customer_id)
-    invoices = (
-        (await session.execute(query.order_by(draft_invoices.c.created_at.desc()))).mappings().all()
-    )
+    if open_only:
+        open_invoices = (
+            select(customer_ledger_entries.c.invoice_id)
+            .group_by(customer_ledger_entries.c.invoice_id)
+            .having(func.sum(customer_ledger_entries.c.amount) > ZERO)
+            .scalar_subquery()
+        )
+        query = query.where(draft_invoices.c.draft_invoice_id.in_(open_invoices))
+
+    ordered = query.order_by(draft_invoices.c.created_at.desc())
+    total = (await session.scalar(select(func.count()).select_from(ordered.subquery()))) or 0
+    invoices = (await session.execute(ordered.limit(limit).offset(offset))).mappings().all()
 
     invoice_ids = [invoice["draft_invoice_id"] for invoice in invoices]
     status_map = await _ledger_status_map(session, invoice_ids)
+    open_balance_map = await _invoice_open_balance_map(session, invoice_ids)
+
+    lines = (
+        (
+            await session.execute(
+                select(draft_invoice_lines).where(
+                    draft_invoice_lines.c.draft_invoice_id.in_(invoice_ids)
+                )
+            )
+        )
+        .mappings()
+        .all()
+    )
+    lines_by_invoice: dict[UUID, list[Any]] = {}
+    for line in lines:
+        lines_by_invoice.setdefault(line["draft_invoice_id"], []).append(line)
 
     items: list[DraftInvoiceResponse] = []
     for invoice in invoices:
@@ -627,17 +676,8 @@ async def list_invoices(
         invoice_status, posted_at = status_map.get(invoice_id, ("draft", None))
         if status is not None and invoice_status != status:
             continue
-        lines = (
-            (
-                await session.execute(
-                    select(draft_invoice_lines).where(
-                        draft_invoice_lines.c.draft_invoice_id == invoice_id
-                    )
-                )
-            )
-            .mappings()
-            .all()
-        )
+        open_balance = open_balance_map.get(invoice_id, ZERO)
+        invoice_lines = lines_by_invoice.get(invoice_id, [])
         items.append(
             DraftInvoiceResponse(
                 draft_invoice_id=invoice_id,
@@ -653,6 +693,7 @@ async def list_invoices(
                 discount_total=invoice["discount_total"],
                 tax_total=invoice["tax_total"],
                 grand_total=invoice["grand_total"],
+                open_balance=open_balance,
                 posted_at=posted_at,
                 created_at=invoice["created_at"],
                 lines=[
@@ -667,10 +708,8 @@ async def list_invoices(
                         tax_amount=line["tax_amount"],
                         line_total=line["line_total"],
                     )
-                    for line in lines
+                    for line in invoice_lines
                 ],
             )
         )
-    total = len(items)
-    paginated = items[offset : offset + limit]
-    return DraftInvoiceListResponse(items=paginated, total=total)
+    return DraftInvoiceListResponse(items=items, total=total)

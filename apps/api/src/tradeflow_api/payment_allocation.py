@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from tradeflow_api.auth import (
     AuthorizedUser,
     require_payment_allocator,
+    require_payment_projection_rebuilder,
     require_payment_reader,
 )
 from tradeflow_api.command_receipts import get_command_replay, store_command_result
@@ -34,6 +35,11 @@ from tradeflow_api.models import (
     payment_receipts,
     prepayment_coverage_events,
 )
+from tradeflow_api.payment_balance import (
+    PaymentApplicationState,
+    payment_application_state,
+    unapplied_payment_amount,
+)
 
 router = APIRouter(
     prefix="/v1/finance/payment-receipts",
@@ -52,6 +58,7 @@ class AllocationApplication(CommandModel):
 
 
 class AllocatePaymentCommand(CommandModel):
+    expected_version: int = Field(ge=1)
     allocations: list[AllocationApplication] = Field(min_length=1)
 
 
@@ -81,7 +88,15 @@ class PaymentReceiptAllocationListResponse(BaseModel):
     allocated_amount: Decimal
     available_amount: Decimal
     coverage_designated_amount: Decimal
+    application_state: PaymentApplicationState
+    version: int
     allocations: list[AppliedAllocation]
+
+
+class PaymentProjectionRebuildResponse(BaseModel):
+    receipt_rows: int
+    allocated_total: Decimal
+    unapplied_total: Decimal
 
 
 def _hash_request(payment_receipt_id: UUID, body: dict[str, Any]) -> str:
@@ -105,6 +120,17 @@ async def _require_branch_scope(actor: AuthorizedUser, branch_id: UUID) -> None:
             code="operational_scope_required",
             message="The requested Branch is outside your operational scope.",
         )
+
+
+async def _receipt_branch_id(session: AsyncSession, payment_receipt_id: UUID) -> UUID:
+    branch_id = await session.scalar(
+        select(payment_receipts.c.branch_id).where(
+            payment_receipts.c.payment_receipt_id == payment_receipt_id
+        )
+    )
+    if branch_id is None:
+        raise AppError(404, "payment_receipt_not_found", "Payment Receipt not found.")
+    return cast(UUID, branch_id)
 
 
 async def _load_receipt(session: AsyncSession, payment_receipt_id: UUID) -> dict[str, Any]:
@@ -193,13 +219,7 @@ async def _invoice_status(session: AsyncSession, invoice_id: UUID) -> str:
 
 
 def _available_receipt_balance(receipt: Mapping[str, Any]) -> Decimal:
-    return (
-        Decimal(receipt["cleared_amount"])
-        - Decimal(receipt["reversed_amount"])
-        - Decimal(receipt["refunded_amount"])
-        - Decimal(receipt["allocated_amount"])
-        - Decimal(receipt["coverage_designated_amount"])
-    )
+    return unapplied_payment_amount(receipt) - Decimal(receipt["coverage_designated_amount"])
 
 
 async def _update_credit_exposure(
@@ -255,7 +275,7 @@ async def _allocate(
     session: AsyncSession,
     *,
     actor: AuthorizedUser,
-    receipt: Mapping[str, Any],
+    receipt: dict[str, Any],
     invoice: Mapping[str, Any],
     amount: Decimal,
     correlation_id: str,
@@ -295,15 +315,19 @@ async def _allocate(
     )
     new_allocated = receipt["allocated_amount"] + amount
     new_coverage = receipt["coverage_designated_amount"] - reduce_coverage_by
+    new_version = receipt["balance_version"] + 1
     await session.execute(
         update(payment_receipt_balances)
         .where(payment_receipt_balances.c.payment_receipt_id == receipt["payment_receipt_id"])
         .values(
             allocated_amount=new_allocated,
             coverage_designated_amount=new_coverage,
-            version=receipt["balance_version"] + 1,
+            version=new_version,
         )
     )
+    receipt["allocated_amount"] = new_allocated
+    receipt["coverage_designated_amount"] = new_coverage
+    receipt["balance_version"] = new_version
     await _update_credit_exposure(
         session,
         customer_id=invoice["customer_id"],
@@ -521,6 +545,140 @@ async def _auto_allocate(
 
 
 @router.post(
+    "/projections/rebuild",
+    response_model=PaymentProjectionRebuildResponse,
+    responses=error_responses(401, 403, 500),
+)
+async def rebuild_payment_receipt_projections(
+    actor: Annotated[AuthorizedUser, Depends(require_payment_projection_rebuilder)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> PaymentProjectionRebuildResponse:
+    if not actor.branch_ids:
+        return PaymentProjectionRebuildResponse(
+            receipt_rows=0,
+            allocated_total=ZERO,
+            unapplied_total=ZERO,
+        )
+    await session.rollback()
+    async with session.begin():
+        await session.execute(
+            text(
+                "LOCK TABLE payment_receipts, payment_receipt_events, "
+                "payment_allocations, prepayment_coverage_events, "
+                "payment_receipt_balances IN SHARE ROW EXCLUSIVE MODE"
+            )
+        )
+        await session.execute(
+            text(
+                """
+                WITH scoped_receipts AS (
+                  SELECT receipt.payment_receipt_id, receipt.amount
+                  FROM payment_receipts receipt
+                  WHERE receipt.branch_id = ANY(:branch_ids)
+                ), allocation_totals AS (
+                  SELECT allocation.payment_receipt_id,
+                         sum(allocation.amount) AS allocated_amount
+                  FROM payment_allocations allocation
+                  JOIN scoped_receipts receipt USING (payment_receipt_id)
+                  GROUP BY allocation.payment_receipt_id
+                ), coverage_totals AS (
+                  SELECT event.payment_receipt_id,
+                         greatest(sum(CASE
+                           WHEN event.event_type = 'designated' THEN event.amount
+                           ELSE -event.amount
+                         END), 0) AS coverage_designated_amount
+                  FROM prepayment_coverage_events event
+                  JOIN scoped_receipts receipt USING (payment_receipt_id)
+                  GROUP BY event.payment_receipt_id
+                ), facts AS (
+                  SELECT receipt.payment_receipt_id,
+                    CASE WHEN EXISTS (
+                      SELECT 1 FROM payment_receipt_events event
+                      WHERE event.payment_receipt_id = receipt.payment_receipt_id
+                        AND event.event_type = 'cleared'
+                    ) THEN receipt.amount ELSE 0 END AS cleared_amount,
+                    CASE WHEN EXISTS (
+                      SELECT 1 FROM payment_receipt_events event
+                      WHERE event.payment_receipt_id = receipt.payment_receipt_id
+                        AND event.event_type = 'reversed'
+                    ) THEN receipt.amount ELSE 0 END AS reversed_amount,
+                    CASE WHEN EXISTS (
+                      SELECT 1 FROM payment_receipt_events event
+                      WHERE event.payment_receipt_id = receipt.payment_receipt_id
+                        AND event.event_type = 'refunded'
+                    ) THEN receipt.amount ELSE 0 END AS refunded_amount,
+                    coalesce(allocation.allocated_amount, 0) AS allocated_amount,
+                    coalesce(coverage.coverage_designated_amount, 0)
+                      AS coverage_designated_amount
+                  FROM scoped_receipts receipt
+                  LEFT JOIN allocation_totals allocation USING (payment_receipt_id)
+                  LEFT JOIN coverage_totals coverage USING (payment_receipt_id)
+                )
+                INSERT INTO payment_receipt_balances (
+                  payment_receipt_id, cleared_amount, reversed_amount,
+                  refunded_amount, allocated_amount, coverage_designated_amount,
+                  version
+                )
+                SELECT payment_receipt_id, cleared_amount, reversed_amount,
+                       refunded_amount, allocated_amount,
+                       coverage_designated_amount, 1
+                FROM facts
+                ON CONFLICT (payment_receipt_id) DO UPDATE SET
+                  cleared_amount = excluded.cleared_amount,
+                  reversed_amount = excluded.reversed_amount,
+                  refunded_amount = excluded.refunded_amount,
+                  allocated_amount = excluded.allocated_amount,
+                  coverage_designated_amount = excluded.coverage_designated_amount,
+                  version = payment_receipt_balances.version + 1
+                WHERE payment_receipt_balances.cleared_amount
+                  IS DISTINCT FROM excluded.cleared_amount
+                   OR payment_receipt_balances.reversed_amount
+                  IS DISTINCT FROM excluded.reversed_amount
+                   OR payment_receipt_balances.refunded_amount
+                  IS DISTINCT FROM excluded.refunded_amount
+                   OR payment_receipt_balances.allocated_amount
+                  IS DISTINCT FROM excluded.allocated_amount
+                   OR payment_receipt_balances.coverage_designated_amount
+                  IS DISTINCT FROM excluded.coverage_designated_amount
+                """
+            ),
+            {"branch_ids": list(actor.branch_ids)},
+        )
+        totals = (
+            (
+                await session.execute(
+                    select(
+                        func.count().label("receipt_rows"),
+                        func.coalesce(
+                            func.sum(payment_receipt_balances.c.allocated_amount), ZERO
+                        ).label("allocated_total"),
+                        func.coalesce(
+                            func.sum(
+                                payment_receipt_balances.c.cleared_amount
+                                - payment_receipt_balances.c.reversed_amount
+                                - payment_receipt_balances.c.refunded_amount
+                                - payment_receipt_balances.c.allocated_amount
+                            ),
+                            ZERO,
+                        ).label("unapplied_total"),
+                    )
+                    .select_from(
+                        payment_receipt_balances.join(
+                            payment_receipts,
+                            payment_receipts.c.payment_receipt_id
+                            == payment_receipt_balances.c.payment_receipt_id,
+                        )
+                    )
+                    .where(payment_receipts.c.branch_id.in_(actor.branch_ids))
+                )
+            )
+            .mappings()
+            .one()
+        )
+    return PaymentProjectionRebuildResponse(**totals)
+
+
+@router.post(
     "/{payment_receipt_id}/allocations",
     response_model=list[AllocationResponse],
     status_code=201,
@@ -550,6 +708,8 @@ async def allocate_payment(
             request_hash=hash_key,
         )
         if replay is not None:
+            branch_id = await _receipt_branch_id(session, payment_receipt_id)
+            await _require_branch_scope(actor, branch_id)
             response.status_code = 200
             response.headers["X-Idempotency-Replayed"] = "true"
             return AllocationCommandResult.model_validate(replay).allocations
@@ -558,6 +718,16 @@ async def allocate_payment(
 
         receipt = await _load_receipt(session, payment_receipt_id)
         await _require_branch_scope(actor, receipt["branch_id"])
+        if receipt["balance_version"] != command.expected_version:
+            raise AppError(
+                409,
+                "payment_balance_version_conflict",
+                "The Payment Receipt balance changed and requires refresh.",
+                details={
+                    "expected_version": command.expected_version,
+                    "current_version": receipt["balance_version"],
+                },
+            )
 
         total = sum(allocation.amount for allocation in command.allocations)
         available = _available_receipt_balance(receipt)
@@ -655,6 +825,8 @@ async def list_payment_allocations(
         allocated_amount=receipt["allocated_amount"],
         available_amount=available,
         coverage_designated_amount=receipt["coverage_designated_amount"],
+        application_state=payment_application_state(receipt),
+        version=receipt["balance_version"],
         allocations=[
             AppliedAllocation(
                 allocation_id=row["allocation_id"],

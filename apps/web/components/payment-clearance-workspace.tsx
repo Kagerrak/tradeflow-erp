@@ -592,6 +592,14 @@ export function PaymentClearanceWorkspace() {
                     ].nextAction
                   }
                 </p>
+                {result.receipt.status === "cleared" && (
+                  <p>
+                    {result.receipt.currency} {result.receipt.unappliedAmount}{" "}
+                    remains{" "}
+                    {result.receipt.applicationState.replaceAll("_", " ")}; no
+                    unrelated invoice balance changed.
+                  </p>
+                )}
               </>
             ) : (
               <>

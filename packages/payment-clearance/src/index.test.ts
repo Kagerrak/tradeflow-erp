@@ -7,8 +7,11 @@ import {
 } from "./index";
 
 const receipt = {
+  allocated_amount: "0.00",
   amount: "224.00",
+  application_state: "not_cleared" as const,
   available_for_coverage: "224.00",
+  balance_version: 1,
   branch_id: "a22641c5-ae42-403f-8465-0665efd09110",
   cash_reconciliation_status: null,
   cleared_amount: "0.00",
@@ -60,6 +63,8 @@ describe("Payment Clearance client", () => {
       items: [
         expect.objectContaining({
           amount: "224.00",
+          applicationState: "not_cleared",
+          balanceVersion: 1,
           externalReferenceNormalized: "BANK-123",
           status: "pending_verification",
         }),
@@ -93,6 +98,10 @@ describe("Payment Clearance client", () => {
           new Response(
             JSON.stringify({
               ...receipt,
+              allocated_amount: "0.00",
+              application_state: "unapplied" as const,
+              available_for_coverage: "224.00",
+              balance_version: 1,
               cash_reconciliation_status: "unreconciled",
               cleared_amount: "224.00",
               payment_method: "cash",

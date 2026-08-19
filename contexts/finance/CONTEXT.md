@@ -79,7 +79,22 @@ transfer, check, card, or e-wallet. It is distinct from Payment Timing Policy.
 **Payment Allocation**: The application of payment value to one or more open
 invoices.
 
-**Unapplied Payment**: Received value not yet allocated to an invoice.
+**Application State**: The derived state of a Payment Receipt's cleared value:
+`not_cleared`, `unapplied`, `partially_applied`, or `fully_applied`. It is
+computed from the cleared, reversed, refunded, and allocated amounts and is
+never edited directly. Coverage-designated value affects
+`available_for_coverage`, not application state.
+
+**Allocated Amount**: The portion of a Payment Receipt's cleared value already
+applied to invoices.
+
+**Unapplied Payment**: Cleared receipt value that has not yet been allocated to
+an invoice. An overpayment is retained as Unapplied Payment and does not reduce
+unrelated receivables.
+
+**Balance Version**: The optimistic-concurrency version of a Payment Receipt's
+balance projection. Commands that mutate the balance require the expected
+version and reject stale state.
 
 **Withholding Tax Credit**: Payment-time value supported by a withholding
 certificate or reference that satisfies part of a customer receivable. It does
