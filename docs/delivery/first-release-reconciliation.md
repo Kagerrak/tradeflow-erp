@@ -1,13 +1,14 @@
 # First-release scope reconciliation
 
 - Date: August 19, 2026
-- Baseline: `origin/main` at `4cca220`
+- Baseline: `origin/main` at `3f382ca`
 - Tracker reconciliation: GitHub issue #55
 - Pending evidence: Return Authorization PR #112 at `e9abb2f` (green, awaiting
   explicit PR-specific approval); Inventory Transfer PR #114 local head
   `5466111` (unpushed pending two policy decisions); Issue #72 closed by PR #116;
   Issue #110 current-system baseline closed by PR #117; Issue #77 closed by PR
-  #118; Issue #78 closed by PR #119 at `4cca220`.
+  #118; Issue #78 closed by PR #119 at `4cca220`; Issue #108 closed by PR #120
+  at `3f382ca`.
 
 ## Why the tracker was reopened
 
@@ -90,7 +91,7 @@ PRD behavior or release evidence does not.
 | Generated OpenAPI clients shared by web/mobile                                                                          | `openapi/openapi.json`, `packages/api-client/src/schema.d.ts`, generation scripts and CI drift checks exist                                                                      | Shipped foundation; every contract-changing slice retains the gate                                    |
 | Logs, metrics, traces, backup, migration and rollback                                                                   | Correlation/tracing and migration checks exist; production-like recovery and operational evidence do not                                                                         | Partial: #62, #97, #99–#102                                                                           |
 | Accessibility, responsive behavior and real-device testing                                                              | Playwright covers desktop/mobile-web and native component tests exist; physical-device and full accessibility/performance evidence is open                                       | Partial: #98                                                                                          |
-| Configurable timezone, currency, tax, numbering and document templates                                                  | Base Currency, Tax snapshots and Delivery Receipt series foundations exist; no complete configuration/template workflow exists                                                   | Partial: #104, #108                                                                                   |
+| Configurable timezone, currency, tax, numbering and document templates                                                  | Base Currency guard, timezone on companies/branches, effective-dated tax snapshots, document-series versioning and versioned Jinja2 document templates implemented by PR #120 | Shipped foundation; quotation numbering consumers remain #104, #105                                      |
 | Import/export tools for legacy migration                                                                                | OpenAPI export is not a business migration/export tool; no legacy import pipeline or role-aware history export exists                                                            | Missing: trial migration #100, final production migration #115, and customer export #96               |
 | Discovery inventory and current workflow time/error baseline                                                            | No approved inventory of current screens/reports/roles/integrations/exports or observed task-time/error baseline exists                                                          | Missing: #110                                                                                         |
 | PRD success measures and release-candidate comparison                                                                   | Telemetry foundations exist, but sources, formulas, baselines, targets and owners for the PRD measures are not documented                                                        | Missing: #110; final comparison feeds #103                                                            |
@@ -131,6 +132,8 @@ and staging/security.
   Purchase Orders) to `main` at `d344918`.
 - PR #119 merged issue #78 (record receipt variance, quality outcome and
   purchase backorder) to `main` at `4cca220`.
+- PR #120 merged issue #108 (configurable operational policies and versioned
+  document templates) to `main` at `3f382ca`.
 
 ## Dependency-ready work
 
