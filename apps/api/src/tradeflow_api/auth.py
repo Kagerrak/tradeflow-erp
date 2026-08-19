@@ -308,6 +308,12 @@ async def require_goods_receipt_poster(
     return require_capability(user, "procurement:goods-receipt-post")
 
 
+async def require_goods_receipt_over_receipt_approver(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "procurement:goods-receipt-approve-over-receipt")
+
+
 async def require_landed_cost_allocator(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:

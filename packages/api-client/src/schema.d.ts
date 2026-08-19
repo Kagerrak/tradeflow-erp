@@ -3912,6 +3912,12 @@ export interface components {
         };
         /** GoodsReceiptLineResponse */
         GoodsReceiptLineResponse: {
+            /** Accepted Quantity Base */
+            accepted_quantity_base: string;
+            /** Approval Authority Id */
+            approval_authority_id: string | null;
+            /** Damaged Quantity Base */
+            damaged_quantity_base: string;
             /**
              * Goods Receipt Line Id
              * Format: uuid
@@ -3924,10 +3930,16 @@ export interface components {
              * Format: uuid
              */
             purchase_order_line_id: string;
+            /** Quarantine Quantity Base */
+            quarantine_quantity_base: string;
             /** Received Quantity Base */
             received_quantity_base: string;
+            /** Rejected Quantity Base */
+            rejected_quantity_base: string;
             /** Serial Numbers */
             serial_numbers: string[];
+            /** Variance Reason */
+            variance_reason: string | null;
         };
         /** GoodsReceiptResponse */
         GoodsReceiptResponse: {
@@ -5029,6 +5041,10 @@ export interface components {
         };
         /** PurchaseOrderLineResponse */
         PurchaseOrderLineResponse: {
+            /** Accepted Quantity Base */
+            accepted_quantity_base: string;
+            /** Backorder Quantity Base */
+            backorder_quantity_base: string;
             /** Base Quantity */
             base_quantity: string;
             /** Line Number */
@@ -5038,6 +5054,8 @@ export interface components {
              * Format: uuid
              */
             purchase_order_line_id: string;
+            /** Received Quantity Base */
+            received_quantity_base: string;
             /** Requested Quantity */
             requested_quantity: string;
             /**
@@ -5250,6 +5268,18 @@ export interface components {
         };
         /** ReceiptLineCommand */
         ReceiptLineCommand: {
+            /**
+             * Accepted Quantity Base
+             * @default 0
+             */
+            accepted_quantity_base: number | string;
+            /** Approval Authority Id */
+            approval_authority_id?: string | null;
+            /**
+             * Damaged Quantity Base
+             * @default 0
+             */
+            damaged_quantity_base: number | string;
             /** Lot Code */
             lot_code?: string | null;
             /**
@@ -5259,8 +5289,15 @@ export interface components {
             purchase_order_line_id: string;
             /** Received Quantity Base */
             received_quantity_base: number | string;
+            /**
+             * Rejected Quantity Base
+             * @default 0
+             */
+            rejected_quantity_base: number | string;
             /** Serial Numbers */
             serial_numbers?: string[];
+            /** Variance Reason */
+            variance_reason?: string | null;
         };
         /** RecordPaymentReceiptCommand */
         RecordPaymentReceiptCommand: {

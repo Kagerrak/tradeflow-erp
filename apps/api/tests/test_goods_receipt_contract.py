@@ -99,6 +99,7 @@ async def bootstrap_procurement(
                         "procurement:purchase-order-write",
                         "procurement:purchase-order-approve",
                         "procurement:goods-receipt-post",
+                        "procurement:goods-receipt-approve-over-receipt",
                     ],
                 },
                 {
@@ -301,6 +302,52 @@ async def _seed_location(
     return location_id
 
 
+async def _seed_approval_authority(
+    postgres_url: str,
+    user_subject: str,
+    capability_code: str,
+    branch_id: str,
+    warehouse_id: str | None = None,
+    maximum_amount: str = "100000.00",
+) -> str:
+    engine = create_async_engine(postgres_url)
+    authority_id = None
+    async with engine.begin() as connection:
+        authority_id = str(
+            await connection.scalar(
+                text(
+                    """INSERT INTO approval_authorities (
+                        approval_authority_id,
+                        user_subject,
+                        capability_code,
+                        branch_id,
+                        warehouse_id,
+                        maximum_amount,
+                        maker_checker_required
+                    ) VALUES (
+                        gen_random_uuid(),
+                        :user_subject,
+                        :capability_code,
+                        :branch_id,
+                        :warehouse_id,
+                        :maximum_amount,
+                        true
+                    ) RETURNING approval_authority_id"""
+                ),
+                {
+                    "user_subject": user_subject,
+                    "capability_code": capability_code,
+                    "branch_id": branch_id,
+                    "warehouse_id": warehouse_id,
+                    "maximum_amount": maximum_amount,
+                },
+            )
+        )
+    await engine.dispose()
+    assert authority_id is not None
+    return authority_id
+
+
 async def _create_approved_purchase_order(
     client: AsyncClient,
     settings: Settings,
@@ -426,7 +473,7 @@ class TestCreateGoodsReceipt:
         assert fetched.status_code == 200, fetched.text
         assert fetched.json()["status"] == "partially_received"
 
-    async def test_goods_receipt_rejects_over_receipt(
+    async def test_goods_receipt_rejects_over_receipt_without_approval(
         self,
         gr_client: AsyncClient,
         gr_settings: Settings,
@@ -456,7 +503,182 @@ class TestCreateGoodsReceipt:
         )
 
         assert response.status_code == 409, response.text
-        assert response.json()["error"]["code"] == "goods_receipt_over_receipt"
+        assert response.json()["error"]["code"] == "goods_receipt_over_receipt_approval_required"
+
+    async def test_partial_receipt_with_rejected_quantity_updates_backorder(
+        self,
+        gr_client: AsyncClient,
+        gr_settings: Settings,
+        postgres_url: str,
+    ) -> None:
+        scope = await bootstrap_procurement(gr_client, gr_settings)
+        sku_id = await _seed_sku(postgres_url)
+        po_id, line_id = await _create_approved_purchase_order(
+            gr_client, gr_settings, postgres_url, scope, sku_id
+        )
+        location_id = await _seed_location(postgres_url, scope["mnl_01_id"])
+
+        response = await gr_client.post(
+            f"/v1/procurement/purchase-orders/{po_id}/receipts",
+            headers=auth(gr_settings, "receiver-mnl"),
+            json={
+                "warehouse_id": scope["mnl_01_id"],
+                "location_id": location_id,
+                "receipt_number": "GR-VAR-001",
+                "lines": [
+                    {
+                        "purchase_order_line_id": line_id,
+                        "received_quantity_base": "60",
+                        "accepted_quantity_base": "48",
+                        "rejected_quantity_base": "12",
+                        "variance_reason": "Carton damage",
+                    }
+                ],
+            },
+        )
+
+        assert response.status_code == 201, response.text
+        body = response.json()
+        assert Decimal(body["lines"][0]["accepted_quantity_base"]) == Decimal("48")
+        assert Decimal(body["lines"][0]["rejected_quantity_base"]) == Decimal("12")
+        assert Decimal(body["lines"][0]["damaged_quantity_base"]) == Decimal("0")
+
+        fetched = await gr_client.get(
+            f"/v1/procurement/purchase-orders/{po_id}",
+            headers=auth(gr_settings, "buyer-mnl"),
+        )
+        assert fetched.status_code == 200, fetched.text
+        line = fetched.json()["lines"][0]
+        assert Decimal(line["accepted_quantity_base"]) == Decimal("48")
+        assert Decimal(line["received_quantity_base"]) == Decimal("60")
+        assert Decimal(line["backorder_quantity_base"]) == Decimal("72")
+        assert fetched.json()["status"] == "partially_received"
+
+    async def test_over_receipt_with_approval_succeeds(
+        self,
+        gr_client: AsyncClient,
+        gr_settings: Settings,
+        postgres_url: str,
+    ) -> None:
+        scope = await bootstrap_procurement(gr_client, gr_settings)
+        sku_id = await _seed_sku(postgres_url)
+        po_id, line_id = await _create_approved_purchase_order(
+            gr_client, gr_settings, postgres_url, scope, sku_id
+        )
+        location_id = await _seed_location(postgres_url, scope["mnl_01_id"])
+        authority_id = await _seed_approval_authority(
+            postgres_url,
+            user_subject="procurement-mnl",
+            capability_code="procurement:goods-receipt-approve-over-receipt",
+            branch_id=scope["branch_id"],
+            warehouse_id=scope["mnl_01_id"],
+            maximum_amount="1000.00",
+        )
+
+        response = await gr_client.post(
+            f"/v1/procurement/purchase-orders/{po_id}/receipts",
+            headers=auth(gr_settings, "receiver-mnl"),
+            json={
+                "warehouse_id": scope["mnl_01_id"],
+                "location_id": location_id,
+                "receipt_number": "GR-VAR-002",
+                "lines": [
+                    {
+                        "purchase_order_line_id": line_id,
+                        "received_quantity_base": "121",
+                        "accepted_quantity_base": "121",
+                        "variance_reason": "Supplier over-ship approved",
+                        "approval_authority_id": authority_id,
+                    }
+                ],
+            },
+        )
+
+        assert response.status_code == 201, response.text
+        assert response.json()["lines"][0]["approval_authority_id"] == authority_id
+
+        fetched = await gr_client.get(
+            f"/v1/procurement/purchase-orders/{po_id}",
+            headers=auth(gr_settings, "buyer-mnl"),
+        )
+        assert fetched.status_code == 200, fetched.text
+        assert fetched.json()["status"] == "received"
+
+    async def test_self_approved_over_receipt_is_denied(
+        self,
+        gr_client: AsyncClient,
+        gr_settings: Settings,
+        postgres_url: str,
+    ) -> None:
+        scope = await bootstrap_procurement(gr_client, gr_settings)
+        sku_id = await _seed_sku(postgres_url)
+        po_id, line_id = await _create_approved_purchase_order(
+            gr_client, gr_settings, postgres_url, scope, sku_id
+        )
+        location_id = await _seed_location(postgres_url, scope["mnl_01_id"])
+        authority_id = await _seed_approval_authority(
+            postgres_url,
+            user_subject="receiver-mnl",
+            capability_code="procurement:goods-receipt-approve-over-receipt",
+            branch_id=scope["branch_id"],
+            warehouse_id=scope["mnl_01_id"],
+        )
+
+        response = await gr_client.post(
+            f"/v1/procurement/purchase-orders/{po_id}/receipts",
+            headers=auth(gr_settings, "receiver-mnl"),
+            json={
+                "warehouse_id": scope["mnl_01_id"],
+                "location_id": location_id,
+                "receipt_number": "GR-VAR-003",
+                "lines": [
+                    {
+                        "purchase_order_line_id": line_id,
+                        "received_quantity_base": "121",
+                        "accepted_quantity_base": "121",
+                        "variance_reason": "Self approval",
+                        "approval_authority_id": authority_id,
+                    }
+                ],
+            },
+        )
+
+        assert response.status_code == 409, response.text
+        assert response.json()["error"]["code"] == "maker_checker_violation"
+
+    async def test_variance_imbalance_is_rejected(
+        self,
+        gr_client: AsyncClient,
+        gr_settings: Settings,
+        postgres_url: str,
+    ) -> None:
+        scope = await bootstrap_procurement(gr_client, gr_settings)
+        sku_id = await _seed_sku(postgres_url)
+        po_id, line_id = await _create_approved_purchase_order(
+            gr_client, gr_settings, postgres_url, scope, sku_id
+        )
+        location_id = await _seed_location(postgres_url, scope["mnl_01_id"])
+
+        response = await gr_client.post(
+            f"/v1/procurement/purchase-orders/{po_id}/receipts",
+            headers=auth(gr_settings, "receiver-mnl"),
+            json={
+                "warehouse_id": scope["mnl_01_id"],
+                "location_id": location_id,
+                "receipt_number": "GR-VAR-004",
+                "lines": [
+                    {
+                        "purchase_order_line_id": line_id,
+                        "received_quantity_base": "60",
+                        "accepted_quantity_base": "50",
+                        "rejected_quantity_base": "5",
+                    }
+                ],
+            },
+        )
+
+        assert response.status_code == 422, response.text
+        assert response.json()["error"]["code"] == "goods_receipt_variance_imbalance"
 
     async def test_goods_receipt_rejects_draft_purchase_order(
         self,

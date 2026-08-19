@@ -5999,6 +5999,26 @@
       },
       "GoodsReceiptLineResponse": {
         "properties": {
+          "accepted_quantity_base": {
+            "title": "Accepted Quantity Base",
+            "type": "string"
+          },
+          "approval_authority_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Authority Id"
+          },
+          "damaged_quantity_base": {
+            "title": "Damaged Quantity Base",
+            "type": "string"
+          },
           "goods_receipt_line_id": {
             "format": "uuid",
             "title": "Goods Receipt Line Id",
@@ -6020,8 +6040,16 @@
             "title": "Purchase Order Line Id",
             "type": "string"
           },
+          "quarantine_quantity_base": {
+            "title": "Quarantine Quantity Base",
+            "type": "string"
+          },
           "received_quantity_base": {
             "title": "Received Quantity Base",
+            "type": "string"
+          },
+          "rejected_quantity_base": {
+            "title": "Rejected Quantity Base",
             "type": "string"
           },
           "serial_numbers": {
@@ -6030,12 +6058,29 @@
             },
             "title": "Serial Numbers",
             "type": "array"
+          },
+          "variance_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variance Reason"
           }
         },
         "required": [
           "goods_receipt_line_id",
           "purchase_order_line_id",
           "received_quantity_base",
+          "accepted_quantity_base",
+          "rejected_quantity_base",
+          "damaged_quantity_base",
+          "quarantine_quantity_base",
+          "variance_reason",
+          "approval_authority_id",
           "lot_code",
           "serial_numbers"
         ],
@@ -8684,6 +8729,14 @@
       },
       "PurchaseOrderLineResponse": {
         "properties": {
+          "accepted_quantity_base": {
+            "title": "Accepted Quantity Base",
+            "type": "string"
+          },
+          "backorder_quantity_base": {
+            "title": "Backorder Quantity Base",
+            "type": "string"
+          },
           "base_quantity": {
             "title": "Base Quantity",
             "type": "string"
@@ -8695,6 +8748,10 @@
           "purchase_order_line_id": {
             "format": "uuid",
             "title": "Purchase Order Line Id",
+            "type": "string"
+          },
+          "received_quantity_base": {
+            "title": "Received Quantity Base",
             "type": "string"
           },
           "requested_quantity": {
@@ -8722,6 +8779,9 @@
           "requested_quantity",
           "unit_code",
           "base_quantity",
+          "received_quantity_base",
+          "accepted_quantity_base",
+          "backorder_quantity_base",
           "unit_cost"
         ],
         "title": "PurchaseOrderLineResponse",
@@ -9200,6 +9260,46 @@
       "ReceiptLineCommand": {
         "additionalProperties": false,
         "properties": {
+          "accepted_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Accepted Quantity Base"
+          },
+          "approval_authority_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Authority Id"
+          },
+          "damaged_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Damaged Quantity Base"
+          },
           "lot_code": {
             "anyOf": [
               {
@@ -9230,12 +9330,38 @@
             ],
             "title": "Received Quantity Base"
           },
+          "rejected_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Rejected Quantity Base"
+          },
           "serial_numbers": {
             "items": {
               "type": "string"
             },
             "title": "Serial Numbers",
             "type": "array"
+          },
+          "variance_reason": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variance Reason"
           }
         },
         "required": [
