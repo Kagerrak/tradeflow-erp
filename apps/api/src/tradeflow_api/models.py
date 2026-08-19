@@ -169,6 +169,8 @@ purchase_order_lines = Table(
     Column("unit_code", String(30), nullable=False),
     Column("base_quantity", Numeric(18, 6), nullable=False),
     Column("received_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("accepted_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("backorder_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
     Column("unit_cost", Numeric(18, 6), nullable=False),
     Column("version", Integer, nullable=False, server_default="1"),
     CheckConstraint("line_number > 0", name="ck_purchase_order_lines_line_number_positive"),
@@ -181,6 +183,10 @@ purchase_order_lines = Table(
     CheckConstraint(
         "received_quantity_base >= 0",
         name="ck_purchase_order_lines_received_quantity_base_nonnegative",
+    ),
+    CheckConstraint(
+        "accepted_quantity_base >= 0",
+        name="ck_purchase_order_lines_accepted_quantity_base_nonnegative",
     ),
     CheckConstraint("version > 0", name="ck_purchase_order_lines_version_positive"),
     UniqueConstraint(
@@ -364,11 +370,43 @@ goods_receipt_lines = Table(
         nullable=False,
     ),
     Column("received_quantity_base", Numeric(18, 6), nullable=False),
+    Column("accepted_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("rejected_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("damaged_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("quarantine_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
     Column("lot_code", String(100), nullable=True),
     Column("serial_numbers", JSONB, nullable=False, server_default="[]"),
+    Column("variance_reason", String(200), nullable=True),
+    Column(
+        "approval_authority_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("approval_authorities.approval_authority_id"),
+        nullable=True,
+    ),
     CheckConstraint(
         "received_quantity_base > 0",
         name="ck_goods_receipt_lines_received_quantity_positive",
+    ),
+    CheckConstraint(
+        "accepted_quantity_base >= 0",
+        name="ck_goods_receipt_lines_accepted_quantity_base_nonnegative",
+    ),
+    CheckConstraint(
+        "rejected_quantity_base >= 0",
+        name="ck_goods_receipt_lines_rejected_quantity_base_nonnegative",
+    ),
+    CheckConstraint(
+        "damaged_quantity_base >= 0",
+        name="ck_goods_receipt_lines_damaged_quantity_base_nonnegative",
+    ),
+    CheckConstraint(
+        "quarantine_quantity_base >= 0",
+        name="ck_goods_receipt_lines_quarantine_quantity_base_nonnegative",
+    ),
+    CheckConstraint(
+        "accepted_quantity_base + rejected_quantity_base + "
+        "damaged_quantity_base + quarantine_quantity_base = received_quantity_base",
+        name="ck_goods_receipt_lines_component_quantity_balance",
     ),
 )
 

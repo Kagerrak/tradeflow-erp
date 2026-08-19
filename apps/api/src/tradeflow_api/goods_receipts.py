@@ -21,6 +21,7 @@ from tradeflow_api.inventory_projection_service import (
     apply_valuation_delta,
 )
 from tradeflow_api.models import (
+    approval_authorities,
     companies,
     goods_receipt_lines,
     goods_receipts,
@@ -45,6 +46,17 @@ class ReceiptLineCommand(BaseModel):
 
     purchase_order_line_id: UUID
     received_quantity_base: Decimal = Field(gt=0, max_digits=18, decimal_places=6)
+    accepted_quantity_base: Decimal = Field(
+        default=Decimal("0"), ge=0, max_digits=18, decimal_places=6
+    )
+    rejected_quantity_base: Decimal = Field(
+        default=Decimal("0"), ge=0, max_digits=18, decimal_places=6
+    )
+    damaged_quantity_base: Decimal = Field(
+        default=Decimal("0"), ge=0, max_digits=18, decimal_places=6
+    )
+    variance_reason: str | None = Field(default=None, max_length=200)
+    approval_authority_id: UUID | None = None
     lot_code: str | None = Field(default=None, max_length=100)
     serial_numbers: list[str] = Field(default_factory=list)
 
@@ -62,6 +74,12 @@ class GoodsReceiptLineResponse(BaseModel):
     goods_receipt_line_id: UUID
     purchase_order_line_id: UUID
     received_quantity_base: str
+    accepted_quantity_base: str
+    rejected_quantity_base: str
+    damaged_quantity_base: str
+    quarantine_quantity_base: str
+    variance_reason: str | None
+    approval_authority_id: UUID | None
     lot_code: str | None
     serial_numbers: list[str]
 
@@ -269,6 +287,116 @@ async def _validate_tracking(
     return "", list(serial_numbers)
 
 
+def _validate_variance(receipt_line: ReceiptLineCommand) -> tuple[Decimal, Decimal]:
+    components = (
+        receipt_line.accepted_quantity_base
+        + receipt_line.rejected_quantity_base
+        + receipt_line.damaged_quantity_base
+    )
+    accepted = receipt_line.accepted_quantity_base
+    if components == Decimal("0"):
+        accepted = receipt_line.received_quantity_base
+    elif components != receipt_line.received_quantity_base:
+        raise AppError(
+            422,
+            "goods_receipt_variance_imbalance",
+            "Accepted, rejected, and damaged quantities must sum to the received quantity.",
+        )
+    return accepted, receipt_line.damaged_quantity_base
+
+
+async def _require_over_receipt_approval(
+    session: AsyncSession,
+    *,
+    actor: AuthorizedUser,
+    order_branch_id: UUID,
+    receipt_warehouse_id: UUID,
+    po_line: dict[str, Any],
+    receipt_line: ReceiptLineCommand,
+    overage_quantity: Decimal,
+) -> None:
+    if overage_quantity <= Decimal("0"):
+        if receipt_line.approval_authority_id is not None:
+            raise AppError(
+                422,
+                "approval_authority_unexpected",
+                "Approval authority is only required for over-receipt.",
+            )
+        return
+
+    if receipt_line.approval_authority_id is None:
+        raise AppError(
+            409,
+            "goods_receipt_over_receipt_approval_required",
+            "Over-receipt requires an explicit approval authority.",
+        )
+
+    if receipt_line.variance_reason is None:
+        raise AppError(
+            409,
+            "goods_receipt_variance_reason_required",
+            "Over-receipt requires a variance reason.",
+        )
+
+    authority = (
+        (
+            await session.execute(
+                select(approval_authorities).where(
+                    approval_authorities.c.approval_authority_id
+                    == receipt_line.approval_authority_id,
+                )
+            )
+        )
+        .mappings()
+        .one_or_none()
+    )
+
+    if authority is None:
+        raise AppError(
+            403,
+            "approval_authority_required",
+            "The specified approval authority does not exist.",
+        )
+
+    if authority["user_subject"] == actor.subject:
+        raise AppError(
+            409,
+            "maker_checker_violation",
+            "The goods receipt poster cannot approve their own over-receipt.",
+        )
+
+    if authority["capability_code"] != "procurement:goods-receipt-approve-over-receipt":
+        raise AppError(
+            403,
+            "approval_authority_capability_mismatch",
+            "The approval authority is not valid for goods receipt over-receipt.",
+        )
+
+    if authority["branch_id"] != order_branch_id:
+        raise AppError(
+            403,
+            "approval_authority_branch_mismatch",
+            "The approval authority is not valid for the purchase order branch.",
+        )
+
+    if authority["warehouse_id"] is not None and authority["warehouse_id"] != receipt_warehouse_id:
+        raise AppError(
+            403,
+            "approval_authority_warehouse_mismatch",
+            "The approval authority is not valid for the receipt warehouse.",
+        )
+
+    overage_value = (overage_quantity * cast(Decimal, po_line["unit_cost"])).quantize(
+        SIX_PLACES, rounding="ROUND_HALF_UP"
+    )
+    if authority["maximum_amount"] is not None and overage_value > authority["maximum_amount"]:
+        raise AppError(
+            403,
+            "approval_limit_exceeded",
+            "The over-receipt value exceeds the approver's authority limit.",
+        )
+
+
 @router.post(
     "/{purchase_order_id}/receipts",
     response_model=GoodsReceiptResponse,
@@ -328,7 +456,7 @@ async def create_goods_receipt(
 
     # Validate lines and compute open quantities before writing.
     line_inputs: list[dict[str, Any]] = []
-    line_updates: list[tuple[UUID, Decimal]] = []
+    line_updates: list[tuple[UUID, Decimal, Decimal]] = []
     stock_inputs: list[dict[str, Any]] = []
     movement_group_id = uuid4()
     correlation_id = str(uuid4())
@@ -340,15 +468,21 @@ async def create_goods_receipt(
             purchase_order_id,
             receipt_line.purchase_order_line_id,
         )
+        accepted_quantity, quarantine_quantity = _validate_variance(receipt_line)
+
         open_quantity = cast(Decimal, po_line["base_quantity"]) - cast(
             Decimal, po_line["received_quantity_base"]
         )
-        if receipt_line.received_quantity_base > open_quantity:
-            raise AppError(
-                409,
-                "goods_receipt_over_receipt",
-                "Received quantity exceeds the open quantity on the purchase order line.",
-            )
+        overage_quantity = receipt_line.received_quantity_base - open_quantity
+        await _require_over_receipt_approval(
+            session,
+            actor=actor,
+            order_branch_id=cast(UUID, order["branch_id"]),
+            receipt_warehouse_id=command.warehouse_id,
+            po_line=po_line,
+            receipt_line=receipt_line,
+            overage_quantity=overage_quantity,
+        )
 
         identity_key, serials = await _validate_tracking(
             session,
@@ -364,6 +498,12 @@ async def create_goods_receipt(
                 "goods_receipt_line_id": goods_receipt_line_id,
                 "purchase_order_line_id": receipt_line.purchase_order_line_id,
                 "received_quantity_base": receipt_line.received_quantity_base,
+                "accepted_quantity_base": accepted_quantity,
+                "rejected_quantity_base": receipt_line.rejected_quantity_base,
+                "damaged_quantity_base": receipt_line.damaged_quantity_base,
+                "quarantine_quantity_base": quarantine_quantity,
+                "variance_reason": receipt_line.variance_reason,
+                "approval_authority_id": receipt_line.approval_authority_id,
                 "lot_code": receipt_line.lot_code,
                 "serial_numbers": serials,
             }
@@ -372,35 +512,39 @@ async def create_goods_receipt(
             (
                 receipt_line.purchase_order_line_id,
                 receipt_line.received_quantity_base,
+                accepted_quantity,
             )
         )
 
-        unit_cost = cast(Decimal, po_line["unit_cost"])
-        value_delta = (receipt_line.received_quantity_base * unit_cost).quantize(
-            SIX_PLACES, rounding="ROUND_HALF_UP"
-        )
+        if accepted_quantity > Decimal("0"):
+            unit_cost = cast(Decimal, po_line["unit_cost"])
+            value_delta = (accepted_quantity * unit_cost).quantize(
+                SIX_PLACES, rounding="ROUND_HALF_UP"
+            )
 
-        stock_inputs.append(
-            {
-                "movement_id": uuid4(),
-                "sku_id": po_line["sku_id"],
-                "warehouse_id": command.warehouse_id,
-                "location_id": command.location_id,
-                "movement_type": "goods_receipt",
-                "movement_leg": "goods_receipt_in",
-                "quantity_base": receipt_line.received_quantity_base,
-                "unit_cost": unit_cost,
-                "value_delta": value_delta,
-                "base_currency": base_currency,
-                "source_reference": f"GR:{purchase_order_id}:{receipt_line.purchase_order_line_id}",
-                "entered_unit": "base",
-                "conversion_snapshot": {"factor": "1"},
-                "actor_subject": actor.subject,
-                "correlation_id": correlation_id,
-                "idempotency_key": f"{idempotency_key}:{goods_receipt_line_id}",
-                "movement_group_id": movement_group_id,
-            }
-        )
+            stock_inputs.append(
+                {
+                    "movement_id": uuid4(),
+                    "sku_id": po_line["sku_id"],
+                    "warehouse_id": command.warehouse_id,
+                    "location_id": command.location_id,
+                    "movement_type": "goods_receipt",
+                    "movement_leg": "goods_receipt_in",
+                    "quantity_base": accepted_quantity,
+                    "unit_cost": unit_cost,
+                    "value_delta": value_delta,
+                    "base_currency": base_currency,
+                    "source_reference": (
+                        f"GR:{purchase_order_id}:{receipt_line.purchase_order_line_id}"
+                    ),
+                    "entered_unit": "base",
+                    "conversion_snapshot": {"factor": "1"},
+                    "actor_subject": actor.subject,
+                    "correlation_id": correlation_id,
+                    "idempotency_key": f"{idempotency_key}:{goods_receipt_line_id}",
+                    "movement_group_id": movement_group_id,
+                }
+            )
 
     goods_receipt_id = uuid4()
 
@@ -424,33 +568,41 @@ async def create_goods_receipt(
             line_input["goods_receipt_id"] = goods_receipt_id
         await session.execute(insert(goods_receipt_lines), line_inputs)
 
-        await session.execute(insert(stock_movements), stock_inputs)
+        if stock_inputs:
+            await session.execute(insert(stock_movements), stock_inputs)
 
-        for purchase_order_line_id, received in line_updates:
+        for purchase_order_line_id, received, accepted in line_updates:
             await session.execute(
                 purchase_order_lines.update()
                 .where(purchase_order_lines.c.purchase_order_line_id == purchase_order_line_id)
                 .values(
                     received_quantity_base=purchase_order_lines.c.received_quantity_base + received,
+                    accepted_quantity_base=purchase_order_lines.c.accepted_quantity_base + accepted,
+                    backorder_quantity_base=purchase_order_lines.c.base_quantity
+                    - (purchase_order_lines.c.accepted_quantity_base + accepted),
                 )
             )
 
-        # Refresh line received quantities to determine new PO status.
+        # Refresh line accepted quantities to determine new PO status.
         total_base = await session.scalar(
             select(func.sum(purchase_order_lines.c.base_quantity)).where(
                 purchase_order_lines.c.purchase_order_id == purchase_order_id
             )
         )
-        total_received = await session.scalar(
-            select(func.sum(purchase_order_lines.c.received_quantity_base)).where(
+        total_accepted = await session.scalar(
+            select(func.sum(purchase_order_lines.c.accepted_quantity_base)).where(
                 purchase_order_lines.c.purchase_order_id == purchase_order_id
             )
         )
 
-        new_status = "partially_received"
-        if total_received is not None and total_base is not None:
-            if total_received >= total_base:
+        new_status = order["status"]
+        if total_accepted is not None and total_base is not None:
+            if total_accepted >= total_base:
                 new_status = "received"
+            elif total_accepted > Decimal("0"):
+                new_status = "partially_received"
+            else:
+                new_status = "approved"
 
         if order["status"] != new_status:
             await session.execute(
@@ -459,8 +611,11 @@ async def create_goods_receipt(
                 .values(status=new_status, version=purchase_orders.c.version + 1)
             )
 
-        # Apply availability and valuation projections.
+        # Apply availability and valuation projections for accepted quantities only.
         for receipt_line in command.lines:
+            accepted_quantity, _ = _validate_variance(receipt_line)
+            if accepted_quantity <= Decimal("0"):
+                continue
             po_line = await _load_purchase_order_line(
                 session,
                 purchase_order_id,
@@ -483,18 +638,18 @@ async def create_goods_receipt(
                 sku_id=cast(UUID, po_line["sku_id"]),
                 warehouse_id=command.warehouse_id,
                 location_id=command.location_id,
-                quantity=receipt_line.received_quantity_base,
+                quantity=accepted_quantity,
                 identity=identity,
             )
             unit_cost = cast(Decimal, po_line["unit_cost"])
-            value_delta = (receipt_line.received_quantity_base * unit_cost).quantize(
+            value_delta = (accepted_quantity * unit_cost).quantize(
                 SIX_PLACES, rounding="ROUND_HALF_UP"
             )
             await apply_valuation_delta(
                 session,
                 sku_id=cast(UUID, po_line["sku_id"]),
                 warehouse_id=command.warehouse_id,
-                quantity_delta=receipt_line.received_quantity_base,
+                quantity_delta=accepted_quantity,
                 value_delta=value_delta,
                 allow_create=True,
             )
@@ -511,6 +666,12 @@ async def create_goods_receipt(
                 goods_receipt_line_id=line["goods_receipt_line_id"],
                 purchase_order_line_id=line["purchase_order_line_id"],
                 received_quantity_base=str(line["received_quantity_base"]),
+                accepted_quantity_base=str(line["accepted_quantity_base"]),
+                rejected_quantity_base=str(line["rejected_quantity_base"]),
+                damaged_quantity_base=str(line["damaged_quantity_base"]),
+                quarantine_quantity_base=str(line["quarantine_quantity_base"]),
+                variance_reason=line["variance_reason"],
+                approval_authority_id=line["approval_authority_id"],
                 lot_code=line["lot_code"],
                 serial_numbers=line["serial_numbers"],
             )
