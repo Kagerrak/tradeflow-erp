@@ -661,6 +661,38 @@
         "title": "AssignedDeliveryResponse",
         "type": "object"
       },
+      "AttributionRules": {
+        "additionalProperties": false,
+        "properties": {
+          "branch_required": {
+            "default": false,
+            "title": "Branch Required",
+            "type": "boolean"
+          },
+          "cost_center_required": {
+            "default": false,
+            "title": "Cost Center Required",
+            "type": "boolean"
+          },
+          "employee_allowed": {
+            "default": false,
+            "title": "Employee Allowed",
+            "type": "boolean"
+          },
+          "project_allowed": {
+            "default": false,
+            "title": "Project Allowed",
+            "type": "boolean"
+          },
+          "supplier_allowed": {
+            "default": false,
+            "title": "Supplier Allowed",
+            "type": "boolean"
+          }
+        },
+        "title": "AttributionRules",
+        "type": "object"
+      },
       "AuthorizeDeliveryCorrection": {
         "additionalProperties": false,
         "properties": {
@@ -3436,6 +3468,182 @@
         "title": "CreateCustomerCommand",
         "type": "object"
       },
+      "CreateExpenseCategoryCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_evidence_types": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Allowed Evidence Types",
+            "type": "array"
+          },
+          "attribution_rules": {
+            "$ref": "#/components/schemas/AttributionRules"
+          },
+          "category_code": {
+            "pattern": "^[A-Z][A-Z0-9_]{1,49}$",
+            "title": "Category Code",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "category_code",
+          "name",
+          "allowed_evidence_types",
+          "effective_from"
+        ],
+        "title": "CreateExpenseCategoryCommand",
+        "type": "object"
+      },
+      "CreateExpensePolicyCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_evidence_types": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Allowed Evidence Types",
+            "type": "array"
+          },
+          "attribution_rules": {
+            "$ref": "#/components/schemas/AttributionRules"
+          },
+          "branch_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch Id"
+          },
+          "category_version_id": {
+            "format": "uuid",
+            "title": "Category Version Id",
+            "type": "string"
+          },
+          "currencies": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Currencies",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "max_amount": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,16}|(?=[\\d.]{1,19}0*$)\\d{0,16}\\.\\d{0,2}0*$)",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Amount"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "policy_code": {
+            "pattern": "^[A-Z][A-Z0-9_]{1,49}$",
+            "title": "Policy Code",
+            "type": "string"
+          },
+          "requires_receipt": {
+            "default": true,
+            "title": "Requires Receipt",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "policy_code",
+          "name",
+          "category_version_id",
+          "currencies",
+          "allowed_evidence_types",
+          "effective_from"
+        ],
+        "title": "CreateExpensePolicyCommand",
+        "type": "object"
+      },
       "CreateGoodsReceiptCommand": {
         "additionalProperties": false,
         "properties": {
@@ -6124,6 +6332,294 @@
           "expires_at"
         ],
         "title": "EvidenceUploadResponse",
+        "type": "object"
+      },
+      "ExpenseCategoryVersionResponse": {
+        "properties": {
+          "allowed_evidence_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Evidence Types",
+            "type": "array"
+          },
+          "attribution_rules": {
+            "additionalProperties": true,
+            "title": "Attribution Rules",
+            "type": "object"
+          },
+          "category_code": {
+            "title": "Category Code",
+            "type": "string"
+          },
+          "company_id": {
+            "format": "uuid",
+            "title": "Company Id",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "expense_category_version_id": {
+            "format": "uuid",
+            "title": "Expense Category Version Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "published_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published By"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expense_category_version_id",
+          "company_id",
+          "category_code",
+          "version",
+          "name",
+          "description",
+          "allowed_evidence_types",
+          "attribution_rules",
+          "effective_from",
+          "effective_to",
+          "status",
+          "created_by",
+          "published_by",
+          "created_at",
+          "published_at"
+        ],
+        "title": "ExpenseCategoryVersionResponse",
+        "type": "object"
+      },
+      "ExpensePolicyVersionResponse": {
+        "properties": {
+          "allowed_evidence_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Evidence Types",
+            "type": "array"
+          },
+          "attribution_rules": {
+            "additionalProperties": true,
+            "title": "Attribution Rules",
+            "type": "object"
+          },
+          "branch_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch Id"
+          },
+          "category_code": {
+            "title": "Category Code",
+            "type": "string"
+          },
+          "category_version_id": {
+            "format": "uuid",
+            "title": "Category Version Id",
+            "type": "string"
+          },
+          "company_id": {
+            "format": "uuid",
+            "title": "Company Id",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "currencies": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Currencies",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "expense_policy_version_id": {
+            "format": "uuid",
+            "title": "Expense Policy Version Id",
+            "type": "string"
+          },
+          "max_amount": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Amount"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "policy_code": {
+            "title": "Policy Code",
+            "type": "string"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "published_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published By"
+          },
+          "requires_receipt": {
+            "title": "Requires Receipt",
+            "type": "boolean"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expense_policy_version_id",
+          "company_id",
+          "branch_id",
+          "policy_code",
+          "version",
+          "name",
+          "description",
+          "category_version_id",
+          "category_code",
+          "max_amount",
+          "currencies",
+          "requires_receipt",
+          "allowed_evidence_types",
+          "attribution_rules",
+          "effective_from",
+          "effective_to",
+          "status",
+          "created_by",
+          "published_by",
+          "created_at",
+          "published_at"
+        ],
+        "title": "ExpensePolicyVersionResponse",
         "type": "object"
       },
       "FefoCandidateResponse": {
@@ -16039,6 +16535,902 @@
           }
         ],
         "summary": "Get Customer Statement",
+        "tags": [
+          "finance"
+        ]
+      }
+    },
+    "/v1/finance/expense-categories": {
+      "get": {
+        "operationId": "list_expense_categories_v1_finance_expense_categories_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(draft|published)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExpenseCategoryVersionResponse"
+                  },
+                  "title": "Response List Expense Categories V1 Finance Expense Categories Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Expense Categories",
+        "tags": [
+          "finance"
+        ]
+      },
+      "post": {
+        "operationId": "create_expense_category_v1_finance_expense_categories_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExpenseCategoryCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpenseCategoryVersionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Expense Category",
+        "tags": [
+          "finance"
+        ]
+      }
+    },
+    "/v1/finance/expense-categories/{category_code}": {
+      "get": {
+        "operationId": "get_expense_category_versions_v1_finance_expense_categories__category_code__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category_code",
+            "required": true,
+            "schema": {
+              "title": "Category Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExpenseCategoryVersionResponse"
+                  },
+                  "title": "Response Get Expense Category Versions V1 Finance Expense Categories  Category Code  Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Expense Category Versions",
+        "tags": [
+          "finance"
+        ]
+      }
+    },
+    "/v1/finance/expense-categories/{category_code}/versions/{version}/publish": {
+      "post": {
+        "operationId": "publish_expense_category_v1_finance_expense_categories__category_code__versions__version__publish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category_code",
+            "required": true,
+            "schema": {
+              "title": "Category Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpenseCategoryVersionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Publish Expense Category",
+        "tags": [
+          "finance"
+        ]
+      }
+    },
+    "/v1/finance/expense-policies": {
+      "get": {
+        "operationId": "list_expense_policies_v1_finance_expense_policies_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(draft|published)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExpensePolicyVersionResponse"
+                  },
+                  "title": "Response List Expense Policies V1 Finance Expense Policies Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Expense Policies",
+        "tags": [
+          "finance"
+        ]
+      },
+      "post": {
+        "operationId": "create_expense_policy_v1_finance_expense_policies_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExpensePolicyCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpensePolicyVersionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Expense Policy",
+        "tags": [
+          "finance"
+        ]
+      }
+    },
+    "/v1/finance/expense-policies/{policy_code}": {
+      "get": {
+        "operationId": "get_expense_policy_versions_v1_finance_expense_policies__policy_code__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "policy_code",
+            "required": true,
+            "schema": {
+              "title": "Policy Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExpensePolicyVersionResponse"
+                  },
+                  "title": "Response Get Expense Policy Versions V1 Finance Expense Policies  Policy Code  Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Expense Policy Versions",
+        "tags": [
+          "finance"
+        ]
+      }
+    },
+    "/v1/finance/expense-policies/{policy_code}/versions/{version}/publish": {
+      "post": {
+        "operationId": "publish_expense_policy_v1_finance_expense_policies__policy_code__versions__version__publish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "policy_code",
+            "required": true,
+            "schema": {
+              "title": "Policy Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpensePolicyVersionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Publish Expense Policy",
         "tags": [
           "finance"
         ]

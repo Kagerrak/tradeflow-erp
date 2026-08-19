@@ -549,6 +549,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/finance/expense-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Expense Categories */
+        get: operations["list_expense_categories_v1_finance_expense_categories_get"];
+        put?: never;
+        /** Create Expense Category */
+        post: operations["create_expense_category_v1_finance_expense_categories_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/finance/expense-categories/{category_code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Expense Category Versions */
+        get: operations["get_expense_category_versions_v1_finance_expense_categories__category_code__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/finance/expense-categories/{category_code}/versions/{version}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Expense Category */
+        post: operations["publish_expense_category_v1_finance_expense_categories__category_code__versions__version__publish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/finance/expense-policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Expense Policies */
+        get: operations["list_expense_policies_v1_finance_expense_policies_get"];
+        put?: never;
+        /** Create Expense Policy */
+        post: operations["create_expense_policy_v1_finance_expense_policies_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/finance/expense-policies/{policy_code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Expense Policy Versions */
+        get: operations["get_expense_policy_versions_v1_finance_expense_policies__policy_code__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/finance/expense-policies/{policy_code}/versions/{version}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Expense Policy */
+        post: operations["publish_expense_policy_v1_finance_expense_policies__policy_code__versions__version__publish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/finance/invoices": {
         parameters: {
             query?: never;
@@ -1925,6 +2029,34 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** AttributionRules */
+        AttributionRules: {
+            /**
+             * Branch Required
+             * @default false
+             */
+            branch_required: boolean;
+            /**
+             * Cost Center Required
+             * @default false
+             */
+            cost_center_required: boolean;
+            /**
+             * Employee Allowed
+             * @default false
+             */
+            employee_allowed: boolean;
+            /**
+             * Project Allowed
+             * @default false
+             */
+            project_allowed: boolean;
+            /**
+             * Supplier Allowed
+             * @default false
+             */
+            supplier_allowed: boolean;
+        };
         /** AuthorizeDeliveryCorrection */
         AuthorizeDeliveryCorrection: {
             /** Expected Correction Version */
@@ -2971,6 +3103,60 @@ export interface components {
              * @enum {string}
              */
             status: "active" | "inactive" | "prospect";
+        };
+        /** CreateExpenseCategoryCommand */
+        CreateExpenseCategoryCommand: {
+            /** Allowed Evidence Types */
+            allowed_evidence_types: string[];
+            attribution_rules?: components["schemas"]["AttributionRules"];
+            /** Category Code */
+            category_code: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+            /** Effective To */
+            effective_to?: string | null;
+            /** Name */
+            name: string;
+        };
+        /** CreateExpensePolicyCommand */
+        CreateExpensePolicyCommand: {
+            /** Allowed Evidence Types */
+            allowed_evidence_types: string[];
+            attribution_rules?: components["schemas"]["AttributionRules"];
+            /** Branch Id */
+            branch_id?: string | null;
+            /**
+             * Category Version Id
+             * Format: uuid
+             */
+            category_version_id: string;
+            /** Currencies */
+            currencies: string[];
+            /** Description */
+            description?: string | null;
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+            /** Effective To */
+            effective_to?: string | null;
+            /** Max Amount */
+            max_amount?: number | string | null;
+            /** Name */
+            name: string;
+            /** Policy Code */
+            policy_code: string;
+            /**
+             * Requires Receipt
+             * @default true
+             */
+            requires_receipt: boolean;
         };
         /** CreateGoodsReceiptCommand */
         CreateGoodsReceiptCommand: {
@@ -4073,6 +4259,109 @@ export interface components {
             status: "uploading" | "verified";
             /** Upload Id */
             upload_id: string | null;
+        };
+        /** ExpenseCategoryVersionResponse */
+        ExpenseCategoryVersionResponse: {
+            /** Allowed Evidence Types */
+            allowed_evidence_types: string[];
+            /** Attribution Rules */
+            attribution_rules: {
+                [key: string]: unknown;
+            };
+            /** Category Code */
+            category_code: string;
+            /**
+             * Company Id
+             * Format: uuid
+             */
+            company_id: string;
+            /** Created At */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Description */
+            description: string | null;
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+            /** Effective To */
+            effective_to: string | null;
+            /**
+             * Expense Category Version Id
+             * Format: uuid
+             */
+            expense_category_version_id: string;
+            /** Name */
+            name: string;
+            /** Published At */
+            published_at: string | null;
+            /** Published By */
+            published_by: string | null;
+            /** Status */
+            status: string;
+            /** Version */
+            version: number;
+        };
+        /** ExpensePolicyVersionResponse */
+        ExpensePolicyVersionResponse: {
+            /** Allowed Evidence Types */
+            allowed_evidence_types: string[];
+            /** Attribution Rules */
+            attribution_rules: {
+                [key: string]: unknown;
+            };
+            /** Branch Id */
+            branch_id: string | null;
+            /** Category Code */
+            category_code: string;
+            /**
+             * Category Version Id
+             * Format: uuid
+             */
+            category_version_id: string;
+            /**
+             * Company Id
+             * Format: uuid
+             */
+            company_id: string;
+            /** Created At */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Currencies */
+            currencies: string[];
+            /** Description */
+            description: string | null;
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+            /** Effective To */
+            effective_to: string | null;
+            /**
+             * Expense Policy Version Id
+             * Format: uuid
+             */
+            expense_policy_version_id: string;
+            /** Max Amount */
+            max_amount: string | null;
+            /** Name */
+            name: string;
+            /** Policy Code */
+            policy_code: string;
+            /** Published At */
+            published_at: string | null;
+            /** Published By */
+            published_by: string | null;
+            /** Requires Receipt */
+            requires_receipt: boolean;
+            /** Status */
+            status: string;
+            /** Version */
+            version: number;
         };
         /** FefoCandidateResponse */
         FefoCandidateResponse: {
@@ -9162,6 +9451,628 @@ export interface operations {
             };
             /** @description Stable TradeFlow error envelope. */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    list_expense_categories_v1_finance_expense_categories_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategoryVersionResponse"][];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_expense_category_v1_finance_expense_categories_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateExpenseCategoryCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategoryVersionResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_expense_category_versions_v1_finance_expense_categories__category_code__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategoryVersionResponse"][];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    publish_expense_category_v1_finance_expense_categories__category_code__versions__version__publish_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                category_code: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategoryVersionResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    list_expense_policies_v1_finance_expense_policies_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpensePolicyVersionResponse"][];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_expense_policy_v1_finance_expense_policies_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateExpensePolicyCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpensePolicyVersionResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_expense_policy_versions_v1_finance_expense_policies__policy_code__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                policy_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpensePolicyVersionResponse"][];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    publish_expense_policy_v1_finance_expense_policies__policy_code__versions__version__publish_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                policy_code: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpensePolicyVersionResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

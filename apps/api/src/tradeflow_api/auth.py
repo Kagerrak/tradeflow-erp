@@ -464,6 +464,42 @@ async def require_credit_note_reader(
     return require_capability(user, "finance:credit-note-read")
 
 
+async def require_expense_category_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:expense-category-read")
+
+
+async def require_expense_category_creator(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:expense-category-create")
+
+
+async def require_expense_category_publisher(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:expense-category-publish")
+
+
+async def require_expense_policy_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:expense-policy-read")
+
+
+async def require_expense_policy_creator(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:expense-policy-create")
+
+
+async def require_expense_policy_publisher(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:expense-policy-publish")
+
+
 async def require_payment_allocator(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:

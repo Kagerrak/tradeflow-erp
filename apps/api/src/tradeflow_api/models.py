@@ -4265,3 +4265,147 @@ credit_note_authorizations = Table(
         name="uq_credit_note_authorization_key",
     ),
 )
+
+expense_categories = Table(
+    "expense_categories",
+    metadata,
+    Column("expense_category_version_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "company_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("companies.company_id"),
+        nullable=False,
+    ),
+    Column("category_code", String(50), nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("name", String(200), nullable=False),
+    Column("description", String, nullable=True),
+    Column("allowed_evidence_types", JSONB, nullable=False, server_default="[]"),
+    Column("attribution_rules", JSONB, nullable=False, server_default="{}"),
+    Column("effective_from", Date, nullable=False),
+    Column("effective_to", Date, nullable=True),
+    Column("status", String(20), nullable=False, server_default="draft"),
+    Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("published_by", String(200), ForeignKey("users.subject"), nullable=True),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    Column("published_at", DateTime(timezone=True), nullable=True),
+    CheckConstraint("version > 0", name="ck_expense_categories_version_positive"),
+    CheckConstraint(
+        "effective_to IS NULL OR effective_to >= effective_from",
+        name="ck_expense_categories_effective_range",
+    ),
+    CheckConstraint(
+        "status IN ('draft', 'published')",
+        name="ck_expense_categories_status",
+    ),
+    CheckConstraint(
+        "(status = 'published') OR (published_by IS NULL AND published_at IS NULL)",
+        name="ck_expense_categories_published_shape",
+    ),
+    UniqueConstraint(
+        "company_id",
+        "category_code",
+        "version",
+        name="uq_expense_categories_company_code_version",
+    ),
+)
+
+Index(
+    "uq_expense_categories_active_code",
+    expense_categories.c.company_id,
+    expense_categories.c.category_code,
+    unique=True,
+    postgresql_where=(expense_categories.c.status == "published"),
+)
+
+expense_policies = Table(
+    "expense_policies",
+    metadata,
+    Column("expense_policy_version_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "company_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("companies.company_id"),
+        nullable=False,
+    ),
+    Column(
+        "branch_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("branches.branch_id"),
+        nullable=True,
+    ),
+    Column("policy_code", String(50), nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("name", String(200), nullable=False),
+    Column("description", String, nullable=True),
+    Column(
+        "category_version_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("expense_categories.expense_category_version_id"),
+        nullable=False,
+    ),
+    Column("category_code", String(50), nullable=False),
+    Column("max_amount", Numeric(18, 2), nullable=True),
+    Column("currencies", JSONB, nullable=False, server_default="[]"),
+    Column("requires_receipt", Boolean, nullable=False, server_default="true"),
+    Column("allowed_evidence_types", JSONB, nullable=False, server_default="[]"),
+    Column("attribution_rules", JSONB, nullable=False, server_default="{}"),
+    Column("effective_from", Date, nullable=False),
+    Column("effective_to", Date, nullable=True),
+    Column("status", String(20), nullable=False, server_default="draft"),
+    Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("published_by", String(200), ForeignKey("users.subject"), nullable=True),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    Column("published_at", DateTime(timezone=True), nullable=True),
+    CheckConstraint("version > 0", name="ck_expense_policies_version_positive"),
+    CheckConstraint(
+        "effective_to IS NULL OR effective_to >= effective_from",
+        name="ck_expense_policies_effective_range",
+    ),
+    CheckConstraint(
+        "status IN ('draft', 'published')",
+        name="ck_expense_policies_status",
+    ),
+    CheckConstraint(
+        "(status = 'published') OR (published_by IS NULL AND published_at IS NULL)",
+        name="ck_expense_policies_published_shape",
+    ),
+    CheckConstraint(
+        "max_amount IS NULL OR max_amount >= 0",
+        name="ck_expense_policies_max_amount_nonnegative",
+    ),
+)
+
+Index(
+    "uq_expense_policies_version",
+    expense_policies.c.company_id,
+    func.coalesce(
+        expense_policies.c.branch_id,
+        "00000000-0000-0000-0000-000000000000",
+    ),
+    expense_policies.c.policy_code,
+    expense_policies.c.version,
+    unique=True,
+)
+
+Index(
+    "uq_expense_policies_active_code",
+    expense_policies.c.company_id,
+    func.coalesce(
+        expense_policies.c.branch_id,
+        "00000000-0000-0000-0000-000000000000",
+    ),
+    expense_policies.c.policy_code,
+    unique=True,
+    postgresql_where=(expense_policies.c.status == "published"),
+)
