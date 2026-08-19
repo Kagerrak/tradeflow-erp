@@ -293,11 +293,7 @@ def downgrade() -> None:
 
     op.execute("DROP TABLE document_templates")
 
-    op.execute(
-        "ALTER TABLE branches DROP CONSTRAINT IF EXISTS ck_branches_timezone_not_empty"
-    )
+    op.execute("ALTER TABLE branches DROP CONSTRAINT IF EXISTS ck_branches_timezone_not_empty")
     op.execute("ALTER TABLE branches DROP COLUMN timezone")
-    op.execute(
-        "ALTER TABLE companies DROP CONSTRAINT IF EXISTS ck_companies_timezone_not_empty"
-    )
+    op.execute("ALTER TABLE companies DROP CONSTRAINT IF EXISTS ck_companies_timezone_not_empty")
     op.execute("ALTER TABLE companies DROP COLUMN timezone")
