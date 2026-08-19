@@ -1,10 +1,13 @@
 # First-release scope reconciliation
 
-- Date: August 14, 2026
-- Baseline: `origin/main` at `5daf8ce`
+- Date: August 19, 2026
+- Baseline: `origin/main` at `d344918`
 - Tracker reconciliation: GitHub issue #55
-- Pending evidence: Return Authorization PR #112 at `e9abb2f`; Inventory
-  Transfer PR #114 at `17e1030`
+- Pending evidence: Return Authorization PR #112 at `e9abb2f` (green, awaiting
+  explicit PR-specific approval); Inventory Transfer PR #114 local head
+  `5466111` (unpushed pending two policy decisions); Issue #72 closed by PR #116;
+  Issue #110 current-system baseline closed by PR #117; Issue #77 closed by PR
+  #118.
 
 ## Why the tracker was reopened
 
@@ -75,7 +78,7 @@ PRD behavior or release evidence does not.
 | Return request/approval against Delivered Quantity                                                                      | Draft PR #112 implements Return Authorization but is stacked on unmerged PR #111 and its migration descends from `d524a29c32b8`, bypassing current Credit Note merge head `0017` | Missing on `main`; pending reconciliation and review: #56, #65, PR #112                               |
 | Offline return evidence, Return Receipt/Inspection and controlled damaged custody                                       | Delivery-exception Return-to-Warehouse Receipt exists, but not the customer Returns lifecycle                                                                                    | Missing: #66–#67                                                                                      |
 | Restock, Replacement, repair, Supplier Return, write-off and finance credit outcomes                                    | No Return Disposition or outcome model exists                                                                                                                                    | Missing: #68–#70, with Finance #71 and Supplier Return #79                                            |
-| Supplier, Purchase Request/approval, Purchase Order and Goods Receipt                                                   | `suppliers.py`, `purchase_orders.py` and `goods_receipts.py` exist; Purchase Request does not                                                                                    | Partial: #58, #77                                                                                     |
+| Supplier, Purchase Request/approval, Purchase Order and Goods Receipt                                                   | `suppliers.py`, `purchase_orders.py`, `goods_receipts.py`, and `purchase_requests.py` with contract tests and web workspace via PR #118                                          | Partial: #58 supplier config; #77 implemented and merged; variance/backorder remains #78–#79          |
 | Partial receipt, Receipt Variance, Purchase Backorder and Supplier Return                                               | Basic partial Goods Receipt exists; explicit variance/quality/backorder and Supplier Return do not                                                                               | Partial: #78–#79                                                                                      |
 | Foreign currency, Inbound Shipment, customs evidence and Landed Cost                                                    | `landed_costs.py` implements line-value allocation; approved Exchange Rate Snapshot and shipment/customs workflow are absent                                                     | Partial and policy-gated: #63, #80–#81                                                                |
 | Expense categories, claims, evidence, duplicate checks, attribution, approval, posting and payment                      | Finance context defines Expense/Expense Claim; no runtime code, migration, client or UI exists                                                                                   | Missing: #59, #83–#87                                                                                 |
@@ -120,15 +123,19 @@ and staging/security.
 - PR #114 completed its agent final review and remote CI gate, but GitHub/human
   review is pending. It remains unmerged, so Inventory Transfer is pending
   evidence rather than day-one completion.
+- PR #116 merged issue #72 (unapplied/overpaid Payment Receipts) to `main` at
+  `771c061`.
+- PR #117 merged issue #110 (current-system baseline and success measures) to
+  `main` at `f195560`.
+- PR #118 merged issue #77 (create and approve Purchase Requests before
+  Purchase Orders) to `main` at `d344918`.
 
 ## Dependency-ready work
 
-The next contribution is to review and explicitly approve PR #111, then
-reconcile PR #112 onto the current migration and financial foundation. Other
-independent entry slices are #72, #77, #78, #83, #94, #97, and #105–#110.
-Delivery still proceeds one vertical slice at a time; the additional ready
-issues make blockers visible rather than inviting parallel mutation of shared
-domain foundations.
+The active slice is now closed. The next dependency-ready slices include #78,
+#83, #94, #97, and #105–#109. Delivery still proceeds one vertical slice at a
+time; the additional ready issues make blockers visible rather than inviting
+parallel mutation of shared domain foundations.
 
 ## Completion rule
 
