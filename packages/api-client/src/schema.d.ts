@@ -1268,6 +1268,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/procurement/purchase-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Purchase Requests */
+        get: operations["list_purchase_requests_v1_procurement_purchase_requests_get"];
+        put?: never;
+        /** Create Purchase Request */
+        post: operations["create_purchase_request_v1_procurement_purchase_requests_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/procurement/purchase-requests/{purchase_request_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Purchase Request */
+        get: operations["get_purchase_request_v1_procurement_purchase_requests__purchase_request_id__get"];
+        /** Revise Purchase Request */
+        put: operations["revise_purchase_request_v1_procurement_purchase_requests__purchase_request_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/procurement/purchase-requests/{purchase_request_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Purchase Request */
+        post: operations["approve_purchase_request_v1_procurement_purchase_requests__purchase_request_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/procurement/purchase-requests/{purchase_request_id}/conversions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Convert Purchase Request */
+        post: operations["convert_purchase_request_v1_procurement_purchase_requests__purchase_request_id__conversions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/procurement/purchase-requests/{purchase_request_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject Purchase Request */
+        post: operations["reject_purchase_request_v1_procurement_purchase_requests__purchase_request_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/procurement/suppliers": {
         parameters: {
             query?: never;
@@ -1642,6 +1729,11 @@ export interface components {
             maximum_percentage?: string | null;
             /** Warehouse Code */
             warehouse_code?: string | null;
+        };
+        /** ApprovePurchaseRequestCommand */
+        ApprovePurchaseRequestCommand: {
+            /** Expected Version */
+            expected_version: number;
         };
         /** AssignDeliveryCommand */
         AssignDeliveryCommand: {
@@ -2586,27 +2678,6 @@ export interface components {
             /** Unit Code */
             unit_code: string;
         };
-        /** ConversionResponse */
-        ConversionResponse: {
-            /** Base Quantity */
-            base_quantity: string;
-            /**
-             * Effective From
-             * Format: date
-             */
-            effective_from: string;
-            /** Effective To */
-            effective_to: string | null;
-            /** Unit Code */
-            unit_code: string;
-            /**
-             * Unit Conversion Id
-             * Format: uuid
-             */
-            unit_conversion_id: string;
-            /** Version */
-            version: number;
-        };
         /** ConvertCODOnAccountCommand */
         ConvertCODOnAccountCommand: {
             /**
@@ -2618,6 +2689,42 @@ export interface components {
             expected_delivery_version: number;
             /** Reason */
             reason: string;
+        };
+        /** ConvertLineCommand */
+        ConvertLineCommand: {
+            /**
+             * Purchase Request Line Id
+             * Format: uuid
+             */
+            purchase_request_line_id: string;
+            /** Requested Quantity */
+            requested_quantity: number | string;
+        };
+        /** ConvertPurchaseRequestCommand */
+        ConvertPurchaseRequestCommand: {
+            /** Expected Version */
+            expected_version: number;
+            /** Lines */
+            lines: components["schemas"]["ConvertLineCommand"][];
+            /** Purchase Order Code */
+            purchase_order_code: string;
+        };
+        /** ConvertedLineResponse */
+        ConvertedLineResponse: {
+            /** Line Number */
+            line_number: number;
+            /**
+             * Purchase Order Line Id
+             * Format: uuid
+             */
+            purchase_order_line_id: string;
+            /**
+             * Purchase Request Line Id
+             * Format: uuid
+             */
+            purchase_request_line_id: string;
+            /** Requested Quantity */
+            requested_quantity: string;
         };
         /** CorrectionIdentityPosition */
         "CorrectionIdentityPosition-Input": {
@@ -2813,6 +2920,30 @@ export interface components {
             exchange_rate: number | string;
             /** Lines */
             lines: components["schemas"]["PurchaseOrderLineCommand"][];
+            /**
+             * Supplier Id
+             * Format: uuid
+             */
+            supplier_id: string;
+        };
+        /** CreatePurchaseRequestCommand */
+        CreatePurchaseRequestCommand: {
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Code */
+            code: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Exchange Rate
+             * @default 1
+             */
+            exchange_rate: number | string;
+            /** Lines */
+            lines: components["schemas"]["PurchaseRequestLineCommand"][];
             /**
              * Supplier Id
              * Format: uuid
@@ -4982,6 +5113,116 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** PurchaseRequestLineCommand */
+        PurchaseRequestLineCommand: {
+            /** Requested Quantity */
+            requested_quantity: number | string;
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+            /** Unit Code */
+            unit_code: string;
+            /** Unit Cost */
+            unit_cost: number | string;
+        };
+        /** PurchaseRequestLineResponse */
+        PurchaseRequestLineResponse: {
+            /** Base Quantity */
+            base_quantity: string;
+            /** Converted Quantity */
+            converted_quantity: string;
+            /** Line Number */
+            line_number: number;
+            /** Open Quantity */
+            open_quantity: string;
+            /**
+             * Purchase Request Line Id
+             * Format: uuid
+             */
+            purchase_request_line_id: string;
+            /** Requested Quantity */
+            requested_quantity: string;
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+            /** Unit Code */
+            unit_code: string;
+            /** Unit Cost */
+            unit_cost: string;
+        };
+        /** PurchaseRequestResponse */
+        PurchaseRequestResponse: {
+            /** Approved By */
+            approved_by: string | null;
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Code */
+            code: string;
+            /** Created By */
+            created_by: string;
+            /** Currency */
+            currency: string;
+            /** Exchange Rate */
+            exchange_rate: string;
+            /** Lines */
+            lines: components["schemas"]["PurchaseRequestLineResponse"][];
+            /**
+             * Purchase Request Id
+             * Format: uuid
+             */
+            purchase_request_id: string;
+            /** Rejected By */
+            rejected_by: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Supplier Id
+             * Format: uuid
+             */
+            supplier_id: string;
+            /** Version */
+            version: number;
+        };
+        /** PurchaseRequestSearchResponse */
+        PurchaseRequestSearchResponse: {
+            /** Items */
+            items: components["schemas"]["PurchaseRequestSummary"][];
+            /** Total */
+            total: number;
+        };
+        /** PurchaseRequestSummary */
+        PurchaseRequestSummary: {
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Code */
+            code: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Purchase Request Id
+             * Format: uuid
+             */
+            purchase_request_id: string;
+            /** Status */
+            status: string;
+            /**
+             * Supplier Id
+             * Format: uuid
+             */
+            supplier_id: string;
+            /** Version */
+            version: number;
+        };
         /** ReadyResponse */
         ReadyResponse: {
             /** Database */
@@ -5057,6 +5298,11 @@ export interface components {
             received_at: string;
             /** Sales Order Id */
             sales_order_id?: string | null;
+        };
+        /** RejectPurchaseRequestCommand */
+        RejectPurchaseRequestCommand: {
+            /** Expected Version */
+            expected_version: number;
         };
         /** RequestCreditNoteCommand */
         RequestCreditNoteCommand: {
@@ -5248,6 +5494,27 @@ export interface components {
              * Format: uuid
              */
             reversal_pick_id: string;
+        };
+        /** RevisePurchaseRequestCommand */
+        RevisePurchaseRequestCommand: {
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Currency */
+            currency: string;
+            /** Exchange Rate */
+            exchange_rate: number | string;
+            /** Expected Version */
+            expected_version: number;
+            /** Lines */
+            lines: components["schemas"]["PurchaseRequestLineCommand"][];
+            /**
+             * Supplier Id
+             * Format: uuid
+             */
+            supplier_id: string;
         };
         /** RoleTemplateInput */
         RoleTemplateInput: {
@@ -5587,7 +5854,7 @@ export interface components {
             /** Base Stocking Unit */
             base_stocking_unit: string;
             /** Conversions */
-            conversions: components["schemas"]["ConversionResponse"][];
+            conversions: components["schemas"]["tradeflow_api__catalog_inventory__ConversionResponse"][];
             /** Expiration Control */
             expiration_control: boolean;
             /** Product Code */
@@ -5981,6 +6248,27 @@ export interface components {
              */
             warehouse_id: string;
         };
+        /** ConversionResponse */
+        tradeflow_api__catalog_inventory__ConversionResponse: {
+            /** Base Quantity */
+            base_quantity: string;
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+            /** Effective To */
+            effective_to: string | null;
+            /** Unit Code */
+            unit_code: string;
+            /**
+             * Unit Conversion Id
+             * Format: uuid
+             */
+            unit_conversion_id: string;
+            /** Version */
+            version: number;
+        };
         /** ProjectionRebuildResponse */
         tradeflow_api__catalog_inventory__ProjectionRebuildResponse: {
             /** Availability Rows */
@@ -5996,6 +6284,20 @@ export interface components {
             line_commitments: number;
             /** Reservation Items */
             reservation_items: number;
+        };
+        /** ConversionResponse */
+        tradeflow_api__purchase_requests__ConversionResponse: {
+            /** Lines */
+            lines: components["schemas"]["ConvertedLineResponse"][];
+            /** Purchase Order Code */
+            purchase_order_code: string;
+            /**
+             * Purchase Order Id
+             * Format: uuid
+             */
+            purchase_order_id: string;
+            /** Status */
+            status: string;
         };
     };
     responses: never;
@@ -6178,7 +6480,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ConversionResponse"];
+                    "application/json": components["schemas"]["tradeflow_api__catalog_inventory__ConversionResponse"];
                 };
             };
             /** @description Stable TradeFlow error envelope. */
@@ -12418,6 +12720,635 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    list_purchase_requests_v1_procurement_purchase_requests_get: {
+        parameters: {
+            query?: {
+                query?: string;
+                status?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchaseRequestSearchResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_purchase_request_v1_procurement_purchase_requests_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePurchaseRequestCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchaseRequestResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_purchase_request_v1_procurement_purchase_requests__purchase_request_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                purchase_request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchaseRequestResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    revise_purchase_request_v1_procurement_purchase_requests__purchase_request_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                purchase_request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevisePurchaseRequestCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchaseRequestResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    approve_purchase_request_v1_procurement_purchase_requests__purchase_request_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                purchase_request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovePurchaseRequestCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchaseRequestResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    convert_purchase_request_v1_procurement_purchase_requests__purchase_request_id__conversions_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                purchase_request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConvertPurchaseRequestCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["tradeflow_api__purchase_requests__ConversionResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    reject_purchase_request_v1_procurement_purchase_requests__purchase_request_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                purchase_request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectPurchaseRequestCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchaseRequestResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description Stable TradeFlow error envelope. */
