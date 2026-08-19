@@ -436,6 +436,21 @@
         "title": "ApprovalAuthorityInput",
         "type": "object"
       },
+      "ApprovePurchaseRequestCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "exclusiveMinimum": 0.0,
+            "title": "Expected Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_version"
+        ],
+        "title": "ApprovePurchaseRequestCommand",
+        "type": "object"
+      },
       "AssignDeliveryCommand": {
         "additionalProperties": false,
         "properties": {
@@ -2874,55 +2889,6 @@
         "title": "ConversionInput",
         "type": "object"
       },
-      "ConversionResponse": {
-        "properties": {
-          "base_quantity": {
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Base Quantity",
-            "type": "string"
-          },
-          "effective_from": {
-            "format": "date",
-            "title": "Effective From",
-            "type": "string"
-          },
-          "effective_to": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Effective To"
-          },
-          "unit_code": {
-            "title": "Unit Code",
-            "type": "string"
-          },
-          "unit_conversion_id": {
-            "format": "uuid",
-            "title": "Unit Conversion Id",
-            "type": "string"
-          },
-          "version": {
-            "title": "Version",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "unit_conversion_id",
-          "unit_code",
-          "base_quantity",
-          "effective_from",
-          "effective_to",
-          "version"
-        ],
-        "title": "ConversionResponse",
-        "type": "object"
-      },
       "ConvertCODOnAccountCommand": {
         "additionalProperties": false,
         "properties": {
@@ -2949,6 +2915,96 @@
           "reason"
         ],
         "title": "ConvertCODOnAccountCommand",
+        "type": "object"
+      },
+      "ConvertLineCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "purchase_request_line_id": {
+            "format": "uuid",
+            "title": "Purchase Request Line Id",
+            "type": "string"
+          },
+          "requested_quantity": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Requested Quantity"
+          }
+        },
+        "required": [
+          "purchase_request_line_id",
+          "requested_quantity"
+        ],
+        "title": "ConvertLineCommand",
+        "type": "object"
+      },
+      "ConvertPurchaseRequestCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "exclusiveMinimum": 0.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ConvertLineCommand"
+            },
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "purchase_order_code": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Purchase Order Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "purchase_order_code",
+          "lines",
+          "expected_version"
+        ],
+        "title": "ConvertPurchaseRequestCommand",
+        "type": "object"
+      },
+      "ConvertedLineResponse": {
+        "properties": {
+          "line_number": {
+            "title": "Line Number",
+            "type": "integer"
+          },
+          "purchase_order_line_id": {
+            "format": "uuid",
+            "title": "Purchase Order Line Id",
+            "type": "string"
+          },
+          "purchase_request_line_id": {
+            "format": "uuid",
+            "title": "Purchase Request Line Id",
+            "type": "string"
+          },
+          "requested_quantity": {
+            "title": "Requested Quantity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "purchase_order_line_id",
+          "purchase_request_line_id",
+          "line_number",
+          "requested_quantity"
+        ],
+        "title": "ConvertedLineResponse",
         "type": "object"
       },
       "CorrectionIdentityPosition-Input": {
@@ -3533,6 +3589,63 @@
           "lines"
         ],
         "title": "CreatePurchaseOrderCommand",
+        "type": "object"
+      },
+      "CreatePurchaseRequestCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "code": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "currency": {
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency",
+            "type": "string"
+          },
+          "exchange_rate": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "default": "1",
+            "title": "Exchange Rate"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PurchaseRequestLineCommand"
+            },
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "supplier_id": {
+            "format": "uuid",
+            "title": "Supplier Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "supplier_id",
+          "branch_id",
+          "code",
+          "currency",
+          "lines"
+        ],
+        "title": "CreatePurchaseRequestCommand",
         "type": "object"
       },
       "CreateSalesOrderDraftCommand": {
@@ -8740,6 +8853,266 @@
         "title": "PurchaseOrderSummary",
         "type": "object"
       },
+      "PurchaseRequestLineCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "requested_quantity": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Requested Quantity"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "unit_code": {
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Unit Code",
+            "type": "string"
+          },
+          "unit_cost": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Unit Cost"
+          }
+        },
+        "required": [
+          "sku_id",
+          "requested_quantity",
+          "unit_code",
+          "unit_cost"
+        ],
+        "title": "PurchaseRequestLineCommand",
+        "type": "object"
+      },
+      "PurchaseRequestLineResponse": {
+        "properties": {
+          "base_quantity": {
+            "title": "Base Quantity",
+            "type": "string"
+          },
+          "converted_quantity": {
+            "title": "Converted Quantity",
+            "type": "string"
+          },
+          "line_number": {
+            "title": "Line Number",
+            "type": "integer"
+          },
+          "open_quantity": {
+            "title": "Open Quantity",
+            "type": "string"
+          },
+          "purchase_request_line_id": {
+            "format": "uuid",
+            "title": "Purchase Request Line Id",
+            "type": "string"
+          },
+          "requested_quantity": {
+            "title": "Requested Quantity",
+            "type": "string"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "unit_code": {
+            "title": "Unit Code",
+            "type": "string"
+          },
+          "unit_cost": {
+            "title": "Unit Cost",
+            "type": "string"
+          }
+        },
+        "required": [
+          "purchase_request_line_id",
+          "line_number",
+          "sku_id",
+          "requested_quantity",
+          "unit_code",
+          "base_quantity",
+          "unit_cost",
+          "converted_quantity",
+          "open_quantity"
+        ],
+        "title": "PurchaseRequestLineResponse",
+        "type": "object"
+      },
+      "PurchaseRequestResponse": {
+        "properties": {
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By"
+          },
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "exchange_rate": {
+            "title": "Exchange Rate",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PurchaseRequestLineResponse"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "purchase_request_id": {
+            "format": "uuid",
+            "title": "Purchase Request Id",
+            "type": "string"
+          },
+          "rejected_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejected By"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "supplier_id": {
+            "format": "uuid",
+            "title": "Supplier Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "purchase_request_id",
+          "supplier_id",
+          "branch_id",
+          "code",
+          "currency",
+          "exchange_rate",
+          "status",
+          "version",
+          "created_by",
+          "approved_by",
+          "rejected_by",
+          "lines"
+        ],
+        "title": "PurchaseRequestResponse",
+        "type": "object"
+      },
+      "PurchaseRequestSearchResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PurchaseRequestSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "PurchaseRequestSearchResponse",
+        "type": "object"
+      },
+      "PurchaseRequestSummary": {
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "purchase_request_id": {
+            "format": "uuid",
+            "title": "Purchase Request Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "supplier_id": {
+            "format": "uuid",
+            "title": "Supplier Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "purchase_request_id",
+          "supplier_id",
+          "branch_id",
+          "code",
+          "currency",
+          "status",
+          "version"
+        ],
+        "title": "PurchaseRequestSummary",
+        "type": "object"
+      },
       "ReadyResponse": {
         "properties": {
           "database": {
@@ -8968,6 +9341,21 @@
           "received_at"
         ],
         "title": "RecordPaymentReceiptCommand",
+        "type": "object"
+      },
+      "RejectPurchaseRequestCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "exclusiveMinimum": 0.0,
+            "title": "Expected Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_version"
+        ],
+        "title": "RejectPurchaseRequestCommand",
         "type": "object"
       },
       "RequestCreditNoteCommand": {
@@ -9398,6 +9786,62 @@
           "reason"
         ],
         "title": "ReversePickCommand",
+        "type": "object"
+      },
+      "RevisePurchaseRequestCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "currency": {
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency",
+            "type": "string"
+          },
+          "exchange_rate": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Exchange Rate"
+          },
+          "expected_version": {
+            "exclusiveMinimum": 0.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PurchaseRequestLineCommand"
+            },
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "supplier_id": {
+            "format": "uuid",
+            "title": "Supplier Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "supplier_id",
+          "branch_id",
+          "currency",
+          "exchange_rate",
+          "lines",
+          "expected_version"
+        ],
+        "title": "RevisePurchaseRequestCommand",
         "type": "object"
       },
       "RoleTemplateInput": {
@@ -10208,7 +10652,7 @@
           },
           "conversions": {
             "items": {
-              "$ref": "#/components/schemas/ConversionResponse"
+              "$ref": "#/components/schemas/tradeflow_api__catalog_inventory__ConversionResponse"
             },
             "title": "Conversions",
             "type": "array"
@@ -11236,6 +11680,55 @@
         "title": "WarehouseResponse",
         "type": "object"
       },
+      "tradeflow_api__catalog_inventory__ConversionResponse": {
+        "properties": {
+          "base_quantity": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Base Quantity",
+            "type": "string"
+          },
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "unit_code": {
+            "title": "Unit Code",
+            "type": "string"
+          },
+          "unit_conversion_id": {
+            "format": "uuid",
+            "title": "Unit Conversion Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "unit_conversion_id",
+          "unit_code",
+          "base_quantity",
+          "effective_from",
+          "effective_to",
+          "version"
+        ],
+        "title": "ConversionResponse",
+        "type": "object"
+      },
       "tradeflow_api__catalog_inventory__ProjectionRebuildResponse": {
         "properties": {
           "availability_rows": {
@@ -11275,6 +11768,38 @@
           "reservation_items"
         ],
         "title": "ProjectionRebuildResponse",
+        "type": "object"
+      },
+      "tradeflow_api__purchase_requests__ConversionResponse": {
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ConvertedLineResponse"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "purchase_order_code": {
+            "title": "Purchase Order Code",
+            "type": "string"
+          },
+          "purchase_order_id": {
+            "format": "uuid",
+            "title": "Purchase Order Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "purchase_order_id",
+          "purchase_order_code",
+          "status",
+          "lines"
+        ],
+        "title": "ConversionResponse",
         "type": "object"
       }
     },
@@ -11533,7 +12058,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ConversionResponse"
+                  "$ref": "#/components/schemas/tradeflow_api__catalog_inventory__ConversionResponse"
                 }
               }
             },
@@ -20733,6 +21258,879 @@
           }
         ],
         "summary": "Create Goods Receipt",
+        "tags": [
+          "procurement"
+        ]
+      }
+    },
+    "/v1/procurement/purchase-requests": {
+      "get": {
+        "operationId": "list_purchase_requests_v1_procurement_purchase_requests_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 200,
+              "title": "Query",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 30,
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseRequestSearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Purchase Requests",
+        "tags": [
+          "procurement"
+        ]
+      },
+      "post": {
+        "operationId": "create_purchase_request_v1_procurement_purchase_requests_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePurchaseRequestCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseRequestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Purchase Request",
+        "tags": [
+          "procurement"
+        ]
+      }
+    },
+    "/v1/procurement/purchase-requests/{purchase_request_id}": {
+      "get": {
+        "operationId": "get_purchase_request_v1_procurement_purchase_requests__purchase_request_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "purchase_request_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Purchase Request Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseRequestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Purchase Request",
+        "tags": [
+          "procurement"
+        ]
+      },
+      "put": {
+        "operationId": "revise_purchase_request_v1_procurement_purchase_requests__purchase_request_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "purchase_request_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Purchase Request Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisePurchaseRequestCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseRequestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revise Purchase Request",
+        "tags": [
+          "procurement"
+        ]
+      }
+    },
+    "/v1/procurement/purchase-requests/{purchase_request_id}/approve": {
+      "post": {
+        "operationId": "approve_purchase_request_v1_procurement_purchase_requests__purchase_request_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "purchase_request_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Purchase Request Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovePurchaseRequestCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseRequestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Approve Purchase Request",
+        "tags": [
+          "procurement"
+        ]
+      }
+    },
+    "/v1/procurement/purchase-requests/{purchase_request_id}/conversions": {
+      "post": {
+        "operationId": "convert_purchase_request_v1_procurement_purchase_requests__purchase_request_id__conversions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "purchase_request_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Purchase Request Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConvertPurchaseRequestCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/tradeflow_api__purchase_requests__ConversionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Convert Purchase Request",
+        "tags": [
+          "procurement"
+        ]
+      }
+    },
+    "/v1/procurement/purchase-requests/{purchase_request_id}/reject": {
+      "post": {
+        "operationId": "reject_purchase_request_v1_procurement_purchase_requests__purchase_request_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "purchase_request_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Purchase Request Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectPurchaseRequestCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseRequestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reject Purchase Request",
         "tags": [
           "procurement"
         ]

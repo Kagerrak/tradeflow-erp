@@ -82,6 +82,9 @@ export function ProcurementWorkspace() {
             <Link className="button" href="/procurement/purchase-orders">
               Purchase orders
             </Link>
+            <Link className="button" href="/procurement/purchase-requests">
+              Purchase requests
+            </Link>
             <Link className="button" href="/procurement/goods-receipts">
               Goods receipts
             </Link>

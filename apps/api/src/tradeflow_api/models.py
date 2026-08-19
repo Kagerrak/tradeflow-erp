@@ -153,6 +153,12 @@ purchase_order_lines = Table(
         nullable=False,
     ),
     Column(
+        "purchase_request_line_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("purchase_request_lines.purchase_request_line_id"),
+        nullable=True,
+    ),
+    Column(
         "sku_id",
         PostgresUUID(as_uuid=True),
         ForeignKey("skus.sku_id"),
@@ -181,6 +187,103 @@ purchase_order_lines = Table(
         "purchase_order_id",
         "line_number",
         name="uq_purchase_order_lines_order_line",
+    ),
+)
+
+purchase_requests = Table(
+    "purchase_requests",
+    metadata,
+    Column("purchase_request_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "company_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("companies.company_id"),
+        nullable=False,
+    ),
+    Column(
+        "supplier_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("suppliers.supplier_id"),
+        nullable=False,
+    ),
+    Column(
+        "branch_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("branches.branch_id"),
+        nullable=False,
+    ),
+    Column("code", String(50), nullable=False),
+    Column("currency", String(3), nullable=False),
+    Column("exchange_rate", Numeric(18, 6), nullable=False, server_default="1"),
+    Column(
+        "status",
+        String(30),
+        nullable=False,
+        server_default="draft",
+    ),
+    Column("version", Integer, nullable=False, server_default="1"),
+    Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("approved_by", String(200), ForeignKey("users.subject"), nullable=True),
+    Column("rejected_by", String(200), ForeignKey("users.subject"), nullable=True),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    Column("correlation_id", String(100), nullable=False),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    ),
+    CheckConstraint(
+        "status IN ('draft', 'submitted', 'approved', 'partially_converted', "
+        "'fully_converted', 'rejected')",
+        name="ck_purchase_requests_status",
+    ),
+    CheckConstraint("version > 0", name="ck_purchase_requests_version_positive"),
+    CheckConstraint("exchange_rate > 0", name="ck_purchase_requests_exchange_rate_positive"),
+    UniqueConstraint("company_id", "code", name="uq_purchase_requests_company_code"),
+)
+
+purchase_request_lines = Table(
+    "purchase_request_lines",
+    metadata,
+    Column("purchase_request_line_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "purchase_request_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("purchase_requests.purchase_request_id"),
+        nullable=False,
+    ),
+    Column(
+        "sku_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("skus.sku_id"),
+        nullable=False,
+    ),
+    Column("line_number", Integer, nullable=False),
+    Column("requested_quantity", Numeric(18, 6), nullable=False),
+    Column("unit_code", String(30), nullable=False),
+    Column("base_quantity", Numeric(18, 6), nullable=False),
+    Column("unit_cost", Numeric(18, 6), nullable=False),
+    Column("version", Integer, nullable=False, server_default="1"),
+    CheckConstraint("line_number > 0", name="ck_purchase_request_lines_line_number_positive"),
+    CheckConstraint(
+        "requested_quantity > 0",
+        name="ck_purchase_request_lines_requested_quantity_positive",
+    ),
+    CheckConstraint("base_quantity > 0", name="ck_purchase_request_lines_base_quantity_positive"),
+    CheckConstraint("unit_cost >= 0", name="ck_purchase_request_lines_unit_cost_positive"),
+    CheckConstraint("version > 0", name="ck_purchase_request_lines_version_positive"),
+    UniqueConstraint(
+        "purchase_request_id",
+        "line_number",
+        name="uq_purchase_request_lines_request_line",
     ),
 )
 

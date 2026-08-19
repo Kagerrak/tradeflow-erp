@@ -284,6 +284,24 @@ async def require_purchase_order_approver(
     return require_capability(user, "procurement:purchase-order-approve")
 
 
+async def require_purchase_request_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "procurement:purchase-request-read")
+
+
+async def require_purchase_request_writer(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "procurement:purchase-request-write")
+
+
+async def require_purchase_request_approver(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "procurement:purchase-request-approve")
+
+
 async def require_goods_receipt_poster(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:
