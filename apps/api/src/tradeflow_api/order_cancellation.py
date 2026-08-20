@@ -255,7 +255,7 @@ async def _latest_active_fulfillment_order(
                 )
                 .where(
                     fulfillment_orders.c.sales_order_id == sales_order_id,
-                    fulfillment_order_state.c.status.not_in_(("cancelled", "delivered")),
+                    fulfillment_order_state.c.status.not_in(("cancelled", "delivered")),
                 )
                 .order_by(fulfillment_orders.c.reservation_generation.desc())
                 .limit(1)

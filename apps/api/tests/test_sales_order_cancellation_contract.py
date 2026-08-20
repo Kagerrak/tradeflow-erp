@@ -9,7 +9,10 @@ import pytest
 from httpx import ASGITransport, AsyncClient, Response
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
-from test_delivery_correction_contract import _confirm_fully_accepted_delivery
+from test_delivery_correction_contract import (
+    FakeObjectStorage,
+    _confirm_fully_accepted_delivery,
+)
 from test_payment_clearance_contract import (
     approved_prepaid_order,
     auth,
@@ -31,10 +34,17 @@ def cancellation_settings(postgres_url: str) -> Settings:
 
 
 @pytest.fixture
+def fake_storage() -> FakeObjectStorage:
+    return FakeObjectStorage()
+
+
+@pytest.fixture
 async def cancellation_client(
     cancellation_settings: Settings,
+    fake_storage: FakeObjectStorage,
 ) -> AsyncIterator[AsyncClient]:
     app = create_app(cancellation_settings)
+    app.state.object_storage = fake_storage
     async with app.router.lifespan_context(app):
         async with AsyncClient(
             transport=ASGITransport(app=app),

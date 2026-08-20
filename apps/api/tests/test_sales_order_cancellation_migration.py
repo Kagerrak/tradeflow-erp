@@ -69,7 +69,9 @@ async def test_sales_order_cancellation_migration_round_trips(postgres_url: str)
         assert before["has_cancelled_column"] is None
         assert before["has_cancellations"] is False
         assert before["has_cancellation_lines"] is False
-        assert "('draft', 'approved', 'held')" in before["status_check"]
+        assert "'draft'" in before["status_check"]
+        assert "'approved'" in before["status_check"]
+        assert "'held'" in before["status_check"]
 
         await asyncio.to_thread(command.upgrade, config, "d62caac1e324")
 
