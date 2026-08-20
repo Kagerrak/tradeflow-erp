@@ -1,7 +1,7 @@
 # First-release scope reconciliation
 
 - Date: August 20, 2026
-- Baseline: `origin/main` at `74e2b62`
+- Baseline: `origin/main` at `9dd707d`
 - Tracker reconciliation: GitHub issue #55
 - Pending evidence: Return Authorization PR #112 at `e9abb2f` (green, awaiting
   explicit PR-specific approval); Inventory Transfer PR #114 local head
@@ -10,7 +10,7 @@
   #118; Issue #78 closed by PR #119 at `4cca220`; Issue #108 closed by PR #120
   at `3f382ca`; Issue #83 closed by PR #121 at `2218cde`; Issue #97 closed by
   PR #122 at `e266dcd`; Issue #105 closed by PR #123 at `ae2e010`; Issue #106
-  closed by PR #124 at `74e2b62`.
+  closed by PR #124 at `74e2b62`; Issue #94 closed by PR #125 at `9dd707d`.
 
 ## Why the tracker was reopened
 
@@ -64,7 +64,7 @@ PRD behavior or release evidence does not.
 | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | Customer account, status, terms, credit, tax identity, contacts and versioned addresses                                 | `customers.py`, migration `0003_customers.py`, and `test_organization_customer_contract.py`                                                                                      | Shipped foundation                                                                                    |
 | Assigned salesperson and customer-specific pricing                                                                      | `customers.py`, `sales.py`, `commercial_approval.py`, and `test_sales_order_draft_contract.py`                                                                                   | Shipped foundation                                                                                    |
-| Consolidated customer sales, delivery, return, payment and balance timeline                                             | Only the Customer directory and `customer_statement.py` exist; there is no cross-context reporting module or export worker                                                       | Missing: #61, #94–#96                                                                                 |
+| Consolidated customer sales, delivery, return, payment and balance timeline                                             | `customer_timeline.py` exposes a branch-scoped, chronological/paginated timeline of orders, deliveries, invoices, payments and credits via PR #125; returns appear when Returns slice lands | Partial: #94 shipped; returns integration remains #56, #65–#70; cross-context reporting/export remains #94–#96 |
 | Products, SKUs, units, Warehouses, Stock Locations and tracked identities                                               | `catalog_inventory.py`, migrations `0006_catalog_inventory.py` and `0010_tracked_stock_picking.py`, and their contract tests                                                     | Shipped foundation                                                                                    |
 | Receipts, reservations, deliveries, custody and immutable inventory projections                                         | `catalog_inventory.py`, `inventory_projection_service.py`, `goods_receipts.py`, delivery modules and invariant tests; agent-reviewed PR #114 adds Transfer but is not merged     | Partial: customer returns/damage #56, #65–#70; Inventory Transfer pending PR #114; Adjustment #107    |
 | On-hand, Reserved, Available, Quarantine and Damaged quantities                                                         | Availability/custody projections cover Available, Quarantine, Dispatch Staging, In Transit and Investigation; no complete customer-return Damaged Item lifecycle exists          | Partial: #56, #65–#70                                                                                 |
@@ -144,13 +144,16 @@ and staging/security.
   Sales Order Draft) to `main` at `ae2e010`.
 - PR #124 merged issue #106 (cancel open Sales Order quantity and complete
   backorder lifecycle) to `main` at `74e2b62`.
+- PR #125 merged issue #94 (consolidated customer transaction timeline) to
+  `main` at `9dd707d`.
 
 ## Dependency-ready work
 
-The active slice is now closed. The next dependency-ready slices include #94,
-#107–#109. Delivery still proceeds one vertical slice at a time; the additional
-ready issues make blockers visible rather than inviting parallel mutation of
-shared domain foundations.
+The active slice is now closed. The next dependency-ready slices include
+#107–#109. Issue #107 remains blocked by the two policy decisions pending on
+Inventory Transfer PR #114. Delivery still proceeds one vertical slice at a
+time; the additional ready issues make blockers visible rather than inviting
+parallel mutation of shared domain foundations.
 
 ## Completion rule
 
