@@ -180,7 +180,9 @@ class LocationResponse(BaseModel):
     warehouse_id: UUID
     code: str
     name: str
-    custody: Literal["available", "quarantine", "dispatch_staging", "in_transit"]
+    custody: Literal[
+        "available", "quarantine", "dispatch_staging", "in_transit", "transfer_in_transit"
+    ]
     version: int
 
 
@@ -220,7 +222,9 @@ class AvailabilityItem(BaseModel):
     warehouse_id: UUID
     warehouse_code: str
     location_code: str
-    custody: Literal["available", "quarantine", "dispatch_staging", "in_transit"]
+    custody: Literal[
+        "available", "quarantine", "dispatch_staging", "in_transit", "transfer_in_transit"
+    ]
     base_stocking_unit: str
     tracking_policy: Literal["untracked", "lot", "serial"]
     expiration_control: bool
@@ -1348,6 +1352,10 @@ async def rebuild_projections(
             "correction_accepted_reversal_in",
             "correction_exception_reversal_transit_in",
             "correction_exception_replacement_investigation_in",
+            "transfer_in_transit_in",
+            "transfer_destination_in",
+            "adjustment_surplus_in",
+            "adjustment_shortage_reversal_in",
         }
         signed_quantity = movement["quantity_base"] if incoming else -movement["quantity_base"]
         if movement_identities:

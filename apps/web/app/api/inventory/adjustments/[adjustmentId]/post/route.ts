@@ -1,0 +1,77 @@
+import { createTradeFlowClient } from "@tradeflow/api-client";
+
+import { adjustmentFailureKind } from "../../response";
+
+const baseUrl = process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000";
+
+type Body = {
+  expectedVersion: number;
+  idempotencyKey: string;
+};
+
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ adjustmentId: string }> },
+): Promise<Response> {
+  const correlationId = crypto.randomUUID();
+  const { adjustmentId } = await context.params;
+  const body = (await request.json()) as Body;
+  const accessToken = process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN;
+  if (accessToken === undefined || accessToken.length === 0) {
+    return Response.json(
+      {
+        code: "authentication_required",
+        correlationId,
+        kind: "unauthenticated",
+        message: "Sign in before posting an adjustment.",
+      },
+      { status: 401 },
+    );
+  }
+  const client = createTradeFlowClient({
+    accessToken,
+    baseUrl,
+    correlationId,
+  });
+  try {
+    const result = await client.POST(
+      "/v1/inventory/adjustments/{adjustment_id}/post",
+      {
+        body: { expected_version: body.expectedVersion },
+        headers: { "Idempotency-Key": body.idempotencyKey },
+        params: { path: { adjustment_id: adjustmentId } },
+      },
+    );
+    if (result.data !== undefined) {
+      return Response.json(result.data, {
+        headers: {
+          "Cache-Control": "no-store",
+          "X-Correlation-ID": correlationId,
+        },
+        status: result.response.status,
+      });
+    }
+    const envelope = (result.error ?? {}) as {
+      error?: { code?: string; correlation_id?: string; message?: string };
+    };
+    return Response.json(
+      {
+        code: envelope.error?.code ?? "adjustment_post_rejected",
+        correlationId: envelope.error?.correlation_id ?? correlationId,
+        kind: adjustmentFailureKind(result.response.status),
+        message: envelope.error?.message ?? "Adjustment post was not accepted.",
+      },
+      { status: result.response.status },
+    );
+  } catch {
+    return Response.json(
+      {
+        code: "adjustment_service_unavailable",
+        correlationId,
+        kind: "unavailable",
+        message: "Adjustment service is unavailable; retry unchanged work.",
+      },
+      { status: 503 },
+    );
+  }
+}

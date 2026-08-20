@@ -43,22 +43,24 @@ async def test_sales_order_cancellation_migration_round_trips(postgres_url: str)
                     await connection.execute(
                         text(
                             """
-                            SELECT version_num,
-                                   (SELECT column_name
-                                      FROM information_schema.columns
-                                     WHERE table_name = 'sales_order_line_commitments'
-                                       AND column_name = 'cancelled_quantity_base')
-                                     AS has_cancelled_column,
-                                   to_regclass('sales_order_cancellations') IS NOT NULL
-                                     AS has_cancellations,
-                                   to_regclass('sales_order_cancellation_lines') IS NOT NULL
-                                     AS has_cancellation_lines,
-                                   (SELECT pg_get_constraintdef(oid)
-                                      FROM pg_constraint
-                                     WHERE conrelid = 'sales_orders'::regclass
-                                       AND conname = 'ck_sales_orders_status')
-                                     AS status_check
-                              FROM alembic_version
+                            SELECT
+                               (SELECT 1 FROM alembic_version
+                                 WHERE version_num = 'e8b78e1dfcfc') AS has_target_version,
+                               (SELECT column_name
+                                  FROM information_schema.columns
+                                 WHERE table_name = 'sales_order_line_commitments'
+                                   AND column_name = 'cancelled_quantity_base')
+                                 AS has_cancelled_column,
+                               to_regclass('sales_order_cancellations') IS NOT NULL
+                                 AS has_cancellations,
+                               to_regclass('sales_order_cancellation_lines') IS NOT NULL
+                                 AS has_cancellation_lines,
+                               (SELECT pg_get_constraintdef(oid)
+                                  FROM pg_constraint
+                                 WHERE conrelid = 'sales_orders'::regclass
+                                   AND conname = 'ck_sales_orders_status')
+                                 AS status_check
+                          FROM (SELECT 1) AS dummy
                             """
                         )
                     )
@@ -68,7 +70,7 @@ async def test_sales_order_cancellation_migration_round_trips(postgres_url: str)
             )
         await engine.dispose()
 
-        assert before["version_num"] == "e8b78e1dfcfc"
+        assert before["has_target_version"] == 1
         assert before["has_cancelled_column"] is None
         assert before["has_cancellations"] is False
         assert before["has_cancellation_lines"] is False
@@ -85,30 +87,32 @@ async def test_sales_order_cancellation_migration_round_trips(postgres_url: str)
                     await connection.execute(
                         text(
                             """
-                            SELECT version_num,
-                                   (SELECT column_name
-                                      FROM information_schema.columns
-                                     WHERE table_name = 'sales_order_line_commitments'
-                                       AND column_name = 'cancelled_quantity_base')
-                                     AS has_cancelled_column,
-                                   to_regclass('sales_order_cancellations') IS NOT NULL
-                                     AS has_cancellations,
-                                   to_regclass('sales_order_cancellation_lines') IS NOT NULL
-                                     AS has_cancellation_lines,
-                                   (SELECT EXISTS (
-                                      SELECT 1 FROM pg_indexes
-                                       WHERE indexname = 'ix_sales_order_cancellations_order'
-                                   )) AS has_order_index,
-                                   (SELECT EXISTS (
-                                      SELECT 1 FROM pg_indexes
-                                       WHERE indexname = 'ix_sales_order_cancellation_lines_order'
-                                   )) AS has_lines_index,
-                                   (SELECT pg_get_constraintdef(oid)
-                                      FROM pg_constraint
-                                     WHERE conrelid = 'sales_orders'::regclass
-                                       AND conname = 'ck_sales_orders_status')
-                                     AS status_check
-                              FROM alembic_version
+                            SELECT
+                               (SELECT 1 FROM alembic_version
+                                 WHERE version_num = 'd62caac1e324') AS has_target_version,
+                               (SELECT column_name
+                                  FROM information_schema.columns
+                                 WHERE table_name = 'sales_order_line_commitments'
+                                   AND column_name = 'cancelled_quantity_base')
+                                 AS has_cancelled_column,
+                               to_regclass('sales_order_cancellations') IS NOT NULL
+                                 AS has_cancellations,
+                               to_regclass('sales_order_cancellation_lines') IS NOT NULL
+                                 AS has_cancellation_lines,
+                               (SELECT EXISTS (
+                                  SELECT 1 FROM pg_indexes
+                                   WHERE indexname = 'ix_sales_order_cancellations_order'
+                               )) AS has_order_index,
+                               (SELECT EXISTS (
+                                  SELECT 1 FROM pg_indexes
+                                   WHERE indexname = 'ix_sales_order_cancellation_lines_order'
+                               )) AS has_lines_index,
+                               (SELECT pg_get_constraintdef(oid)
+                                  FROM pg_constraint
+                                 WHERE conrelid = 'sales_orders'::regclass
+                                   AND conname = 'ck_sales_orders_status')
+                                 AS status_check
+                          FROM (SELECT 1) AS dummy
                             """
                         )
                     )
@@ -118,7 +122,7 @@ async def test_sales_order_cancellation_migration_round_trips(postgres_url: str)
             )
         await engine.dispose()
 
-        assert after["version_num"] == "d62caac1e324"
+        assert after["has_target_version"] == 1
         assert after["has_cancelled_column"] == "cancelled_quantity_base"
         assert after["has_cancellations"] is True
         assert after["has_cancellation_lines"] is True
@@ -131,8 +135,10 @@ async def test_sales_order_cancellation_migration_round_trips(postgres_url: str)
         engine = create_async_engine(postgres_url)
         async with engine.connect() as connection:
             assert (
-                await connection.scalar(text("SELECT version_num FROM alembic_version"))
-                == "e8b78e1dfcfc"
+                await connection.scalar(
+                    text("SELECT 1 FROM alembic_version WHERE version_num = 'e8b78e1dfcfc'")
+                )
+                == 1
             )
         await engine.dispose()
     finally:

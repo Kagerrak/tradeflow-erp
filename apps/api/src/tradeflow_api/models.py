@@ -918,7 +918,8 @@ warehouse_stock_locations = Table(
     Column("version", Integer, nullable=False, server_default="1"),
     Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
     CheckConstraint(
-        "custody IN ('available', 'quarantine', 'dispatch_staging', 'in_transit', 'investigation')",
+        "custody IN ('available', 'quarantine', 'dispatch_staging', 'in_transit', "
+        "'transfer_in_transit', 'investigation')",
         name="ck_warehouse_stock_locations_custody",
     ),
     UniqueConstraint("warehouse_id", "code", name="uq_warehouse_stock_location_code"),
@@ -935,6 +936,13 @@ Index(
     warehouse_stock_locations.c.warehouse_id,
     unique=True,
     postgresql_where=(warehouse_stock_locations.c.custody == "in_transit")
+    & warehouse_stock_locations.c.is_active,
+)
+Index(
+    "uq_warehouse_active_transfer_in_transit",
+    warehouse_stock_locations.c.warehouse_id,
+    unique=True,
+    postgresql_where=(warehouse_stock_locations.c.custody == "transfer_in_transit")
     & warehouse_stock_locations.c.is_active,
 )
 Index(
@@ -985,7 +993,8 @@ stock_movements = Table(
     CheckConstraint(
         "movement_type IN ('opening_stock', 'pick', 'pick_reversal', 'dispatch', "
         "'delivery_confirmation', 'delivery_exception', 'return_to_warehouse', "
-        "'investigation_resolution', 'delivery_correction', 'goods_receipt')",
+        "'investigation_resolution', 'delivery_correction', 'goods_receipt', 'transfer', "
+        "'inventory_adjustment')",
         name="ck_stock_movements_type",
     ),
     CheckConstraint(
@@ -1014,7 +1023,13 @@ stock_movements = Table(
         "'correction_exception_replacement_transit_out', "
         "'correction_exception_replacement_investigation_in')) "
         "OR (movement_type = 'goods_receipt' "
-        "AND movement_leg = 'goods_receipt_in')",
+        "AND movement_leg = 'goods_receipt_in') "
+        "OR (movement_type = 'transfer' "
+        "AND movement_leg IN ('transfer_source_out', 'transfer_in_transit_in', "
+        "'transfer_in_transit_out', 'transfer_destination_in')) "
+        "OR (movement_type = 'inventory_adjustment' "
+        "AND movement_leg IN ('adjustment_surplus_in', 'adjustment_shortage_out', "
+        "'adjustment_surplus_reversal_out', 'adjustment_shortage_reversal_in'))",
         name="ck_stock_movements_leg",
     ),
     CheckConstraint("quantity_base > 0", name="ck_stock_movements_quantity_positive"),
@@ -1075,6 +1090,213 @@ stock_serial_allocations = Table(
     Column("sku_id", PostgresUUID(as_uuid=True), ForeignKey("skus.sku_id"), nullable=False),
     Column("serial_number", String(100), nullable=False, unique=True),
     Column("expiration_date", Date, nullable=True),
+)
+
+inventory_transfers = Table(
+    "inventory_transfers",
+    metadata,
+    Column("transfer_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column("sku_id", PostgresUUID(as_uuid=True), ForeignKey("skus.sku_id"), nullable=False),
+    Column(
+        "from_warehouse_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouses.warehouse_id"),
+        nullable=False,
+    ),
+    Column(
+        "to_warehouse_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouses.warehouse_id"),
+        nullable=False,
+    ),
+    Column(
+        "from_location_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouse_stock_locations.location_id"),
+        nullable=False,
+    ),
+    Column(
+        "to_location_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouse_stock_locations.location_id"),
+        nullable=False,
+    ),
+    Column("quantity_base", Numeric(18, 6), nullable=False),
+    Column("unit_cost", Numeric(18, 6), nullable=False),
+    Column("base_currency", String(3), nullable=False),
+    Column("status", String(20), nullable=False, server_default="released"),
+    Column("version", Integer, nullable=False, server_default="1"),
+    Column("reason", String(500), nullable=False),
+    Column("source_reference", String(100), nullable=False),
+    Column("lot_code", String(100), nullable=True),
+    Column("requested_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("requested_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("received_by", String(200), ForeignKey("users.subject"), nullable=True),
+    Column("received_at", DateTime(timezone=True), nullable=True),
+    Column("release_movement_group_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("receive_movement_group_id", PostgresUUID(as_uuid=True), nullable=True),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    CheckConstraint(
+        "status IN ('released', 'received')",
+        name="ck_inventory_transfers_status",
+    ),
+    CheckConstraint("version > 0", name="ck_inventory_transfers_version"),
+    CheckConstraint("quantity_base > 0", name="ck_inventory_transfers_quantity"),
+    CheckConstraint(
+        "from_warehouse_id <> to_warehouse_id",
+        name="ck_inventory_transfers_distinct_warehouses",
+    ),
+    CheckConstraint("btrim(reason) <> ''", name="ck_inventory_transfers_reason"),
+    CheckConstraint(
+        "unit_cost >= 0",
+        name="ck_inventory_transfers_unit_cost",
+    ),
+    CheckConstraint(
+        "(status = 'released' AND received_by IS NULL AND received_at IS NULL "
+        "AND receive_movement_group_id IS NULL) "
+        "OR (status = 'received' AND received_by IS NOT NULL AND received_at IS NOT NULL "
+        "AND receive_movement_group_id IS NOT NULL)",
+        name="ck_inventory_transfers_received_shape",
+    ),
+    Index(
+        "ix_inventory_transfers_sku_from",
+        "sku_id",
+        "from_warehouse_id",
+        "status",
+    ),
+    Index(
+        "ix_inventory_transfers_sku_to",
+        "sku_id",
+        "to_warehouse_id",
+        "status",
+    ),
+)
+
+inventory_transfer_authorizations = Table(
+    "inventory_transfer_authorizations",
+    metadata,
+    Column("authorization_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "transfer_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("inventory_transfers.transfer_id"),
+        nullable=False,
+        unique=True,
+    ),
+    Column(
+        "approval_authority_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("approval_authorities.approval_authority_id"),
+        nullable=False,
+    ),
+    Column("authorized_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("authorized_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+)
+
+inventory_adjustments = Table(
+    "inventory_adjustments",
+    metadata,
+    Column("adjustment_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column("sku_id", PostgresUUID(as_uuid=True), ForeignKey("skus.sku_id"), nullable=False),
+    Column(
+        "warehouse_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouses.warehouse_id"),
+        nullable=False,
+    ),
+    Column(
+        "location_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouse_stock_locations.location_id"),
+        nullable=False,
+    ),
+    Column("kind", String(20), nullable=False),
+    Column("quantity_base", Numeric(18, 6), nullable=False),
+    Column("unit_cost", Numeric(18, 6), nullable=False),
+    Column("value_delta", Numeric(24, 6), nullable=False),
+    Column("base_currency", String(3), nullable=False),
+    Column("reason", String(500), nullable=False),
+    Column("source_reference", String(100), nullable=False),
+    Column("lot_code", String(100), nullable=True),
+    Column("status", String(30), nullable=False, server_default="pending_authorization"),
+    Column("version", Integer, nullable=False, server_default="1"),
+    Column("requested_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("requested_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("posted_by", String(200), ForeignKey("users.subject"), nullable=True),
+    Column("posted_at", DateTime(timezone=True), nullable=True),
+    Column("posted_movement_group_id", PostgresUUID(as_uuid=True), nullable=True),
+    Column("reversed_by", String(200), ForeignKey("users.subject"), nullable=True),
+    Column("reversed_at", DateTime(timezone=True), nullable=True),
+    Column("reversal_reason", String(500), nullable=True),
+    Column("reversal_movement_group_id", PostgresUUID(as_uuid=True), nullable=True),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    CheckConstraint(
+        "status IN ('pending_authorization', 'posted', 'reversed')",
+        name="ck_inventory_adjustments_status",
+    ),
+    CheckConstraint("version > 0", name="ck_inventory_adjustments_version"),
+    CheckConstraint("quantity_base > 0", name="ck_inventory_adjustments_quantity"),
+    CheckConstraint(
+        "kind IN ('surplus', 'shortage')",
+        name="ck_inventory_adjustments_kind",
+    ),
+    CheckConstraint(
+        "(kind = 'surplus' AND value_delta > 0) OR (kind = 'shortage' AND value_delta < 0)",
+        name="ck_inventory_adjustments_value_sign",
+    ),
+    CheckConstraint("btrim(reason) <> ''", name="ck_inventory_adjustments_reason"),
+    CheckConstraint(
+        "unit_cost >= 0",
+        name="ck_inventory_adjustments_unit_cost",
+    ),
+    CheckConstraint(
+        "(status = 'pending_authorization' AND posted_by IS NULL AND posted_at IS NULL "
+        "AND posted_movement_group_id IS NULL AND reversed_by IS NULL AND reversed_at IS NULL "
+        "AND reversal_reason IS NULL AND reversal_movement_group_id IS NULL) "
+        "OR (status IN ('posted', 'reversed') AND posted_by IS NOT NULL AND posted_at IS NOT NULL "
+        "AND posted_movement_group_id IS NOT NULL) "
+        "OR (status = 'reversed' AND reversed_by IS NOT NULL AND reversed_at IS NOT NULL "
+        "AND reversal_movement_group_id IS NOT NULL)",
+        name="ck_inventory_adjustments_status_shape",
+    ),
+    Index(
+        "ix_inventory_adjustments_sku_warehouse",
+        "sku_id",
+        "warehouse_id",
+        "status",
+    ),
+    Index(
+        "ix_inventory_adjustments_location",
+        "warehouse_id",
+        "location_id",
+        "status",
+    ),
+)
+
+inventory_adjustment_authorizations = Table(
+    "inventory_adjustment_authorizations",
+    metadata,
+    Column("authorization_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "adjustment_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("inventory_adjustments.adjustment_id"),
+        nullable=False,
+    ),
+    Column(
+        "approval_authority_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("approval_authorities.approval_authority_id"),
+        nullable=False,
+    ),
+    Column("authorized_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("authorized_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
 )
 
 inventory_availability = Table(
