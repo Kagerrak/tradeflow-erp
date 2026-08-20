@@ -29,6 +29,16 @@ class Settings(BaseSettings):
     object_storage_url_expiry_seconds: int = Field(default=900, ge=60, le=3600)
     telemetry_enabled: bool = True
     otlp_endpoint: str | None = None
+    rate_limit_enabled: bool = Field(default=True)
+    rate_limit_requests_per_minute: int = Field(default=120, ge=0)
+
+    @model_validator(mode="after")
+    def validate_rate_limit(self) -> Settings:
+        if self.environment in {"development", "testing"}:
+            return self
+        if self.rate_limit_enabled and self.rate_limit_requests_per_minute <= 0:
+            raise ValueError("Rate limiting is enabled but requests_per_minute is not positive.")
+        return self
 
     @model_validator(mode="after")
     def validate_authentication(self) -> Settings:

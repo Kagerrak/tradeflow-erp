@@ -24,6 +24,7 @@ class WorkerSettings(BaseSettings):
     object_storage_bucket: str = "tradeflow-evidence"
     object_storage_url_expiry_seconds: int = Field(default=900, ge=60, le=3600)
     telemetry_enabled: bool = True
+    otlp_endpoint: str | None = None
 
 
 @lru_cache
