@@ -549,6 +549,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/finance/customers/{customer_id}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Customer Timeline */
+        get: operations["get_customer_timeline_v1_finance_customers__customer_id__timeline_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/finance/expense-categories": {
         parameters: {
             query?: never;
@@ -3788,6 +3805,82 @@ export interface components {
         CustomerSearchResponse: {
             /** Items */
             items: components["schemas"]["CustomerSearchItem"][];
+            /** Total */
+            total: number;
+        };
+        /** CustomerTimelineEvent */
+        CustomerTimelineEvent: {
+            /** Actor Subject */
+            actor_subject: string;
+            /** Amount */
+            amount: string;
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Currency */
+            currency: string;
+            /** Document Value */
+            document_value: string;
+            /**
+             * Event At
+             * Format: date-time
+             */
+            event_at: string;
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            /** Event Type */
+            event_type: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Reference Number */
+            reference_number: string | null;
+            /**
+             * Source Id
+             * Format: uuid
+             */
+            source_id: string;
+            /** Source Type */
+            source_type: string;
+            /** Status */
+            status: string | null;
+        };
+        /** CustomerTimelineResponse */
+        CustomerTimelineResponse: {
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Closing Balance */
+            closing_balance: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /**
+             * From Date
+             * Format: date
+             */
+            from_date: string;
+            /** Items */
+            items: components["schemas"]["CustomerTimelineEvent"][];
+            /** Opening Balance */
+            opening_balance: string;
+            /**
+             * To Date
+             * Format: date
+             */
+            to_date: string;
             /** Total */
             total: number;
         };
@@ -9971,6 +10064,99 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StatementResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_customer_timeline_v1_finance_customers__customer_id__timeline_get: {
+        parameters: {
+            query: {
+                from_date: string;
+                to_date: string;
+                as_of?: string | null;
+                salesperson_id?: string | null;
+                event_type?: string[] | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerTimelineResponse"];
                 };
             };
             /** @description Stable TradeFlow error envelope. */
