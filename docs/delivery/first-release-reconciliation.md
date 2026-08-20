@@ -1,14 +1,15 @@
 # First-release scope reconciliation
 
 - Date: August 20, 2026
-- Baseline: `origin/main` at `2218cde`
+- Baseline: `origin/main` at `e266dcd`
 - Tracker reconciliation: GitHub issue #55
 - Pending evidence: Return Authorization PR #112 at `e9abb2f` (green, awaiting
   explicit PR-specific approval); Inventory Transfer PR #114 local head
   `5466111` (unpushed pending two policy decisions); Issue #72 closed by PR #116;
   Issue #110 current-system baseline closed by PR #117; Issue #77 closed by PR
   #118; Issue #78 closed by PR #119 at `4cca220`; Issue #108 closed by PR #120
-  at `3f382ca`; Issue #83 closed by PR #121 at `2218cde`.
+  at `3f382ca`; Issue #83 closed by PR #121 at `2218cde`; Issue #97 closed by
+  PR #122 at `e266dcd`.
 
 ## Why the tracker was reopened
 
@@ -87,9 +88,9 @@ PRD behavior or release evidence does not.
 | Customer Product/Category history, drill-down, filters and role-aware export                                            | No reporting/export runtime module or worker exists                                                                                                                              | Missing: #61, #94–#96                                                                                 |
 | Responsive web approvals, purchasing, finance, statements, reports and configuration                                    | Existing web routes cover shipped order/delivery/initial finance/procurement slices                                                                                              | Partial: each functional issue plus configuration #108 and reporting #94–#96                          |
 | Mobile customer lookup, sales, receiving/picking, delivery proof, returns, expense capture, approvals and notifications | Customer/sales/pick/delivery/payment mobile workflows exist; Returns, Expense, broader receiving/approval and notification journeys do not                                       | Partial: #66–#69, #78–#81, #84–#86, notifications #109, device evidence #98                           |
-| One server authorization model, immutable audit, idempotency and database constraints                                   | Existing commands use shared auth, command receipts, scopes and PostgreSQL constraints                                                                                           | Partial by completeness contract: every new command must extend these controls; security matrix #97   |
+| One server authorization model, immutable audit, idempotency and database constraints                                   | Existing commands use shared auth, command receipts, scopes and PostgreSQL constraints; authorization matrix evidence and admin non-escalation tests added by PR #122 | Partial by completeness contract: every new command must extend these controls; security matrix #97 shipped |
 | Generated OpenAPI clients shared by web/mobile                                                                          | `openapi/openapi.json`, `packages/api-client/src/schema.d.ts`, generation scripts and CI drift checks exist                                                                      | Shipped foundation; every contract-changing slice retains the gate                                    |
-| Logs, metrics, traces, backup, migration and rollback                                                                   | Correlation/tracing and migration checks exist; production-like recovery and operational evidence do not                                                                         | Partial: #62, #97, #99–#102                                                                           |
+| Logs, metrics, traces, backup, migration and rollback                                                                   | Correlation/tracing and migration checks exist; rate-limit/session middleware and security incident runbooks added by PR #122; production-like recovery evidence remains open | Partial: #97 shipped; #62, #99–#102 remain                                                            |
 | Accessibility, responsive behavior and real-device testing                                                              | Playwright covers desktop/mobile-web and native component tests exist; physical-device and full accessibility/performance evidence is open                                       | Partial: #98                                                                                          |
 | Configurable timezone, currency, tax, numbering and document templates                                                  | Base Currency guard, timezone on companies/branches, effective-dated tax snapshots, document-series versioning and versioned Jinja2 document templates implemented by PR #120 | Shipped foundation; quotation numbering consumers remain #104, #105                                      |
 | Import/export tools for legacy migration                                                                                | OpenAPI export is not a business migration/export tool; no legacy import pipeline or role-aware history export exists                                                            | Missing: trial migration #100, final production migration #115, and customer export #96               |
@@ -136,11 +137,13 @@ and staging/security.
   document templates) to `main` at `3f382ca`.
 - PR #121 merged issue #83 (effective-dated expense categories and policies)
   to `main` at `2218cde`.
+- PR #122 merged issue #97 (production-like staging and authorization/security
+  evidence) to `main` at `e266dcd`.
 
 ## Dependency-ready work
 
-The active slice is now closed. The next dependency-ready slices include #94,
-#97, and #105–#109. Delivery still proceeds one vertical slice at a time; the
+The active slice is now closed. The next dependency-ready slices include #94
+and #105–#109. Delivery still proceeds one vertical slice at a time; the
 additional ready issues make blockers visible rather than inviting parallel
 mutation of shared domain foundations.
 
