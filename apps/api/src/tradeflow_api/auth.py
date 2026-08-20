@@ -284,10 +284,34 @@ async def require_purchase_order_approver(
     return require_capability(user, "procurement:purchase-order-approve")
 
 
+async def require_purchase_request_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "procurement:purchase-request-read")
+
+
+async def require_purchase_request_writer(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "procurement:purchase-request-write")
+
+
+async def require_purchase_request_approver(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "procurement:purchase-request-approve")
+
+
 async def require_goods_receipt_poster(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:
     return require_capability(user, "procurement:goods-receipt-post")
+
+
+async def require_goods_receipt_over_receipt_approver(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "procurement:goods-receipt-approve-over-receipt")
 
 
 async def require_landed_cost_allocator(
@@ -356,10 +380,34 @@ async def require_commercial_approver(
     return require_capability(user, "sales:commercial-approve")
 
 
+async def require_order_canceller(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "sales:order-cancel")
+
+
 async def require_sales_projection_rebuilder(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:
     return require_capability(user, "sales:projection-rebuild")
+
+
+async def require_quotation_writer(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "sales:quotation-write")
+
+
+async def require_quotation_approver(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "sales:quotation-approve")
+
+
+async def require_quotation_converter(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "sales:quotation-convert")
 
 
 async def require_payment_reader(
@@ -450,6 +498,42 @@ async def require_credit_note_reader(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:
     return require_capability(user, "finance:credit-note-read")
+
+
+async def require_expense_category_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:expense-category-read")
+
+
+async def require_expense_category_creator(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:expense-category-create")
+
+
+async def require_expense_category_publisher(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:expense-category-publish")
+
+
+async def require_expense_policy_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:expense-policy-read")
+
+
+async def require_expense_policy_creator(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:expense-policy-create")
+
+
+async def require_expense_policy_publisher(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "finance:expense-policy-publish")
 
 
 async def require_payment_allocator(
@@ -589,3 +673,15 @@ async def require_organization_administrator(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:
     return require_capability(user, "organization:admin")
+
+
+async def require_notification_manager(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "notification:manage")
+
+
+async def require_notification_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "notification:read")

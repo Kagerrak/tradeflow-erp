@@ -70,7 +70,7 @@ export type SalesOrderDraft = {
   priceInclusionMode: "inclusive" | "exclusive";
   priceListCode: string;
   salesOrderId: string;
-  status: "draft" | "approved" | "held";
+  status: "draft" | "approved" | "held" | "partially_cancelled" | "cancelled";
   subtotal: string;
   taxTotal: string;
   version: number;
@@ -186,7 +186,7 @@ export type CommercialReview = {
   }>;
   salesOrderId: string;
   salesOrderRevisionId: string;
-  status: "draft" | "approved" | "held";
+  status: "draft" | "approved" | "held" | "partially_cancelled" | "cancelled";
   subtotal: string;
   taxTotal: string;
   version: number;
@@ -212,7 +212,7 @@ export type SalesOrderSearchItem = {
   grandTotal: string;
   paymentTimingPolicy: "prepaid" | "cash_on_delivery" | "on_account";
   salesOrderId: string;
-  status: "draft" | "approved" | "held";
+  status: "draft" | "approved" | "held" | "partially_cancelled" | "cancelled";
   version: number;
 };
 

@@ -37,8 +37,11 @@ it("keeps a failed durable command and reuses its identity on retry", async () =
     if (attempt === 1) return new Response("{}", { status: 503 });
     return new Response(
       JSON.stringify({
+        allocated_amount: "0.00",
         amount: "224.00",
+        application_state: "unapplied",
         available_for_coverage: "224.00",
+        balance_version: 1,
         branch_id: command.branch_id,
         cash_reconciliation_status: "unreconciled",
         cleared_amount: "224.00",

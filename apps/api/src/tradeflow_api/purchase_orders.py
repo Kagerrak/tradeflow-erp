@@ -58,6 +58,9 @@ class PurchaseOrderLineResponse(BaseModel):
     requested_quantity: str
     unit_code: str
     base_quantity: str
+    received_quantity_base: str
+    accepted_quantity_base: str
+    backorder_quantity_base: str
     unit_cost: str
 
 
@@ -271,6 +274,9 @@ async def create_purchase_order(
                 requested_quantity=str(line["requested_quantity"]),
                 unit_code=line["unit_code"],
                 base_quantity=str(line["base_quantity"]),
+                received_quantity_base="0.000000",
+                accepted_quantity_base="0.000000",
+                backorder_quantity_base=str(line["base_quantity"]),
                 unit_cost=str(line["unit_cost"]),
             )
             for line in line_inputs
@@ -400,6 +406,9 @@ async def get_purchase_order(
                     purchase_order_lines.c.requested_quantity,
                     purchase_order_lines.c.unit_code,
                     purchase_order_lines.c.base_quantity,
+                    purchase_order_lines.c.received_quantity_base,
+                    purchase_order_lines.c.accepted_quantity_base,
+                    purchase_order_lines.c.backorder_quantity_base,
                     purchase_order_lines.c.unit_cost,
                 )
                 .where(purchase_order_lines.c.purchase_order_id == purchase_order_id)
@@ -427,6 +436,9 @@ async def get_purchase_order(
                 requested_quantity=str(line["requested_quantity"]),
                 unit_code=line["unit_code"],
                 base_quantity=str(line["base_quantity"]),
+                received_quantity_base=str(line["received_quantity_base"]),
+                accepted_quantity_base=str(line["accepted_quantity_base"]),
+                backorder_quantity_base=str(line["backorder_quantity_base"]),
                 unit_cost=str(line["unit_cost"]),
             )
             for line in lines

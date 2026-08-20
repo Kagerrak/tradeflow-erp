@@ -31,6 +31,7 @@ FINANCE_CAPABILITIES = [
     "finance:credit-note-approve",
     "finance:credit-note-read",
     "finance:payment-allocate",
+    "finance:projection-rebuild",
     "finance:statement-read",
     "finance:cash-reconcile",
 ]

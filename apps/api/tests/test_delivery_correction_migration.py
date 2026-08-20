@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from httpx import AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -164,6 +165,8 @@ async def test_populated_delivery_correction_history_refuses_downgrade_without_d
 
     config = Config("apps/api/alembic.ini")
     config.set_main_option("sqlalchemy.url", postgres_url)
+    script = ScriptDirectory.from_config(config)
+    current_head = script.get_current_head()
     with pytest.raises(
         Exception,
         match="Cannot downgrade 0015 while immutable Delivery Correction history exists",
@@ -193,7 +196,7 @@ async def test_populated_delivery_correction_history_refuses_downgrade_without_d
             .mappings()
             .one()
         )
-    assert preserved["version_num"] == "0018"
+    assert preserved["version_num"] == current_head
     assert preserved["correction_id"] == UUID(correction_id)
     assert preserved["number"] == authorized.json()["receipt_effect"]["original_number"]
     assert preserved["snapshot"]["delivery_id"] == confirmation["delivery_id"]

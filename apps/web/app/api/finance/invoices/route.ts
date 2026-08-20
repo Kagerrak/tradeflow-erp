@@ -2,7 +2,7 @@ import { createTradeFlowClient } from "@tradeflow/api-client";
 
 const baseUrl = process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000";
 
-export async function GET(): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
   const correlationId = crypto.randomUUID();
   const accessToken = process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN;
   if (accessToken === undefined || accessToken.length === 0) {
@@ -22,7 +22,18 @@ export async function GET(): Promise<Response> {
     correlationId,
   });
   try {
-    const result = await client.GET("/v1/finance/invoices");
+    const { searchParams } = new URL(request.url);
+    const customerId = searchParams.get("customer_id");
+    const status = searchParams.get("status");
+    const result = await client.GET("/v1/finance/invoices", {
+      params: {
+        query: {
+          ...(customerId === null ? {} : { customer_id: customerId }),
+          open_only: searchParams.get("open_only") === "true",
+          ...(status === null ? {} : { status }),
+        },
+      },
+    });
     if (result.data !== undefined) {
       return Response.json(result.data, {
         headers: {

@@ -4,10 +4,11 @@ from decimal import Decimal
 from hashlib import sha256
 from typing import Annotated
 from uuid import UUID, uuid4
+from zoneinfo import available_timezones
 
 from fastapi import APIRouter, Depends, Header, Response
-from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import delete, insert, select, update
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tradeflow_api.auth import (
@@ -26,9 +27,11 @@ from tradeflow_api.models import (
     branches,
     capabilities,
     companies,
+    customer_ledger_entries,
     payment_methods,
     role_template_capabilities,
     role_templates,
+    stock_movements,
     user_branch_scopes,
     user_role_templates,
     user_warehouse_scopes,
@@ -47,6 +50,14 @@ class CompanyInput(CommandModel):
     code: str = Field(pattern=r"^[A-Z][A-Z0-9_-]{1,29}$")
     name: str = Field(min_length=1, max_length=200)
     base_currency: str = Field(pattern=r"^[A-Z]{3}$")
+    timezone: str = Field(default="UTC", min_length=1, max_length=64)
+
+    @field_validator("timezone")
+    @classmethod
+    def valid_timezone(cls, value: str) -> str:
+        if value not in available_timezones():
+            raise ValueError(f"'{value}' is not a recognized IANA timezone.")
+        return value
 
 
 class WarehouseInput(CommandModel):
@@ -57,8 +68,16 @@ class WarehouseInput(CommandModel):
 class BranchInput(CommandModel):
     code: str = Field(pattern=r"^[A-Z][A-Z0-9_-]{1,29}$")
     name: str = Field(min_length=1, max_length=200)
+    timezone: str = Field(default="UTC", min_length=1, max_length=64)
     prepaid_payment_deadline_minutes: int = Field(default=1440, gt=0, le=43200)
     warehouses: list[WarehouseInput] = Field(min_length=1)
+
+    @field_validator("timezone")
+    @classmethod
+    def valid_timezone(cls, value: str) -> str:
+        if value not in available_timezones():
+            raise ValueError(f"'{value}' is not a recognized IANA timezone.")
+        return value
 
 
 class RoleTemplateInput(CommandModel):
@@ -108,6 +127,7 @@ class CompanyResponse(BaseModel):
     code: str
     name: str
     base_currency: str
+    timezone: str
     version: int
 
 
@@ -124,6 +144,7 @@ class BranchResponse(BaseModel):
     code: str
     name: str
     is_active: bool
+    timezone: str
     prepaid_payment_deadline_minutes: int
     version: int
     warehouses: list[WarehouseResponse]
@@ -137,7 +158,15 @@ class OrganizationBootstrapResponse(BaseModel):
 
 class UpdateCompanyCommand(CommandModel):
     name: str = Field(min_length=1, max_length=200)
+    timezone: str = Field(min_length=1, max_length=64)
     base_currency: str = Field(pattern=r"^[A-Z]{3}$")
+
+    @field_validator("timezone")
+    @classmethod
+    def valid_timezone(cls, value: str) -> str:
+        if value not in available_timezones():
+            raise ValueError(f"'{value}' is not a recognized IANA timezone.")
+        return value
 
 
 class LifecycleCommand(CommandModel):
@@ -148,6 +177,27 @@ class BranchLifecycleResponse(BaseModel):
     branch_id: UUID
     code: str
     name: str
+    is_active: bool
+    version: int
+
+
+class UpdateBranchSettingsCommand(CommandModel):
+    name: str = Field(min_length=1, max_length=200)
+    timezone: str = Field(min_length=1, max_length=64)
+
+    @field_validator("timezone")
+    @classmethod
+    def valid_timezone(cls, value: str) -> str:
+        if value not in available_timezones():
+            raise ValueError(f"'{value}' is not a recognized IANA timezone.")
+        return value
+
+
+class BranchSettingsResponse(BaseModel):
+    branch_id: UUID
+    code: str
+    name: str
+    timezone: str
     is_active: bool
     version: int
 
@@ -163,6 +213,7 @@ class ScopeBranchResponse(BaseModel):
     code: str
     name: str
     is_active: bool
+    timezone: str
     version: int
 
 
@@ -224,6 +275,12 @@ def invalid_assignment(message: str) -> AppError:
         code="invalid_organization_assignment",
         message=message,
     )
+
+
+async def _count_dependent_postings(session: AsyncSession) -> int:
+    stock_count = await session.scalar(select(func.count()).select_from(stock_movements))
+    ledger_count = await session.scalar(select(func.count()).select_from(customer_ledger_entries))
+    return int(stock_count or 0) + int(ledger_count or 0)
 
 
 async def enforce_role_template_management_scope(
@@ -338,6 +395,7 @@ async def get_organization_scope(
                         branches.c.code,
                         branches.c.name,
                         branches.c.is_active,
+                        branches.c.timezone,
                         branches.c.version,
                     )
                     .where(branches.c.branch_id.in_(actor.branch_ids))
@@ -828,6 +886,7 @@ async def update_company(
                     companies.c.code,
                     companies.c.name,
                     companies.c.base_currency,
+                    companies.c.timezone,
                     companies.c.version,
                 ).with_for_update()
             )
@@ -845,23 +904,28 @@ async def update_company(
                 message="The Company changed; reload it before retrying.",
             )
         if command.base_currency != company.base_currency:
-            raise AppError(
-                status_code=409,
-                code="base_currency_immutable",
-                message="Company Base Currency cannot be changed.",
-            )
+            postings = await _count_dependent_postings(session)
+            if postings > 0:
+                raise AppError(
+                    status_code=409,
+                    code="base_currency_immutable",
+                    message="Company Base Currency cannot be changed after dependent postings.",
+                )
 
         version = company.version + 1
         await session.execute(
             update(companies).values(
                 name=command.name,
+                timezone=command.timezone,
+                base_currency=command.base_currency,
                 version=version,
             )
         )
         result = CompanyResponse(
             code=company.code,
             name=command.name,
-            base_currency=company.base_currency,
+            base_currency=command.base_currency,
+            timezone=command.timezone,
             version=version,
         )
         await store_command_result(
@@ -1111,6 +1175,125 @@ async def update_warehouse_lifecycle(
     return result
 
 
+@router.patch(
+    "/branches/{branch_id}/settings",
+    response_model=BranchSettingsResponse,
+    responses=error_responses(400, 401, 403, 404, 409, 422, 500),
+)
+async def update_branch_settings(
+    branch_id: UUID,
+    command: UpdateBranchSettingsCommand,
+    response: Response,
+    actor: Annotated[
+        AuthorizedUser,
+        Depends(require_organization_administrator),
+    ],
+    session: Annotated[
+        AsyncSession,
+        Depends(get_database_session, use_cache=False),
+    ],
+    expected_version: Annotated[
+        int | None,
+        Header(alias="If-Match", ge=1),
+    ] = None,
+    idempotency_key: Annotated[
+        str | None,
+        Header(alias="Idempotency-Key", min_length=1, max_length=200),
+    ] = None,
+) -> BranchSettingsResponse:
+    expected_version, idempotency_key = require_command_headers(
+        expected_version=expected_version,
+        idempotency_key=idempotency_key,
+    )
+    request_hash = sha256(
+        f"branch-settings:{branch_id}:{expected_version}:".encode()
+        + command.model_dump_json().encode()
+    ).hexdigest()
+    async with session.begin():
+        replay = await get_command_replay(
+            session,
+            actor_subject=actor.subject,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+        )
+        if replay is not None:
+            await _require_branch_exists_and_in_scope(session, actor=actor, branch_id=branch_id)
+            response.headers["X-Idempotency-Replayed"] = "true"
+            return BranchSettingsResponse.model_validate(replay)
+
+        await _require_branch_exists_and_in_scope(session, actor=actor, branch_id=branch_id)
+        branch = (
+            await session.execute(
+                select(
+                    branches.c.code,
+                    branches.c.name,
+                    branches.c.timezone,
+                    branches.c.is_active,
+                    branches.c.version,
+                )
+                .where(branches.c.branch_id == branch_id)
+                .with_for_update()
+            )
+        ).one_or_none()
+        if branch is None:
+            raise AppError(
+                status_code=404,
+                code="branch_not_found",
+                message="The Branch does not exist.",
+            )
+        if branch.version != expected_version:
+            raise AppError(
+                status_code=409,
+                code="optimistic_version_conflict",
+                message="The Branch changed; reload it before retrying.",
+            )
+
+        version = branch.version + 1
+        await session.execute(
+            update(branches)
+            .where(branches.c.branch_id == branch_id)
+            .values(name=command.name, timezone=command.timezone, version=version)
+        )
+        result = BranchSettingsResponse(
+            branch_id=branch_id,
+            code=branch.code,
+            name=command.name,
+            timezone=command.timezone,
+            is_active=branch.is_active,
+            version=version,
+        )
+        await store_command_result(
+            session,
+            actor_subject=actor.subject,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+            result=result,
+        )
+
+    response.headers["X-Idempotency-Replayed"] = "false"
+    return result
+
+
+async def _require_branch_exists_and_in_scope(
+    session: AsyncSession, *, actor: AuthorizedUser, branch_id: UUID
+) -> None:
+    branch = await session.scalar(
+        select(branches.c.branch_id).where(branches.c.branch_id == branch_id)
+    )
+    if branch is None:
+        raise AppError(
+            status_code=404,
+            code="branch_not_found",
+            message="The Branch does not exist.",
+        )
+    if branch_id not in actor.branch_ids:
+        raise AppError(
+            status_code=403,
+            code="operational_scope_required",
+            message="The Branch is outside the user's Operational Scope.",
+        )
+
+
 @router.post(
     "/bootstrap",
     response_model=OrganizationBootstrapResponse,
@@ -1163,6 +1346,7 @@ async def bootstrap_organization(
                 code=command.company.code,
                 name=command.company.name,
                 base_currency=command.company.base_currency,
+                timezone=command.company.timezone,
             )
         )
         for code, name, kind, requires_reference, requires_evidence in (
@@ -1199,6 +1383,7 @@ async def bootstrap_organization(
                     company_id=company_id,
                     code=branch.code,
                     name=branch.name,
+                    timezone=branch.timezone,
                 )
             )
             warehouse_responses: list[WarehouseResponse] = []
@@ -1231,6 +1416,7 @@ async def bootstrap_organization(
                     code=branch.code,
                     name=branch.name,
                     is_active=True,
+                    timezone=branch.timezone,
                     prepaid_payment_deadline_minutes=(branch.prepaid_payment_deadline_minutes),
                     version=1,
                     warehouses=warehouse_responses,
@@ -1366,6 +1552,7 @@ async def bootstrap_organization(
                 code=command.company.code,
                 name=command.company.name,
                 base_currency=command.company.base_currency,
+                timezone=command.company.timezone,
                 version=1,
             ),
             branches=branch_responses,

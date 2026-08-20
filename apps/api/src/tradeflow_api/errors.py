@@ -37,7 +37,12 @@ class AppError(Exception):
     details: dict[str, Any] | None = None
 
 
-def error_response(request: Request, error: AppError) -> JSONResponse:
+def error_response(
+    request: Request,
+    error: AppError,
+    *,
+    extra_headers: dict[str, str] | None = None,
+) -> JSONResponse:
     correlation_id = request.state.correlation_id
     detail: dict[str, Any] = {
         "code": error.code,
@@ -46,8 +51,11 @@ def error_response(request: Request, error: AppError) -> JSONResponse:
     }
     if error.details is not None:
         detail["details"] = error.details
+    headers: dict[str, str] = {"X-Correlation-ID": correlation_id}
+    if extra_headers is not None:
+        headers.update(extra_headers)
     return JSONResponse(
         status_code=error.status_code,
         content={"error": detail},
-        headers={"X-Correlation-ID": correlation_id},
+        headers=headers,
     )

@@ -142,8 +142,12 @@ export type PaymentVerificationInput =
   components["schemas"]["PaymentVerificationCommand"];
 
 export type PaymentReceipt = {
+  allocatedAmount: string;
   amount: string;
+  applicationState:
+    "not_cleared" | "unapplied" | "partially_applied" | "fully_applied";
   availableForCoverage: string;
+  balanceVersion: number;
   branchId: string;
   cashReconciliationStatus: string | null;
   clearedAmount: string;
@@ -201,8 +205,11 @@ function mapReceipt(
   value: components["schemas"]["PaymentReceiptResponse"],
 ): PaymentReceipt {
   return {
+    allocatedAmount: value.allocated_amount,
     amount: value.amount,
+    applicationState: value.application_state,
     availableForCoverage: value.available_for_coverage,
+    balanceVersion: value.balance_version,
     branchId: value.branch_id,
     cashReconciliationStatus: value.cash_reconciliation_status,
     clearedAmount: value.cleared_amount,

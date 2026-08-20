@@ -16,6 +16,11 @@ interface Props {
 interface ReceiptLineForm {
   purchase_order_line_id: string;
   received_quantity_base: string;
+  accepted_quantity_base: string;
+  rejected_quantity_base: string;
+  damaged_quantity_base: string;
+  variance_reason: string;
+  approval_authority_id: string;
   lot_code: string;
   serial_numbers: string;
 }
@@ -43,10 +48,15 @@ export function ProcurementGoodsReceiptWorkspace({ purchaseOrderId }: Props) {
           setOrder(data);
           setLines(
             data.lines.map((line: PurchaseOrderLineResponse) => ({
+              accepted_quantity_base: "",
+              approval_authority_id: "",
+              damaged_quantity_base: "",
               lot_code: "",
               purchase_order_line_id: line.purchase_order_line_id,
               received_quantity_base: "",
+              rejected_quantity_base: "",
               serial_numbers: "",
+              variance_reason: "",
             })),
           );
         } else {
@@ -84,12 +94,32 @@ export function ProcurementGoodsReceiptWorkspace({ purchaseOrderId }: Props) {
       lines: lines
         .filter((line) => line.received_quantity_base.trim().length > 0)
         .map((line) => ({
+          accepted_quantity_base:
+            line.accepted_quantity_base.trim().length > 0
+              ? line.accepted_quantity_base
+              : undefined,
+          approval_authority_id:
+            line.approval_authority_id.trim().length > 0
+              ? line.approval_authority_id
+              : undefined,
+          damaged_quantity_base:
+            line.damaged_quantity_base.trim().length > 0
+              ? line.damaged_quantity_base
+              : undefined,
           lot_code: line.lot_code || undefined,
           purchase_order_line_id: line.purchase_order_line_id,
           received_quantity_base: line.received_quantity_base,
+          rejected_quantity_base:
+            line.rejected_quantity_base.trim().length > 0
+              ? line.rejected_quantity_base
+              : undefined,
           serial_numbers:
             line.serial_numbers.trim().length > 0
               ? line.serial_numbers.split(",").map((s) => s.trim())
+              : undefined,
+          variance_reason:
+            line.variance_reason.trim().length > 0
+              ? line.variance_reason
               : undefined,
         })),
     };
@@ -218,58 +248,126 @@ export function ProcurementGoodsReceiptWorkspace({ purchaseOrderId }: Props) {
                     <tr>
                       <th>Line</th>
                       <th>SKU ID</th>
-                      <th>Ordered (base)</th>
-                      <th>Received (base)</th>
-                      <th>Quantity</th>
+                      <th>Ordered</th>
+                      <th>Backorder</th>
+                      <th>Received</th>
+                      <th>Accepted</th>
+                      <th>Rejected</th>
+                      <th>Damaged</th>
+                      <th>Reason</th>
+                      <th>Approval</th>
                       <th>Lot code</th>
                       <th>Serial numbers</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {lines.map((line, index) => (
-                      <tr key={line.purchase_order_line_id}>
-                        <td>{index + 1}</td>
-                        <td>{order.lines[index]?.sku_id}</td>
-                        <td>{order.lines[index]?.base_quantity}</td>
-                        <td>{order.lines[index]?.unit_cost}</td>
-                        <td>
-                          <input
-                            onChange={(event) =>
-                              updateLine(
-                                line.purchase_order_line_id,
-                                "received_quantity_base",
-                                event.target.value,
-                              )
-                            }
-                            value={line.received_quantity_base}
-                          />
-                        </td>
-                        <td>
-                          <input
-                            onChange={(event) =>
-                              updateLine(
-                                line.purchase_order_line_id,
-                                "lot_code",
-                                event.target.value,
-                              )
-                            }
-                            value={line.lot_code}
-                          />
-                        </td>
-                        <td>
-                          <input
-                            onChange={(event) =>
-                              updateLine(
-                                line.purchase_order_line_id,
-                                "serial_numbers",
-                                event.target.value,
-                              )
-                            }
-                            value={line.serial_numbers}
-                          />
-                        </td>
-                      </tr>
-                    ))}
+                    {lines.map((line, index) => {
+                      const orderLine = order.lines[index];
+                      return (
+                        <tr key={line.purchase_order_line_id}>
+                          <td>{index + 1}</td>
+                          <td>{orderLine?.sku_id}</td>
+                          <td>{orderLine?.base_quantity}</td>
+                          <td>{orderLine?.backorder_quantity_base}</td>
+                          <td>
+                            <input
+                              onChange={(event) =>
+                                updateLine(
+                                  line.purchase_order_line_id,
+                                  "received_quantity_base",
+                                  event.target.value,
+                                )
+                              }
+                              value={line.received_quantity_base}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              onChange={(event) =>
+                                updateLine(
+                                  line.purchase_order_line_id,
+                                  "accepted_quantity_base",
+                                  event.target.value,
+                                )
+                              }
+                              value={line.accepted_quantity_base}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              onChange={(event) =>
+                                updateLine(
+                                  line.purchase_order_line_id,
+                                  "rejected_quantity_base",
+                                  event.target.value,
+                                )
+                              }
+                              value={line.rejected_quantity_base}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              onChange={(event) =>
+                                updateLine(
+                                  line.purchase_order_line_id,
+                                  "damaged_quantity_base",
+                                  event.target.value,
+                                )
+                              }
+                              value={line.damaged_quantity_base}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              onChange={(event) =>
+                                updateLine(
+                                  line.purchase_order_line_id,
+                                  "variance_reason",
+                                  event.target.value,
+                                )
+                              }
+                              value={line.variance_reason}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              onChange={(event) =>
+                                updateLine(
+                                  line.purchase_order_line_id,
+                                  "approval_authority_id",
+                                  event.target.value,
+                                )
+                              }
+                              value={line.approval_authority_id}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              onChange={(event) =>
+                                updateLine(
+                                  line.purchase_order_line_id,
+                                  "lot_code",
+                                  event.target.value,
+                                )
+                              }
+                              value={line.lot_code}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              onChange={(event) =>
+                                updateLine(
+                                  line.purchase_order_line_id,
+                                  "serial_numbers",
+                                  event.target.value,
+                                )
+                              }
+                              value={line.serial_numbers}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
                 <button onClick={() => void postReceipt()} type="button">

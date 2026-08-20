@@ -1580,10 +1580,11 @@ async def test_commercial_ledgers_reject_cross_aggregate_ownership(
         INSERT INTO sales_order_line_commitments
             (sales_order_id, line_id, commercial_approval_id,
              sales_order_revision_id, sku_id, warehouse_id, ordered_quantity_base,
-             reserved_quantity_base, backorder_quantity_base)
+             reserved_quantity_base, picked_quantity_base, backorder_quantity_base,
+             cancelled_quantity_base)
         VALUES
             (:sales_order_id, :line_id, :commercial_approval_id,
-             :sales_order_revision_id, :sku_id, :warehouse_id, 1, 0, 1)
+             :sales_order_revision_id, :sku_id, :warehouse_id, 1, 0, 0, 1, 0)
     """
 
     engine = create_async_engine(postgres_url)

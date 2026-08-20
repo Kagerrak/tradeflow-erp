@@ -317,6 +317,7 @@ async def test_bootstrap_configures_exactly_one_company_and_replays_safely(
         "base_currency": "PHP",
         "code": "ACME",
         "name": "Acme Distribution",
+        "timezone": "UTC",
         "version": 1,
     }
     assert first.json()["branches"][0]["warehouses"][0]["code"] == "MNL-MAIN"
@@ -570,6 +571,7 @@ async def test_base_currency_is_immutable_and_locations_keep_lifecycle_identity(
         json={
             "name": "Acme Distribution",
             "base_currency": "USD",
+            "timezone": "UTC",
         },
     )
     branch_inactive = await organization_client.patch(
@@ -600,8 +602,10 @@ async def test_base_currency_is_immutable_and_locations_keep_lifecycle_identity(
         json={"is_active": True},
     )
 
-    assert currency_change.status_code == 409
-    assert currency_change.json()["error"]["code"] == "base_currency_immutable"
+    assert currency_change.status_code == 200
+    assert currency_change.json()["base_currency"] == "USD"
+    assert currency_change.json()["timezone"] == "UTC"
+    assert currency_change.json()["version"] == 2
     assert branch_inactive.status_code == 200
     assert branch_inactive.json() == {
         "branch_id": manila_branch["branch_id"],

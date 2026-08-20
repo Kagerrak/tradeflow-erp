@@ -62,6 +62,11 @@ from tradeflow_api.models import (
     warehouses,
 )
 from tradeflow_api.money import currency_quantum
+from tradeflow_api.payment_balance import (
+    PaymentApplicationState,
+    payment_application_state,
+    unapplied_payment_amount,
+)
 
 router = APIRouter(tags=["finance", "fulfillment"])
 ZERO = Decimal("0")
@@ -174,7 +179,10 @@ class PaymentReceiptResponse(BaseModel):
     external_reference_normalized: str | None
     status: str
     cleared_amount: Decimal
+    allocated_amount: Decimal
     unapplied_amount: Decimal
+    application_state: PaymentApplicationState
+    balance_version: int
     available_for_coverage: Decimal
     cash_reconciliation_status: str | None
     recorded_by: str
@@ -307,6 +315,7 @@ async def _receipt_response(
                     payment_receipt_balances.c.refunded_amount,
                     payment_receipt_balances.c.allocated_amount,
                     payment_receipt_balances.c.coverage_designated_amount,
+                    payment_receipt_balances.c.version.label("balance_version"),
                     cash_reconciliation_items.c.status.label("cash_status"),
                 )
                 .join(
@@ -332,12 +341,8 @@ async def _receipt_response(
     )
     if row is None:
         raise AppError(404, "payment_receipt_not_found", "The Payment Receipt does not exist.")
-    unapplied = (
-        row["cleared_amount"]
-        - row["reversed_amount"]
-        - row["refunded_amount"]
-        - row["allocated_amount"]
-    )
+    receipt = dict(row)
+    unapplied = unapplied_payment_amount(receipt)
     currency = row["currency"]
     return PaymentReceiptResponse(
         payment_receipt_id=row["payment_receipt_id"],
@@ -352,7 +357,10 @@ async def _receipt_response(
         external_reference_normalized=row["external_reference_normalized"],
         status=("awaiting_bank_clearance" if row["state"] == "pending_clearance" else row["state"]),
         cleared_amount=_money(row["cleared_amount"], currency),
+        allocated_amount=_money(row["allocated_amount"], currency),
         unapplied_amount=_money(unapplied, currency),
+        application_state=payment_application_state(receipt),
+        balance_version=row["balance_version"],
         available_for_coverage=_money(
             unapplied - row["coverage_designated_amount"],
             currency,
@@ -877,6 +885,85 @@ async def _clear_receipt(
         )
 
 
+async def _batch_receipt_responses(
+    session: AsyncSession,
+    receipt_ids: list[UUID],
+) -> dict[UUID, PaymentReceiptResponse]:
+    if not receipt_ids:
+        return {}
+    rows = (
+        (
+            await session.execute(
+                select(
+                    payment_receipts,
+                    payment_receipt_status.c.state,
+                    payment_receipt_status.c.verified_by,
+                    payment_receipt_status.c.reversal_id,
+                    payment_receipt_balances.c.cleared_amount,
+                    payment_receipt_balances.c.reversed_amount,
+                    payment_receipt_balances.c.refunded_amount,
+                    payment_receipt_balances.c.allocated_amount,
+                    payment_receipt_balances.c.coverage_designated_amount,
+                    payment_receipt_balances.c.version.label("balance_version"),
+                    cash_reconciliation_items.c.status.label("cash_status"),
+                )
+                .join(
+                    payment_receipt_status,
+                    payment_receipts.c.payment_receipt_id
+                    == payment_receipt_status.c.payment_receipt_id,
+                )
+                .join(
+                    payment_receipt_balances,
+                    payment_receipts.c.payment_receipt_id
+                    == payment_receipt_balances.c.payment_receipt_id,
+                )
+                .outerjoin(
+                    cash_reconciliation_items,
+                    payment_receipts.c.payment_receipt_id
+                    == cash_reconciliation_items.c.payment_receipt_id,
+                )
+                .where(payment_receipts.c.payment_receipt_id.in_(receipt_ids))
+            )
+        )
+        .mappings()
+        .all()
+    )
+    result: dict[UUID, PaymentReceiptResponse] = {}
+    for row in rows:
+        receipt = dict(row)
+        unapplied = unapplied_payment_amount(receipt)
+        currency = row["currency"]
+        result[row["payment_receipt_id"]] = PaymentReceiptResponse(
+            payment_receipt_id=row["payment_receipt_id"],
+            branch_id=row["branch_id"],
+            customer_id=row["customer_id"],
+            sales_order_id=row["intended_sales_order_id"],
+            payment_method=row["payment_method_kind"],
+            amount=_money(row["amount"], currency),
+            currency=currency,
+            received_at=row["received_at"],
+            external_reference=row["external_reference"],
+            external_reference_normalized=row["external_reference_normalized"],
+            status=(
+                "awaiting_bank_clearance" if row["state"] == "pending_clearance" else row["state"]
+            ),
+            cleared_amount=_money(row["cleared_amount"], currency),
+            allocated_amount=_money(row["allocated_amount"], currency),
+            unapplied_amount=_money(unapplied, currency),
+            application_state=payment_application_state(receipt),
+            balance_version=row["balance_version"],
+            available_for_coverage=_money(
+                unapplied - row["coverage_designated_amount"],
+                currency,
+            ),
+            cash_reconciliation_status=row["cash_status"],
+            recorded_by=row["recorded_by"],
+            verified_by=row["verified_by"],
+            reversal_id=row["reversal_id"],
+        )
+    return result
+
+
 @router.get(
     "/v1/finance/payment-receipts",
     response_model=PaymentReceiptListResponse,
@@ -886,6 +973,8 @@ async def list_payment_receipts(
     actor: Annotated[AuthorizedUser, Depends(require_payment_reader)],
     session: Annotated[AsyncSession, Depends(get_database_session)],
     branch_id: Annotated[UUID | None, Query()] = None,
+    customer_id: Annotated[UUID | None, Query()] = None,
+    application_state: Annotated[PaymentApplicationState | None, Query()] = None,
     status: Annotated[
         Literal[
             "pending_verification",
@@ -897,6 +986,8 @@ async def list_payment_receipts(
         | None,
         Query(),
     ] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> PaymentReceiptListResponse:
     scoped_branches = actor.branch_ids
     if branch_id is not None:
@@ -904,23 +995,51 @@ async def list_payment_receipts(
             raise AppError(403, "operational_scope_required", "Branch scope is required.")
         scoped_branches = (branch_id,)
     state = "pending_clearance" if status == "awaiting_bank_clearance" else status
-    query = (
-        select(payment_receipts.c.payment_receipt_id)
+
+    unapplied_expr = (
+        payment_receipt_balances.c.cleared_amount
+        - payment_receipt_balances.c.reversed_amount
+        - payment_receipt_balances.c.refunded_amount
+        - payment_receipt_balances.c.allocated_amount
+    )
+    application_state_expr = case(
+        (payment_receipt_status.c.state != "cleared", "not_cleared"),
+        (unapplied_expr <= ZERO, "fully_applied"),
+        (payment_receipt_balances.c.allocated_amount > ZERO, "partially_applied"),
+        else_="unapplied",
+    )
+
+    base = (
+        select(
+            payment_receipts.c.payment_receipt_id,
+            payment_receipts.c.received_at,
+            application_state_expr.label("application_state"),
+        )
         .join(
             payment_receipt_status,
             payment_receipts.c.payment_receipt_id == payment_receipt_status.c.payment_receipt_id,
         )
+        .join(
+            payment_receipt_balances,
+            payment_receipts.c.payment_receipt_id == payment_receipt_balances.c.payment_receipt_id,
+        )
         .where(payment_receipts.c.branch_id.in_(scoped_branches))
-        .order_by(payment_receipts.c.received_at.desc())
-        .limit(200)
     )
     if state is not None:
-        query = query.where(payment_receipt_status.c.state == state)
-    receipt_ids = (await session.execute(query)).scalars().all()
-    items = [
-        await _receipt_response(session, payment_receipt_id) for payment_receipt_id in receipt_ids
-    ]
-    return PaymentReceiptListResponse(items=items, total=len(items))
+        base = base.where(payment_receipt_status.c.state == state)
+    if customer_id is not None:
+        base = base.where(payment_receipts.c.customer_id == customer_id)
+    if application_state is not None:
+        base = base.where(application_state_expr == application_state)
+
+    ordered = base.order_by(payment_receipts.c.received_at.desc())
+    total = (await session.scalar(select(func.count()).select_from(ordered.subquery()))) or 0
+    paged = ordered.limit(limit).offset(offset)
+    receipt_ids = [row["payment_receipt_id"] for row in (await session.execute(paged)).mappings()]
+
+    responses_by_id = await _batch_receipt_responses(session, receipt_ids)
+    items = [responses_by_id[receipt_id] for receipt_id in receipt_ids]
+    return PaymentReceiptListResponse(items=items, total=total)
 
 
 @router.post(

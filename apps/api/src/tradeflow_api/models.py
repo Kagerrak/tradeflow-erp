@@ -46,6 +46,7 @@ companies = Table(
     Column("code", String(30), nullable=False, unique=True),
     Column("name", String(200), nullable=False),
     Column("base_currency", String(3), nullable=False),
+    Column("timezone", String(64), nullable=False, server_default="UTC"),
     Column("version", Integer, nullable=False, server_default="1"),
     Column(
         "created_at",
@@ -55,6 +56,7 @@ companies = Table(
     ),
     CheckConstraint("singleton_key = 'tradeflow'", name="ck_companies_singleton"),
     CheckConstraint("version > 0", name="ck_companies_version_positive"),
+    CheckConstraint("btrim(timezone) <> ''", name="ck_companies_timezone_not_empty"),
 )
 
 suppliers = Table(
@@ -153,6 +155,12 @@ purchase_order_lines = Table(
         nullable=False,
     ),
     Column(
+        "purchase_request_line_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("purchase_request_lines.purchase_request_line_id"),
+        nullable=True,
+    ),
+    Column(
         "sku_id",
         PostgresUUID(as_uuid=True),
         ForeignKey("skus.sku_id"),
@@ -163,6 +171,8 @@ purchase_order_lines = Table(
     Column("unit_code", String(30), nullable=False),
     Column("base_quantity", Numeric(18, 6), nullable=False),
     Column("received_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("accepted_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("backorder_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
     Column("unit_cost", Numeric(18, 6), nullable=False),
     Column("version", Integer, nullable=False, server_default="1"),
     CheckConstraint("line_number > 0", name="ck_purchase_order_lines_line_number_positive"),
@@ -176,11 +186,112 @@ purchase_order_lines = Table(
         "received_quantity_base >= 0",
         name="ck_purchase_order_lines_received_quantity_base_nonnegative",
     ),
+    CheckConstraint(
+        "accepted_quantity_base >= 0",
+        name="ck_purchase_order_lines_accepted_quantity_base_nonnegative",
+    ),
     CheckConstraint("version > 0", name="ck_purchase_order_lines_version_positive"),
     UniqueConstraint(
         "purchase_order_id",
         "line_number",
         name="uq_purchase_order_lines_order_line",
+    ),
+)
+
+purchase_requests = Table(
+    "purchase_requests",
+    metadata,
+    Column("purchase_request_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "company_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("companies.company_id"),
+        nullable=False,
+    ),
+    Column(
+        "supplier_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("suppliers.supplier_id"),
+        nullable=False,
+    ),
+    Column(
+        "branch_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("branches.branch_id"),
+        nullable=False,
+    ),
+    Column("code", String(50), nullable=False),
+    Column("currency", String(3), nullable=False),
+    Column("exchange_rate", Numeric(18, 6), nullable=False, server_default="1"),
+    Column(
+        "status",
+        String(30),
+        nullable=False,
+        server_default="draft",
+    ),
+    Column("version", Integer, nullable=False, server_default="1"),
+    Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("approved_by", String(200), ForeignKey("users.subject"), nullable=True),
+    Column("rejected_by", String(200), ForeignKey("users.subject"), nullable=True),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    Column("correlation_id", String(100), nullable=False),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    ),
+    CheckConstraint(
+        "status IN ('draft', 'submitted', 'approved', 'partially_converted', "
+        "'fully_converted', 'rejected')",
+        name="ck_purchase_requests_status",
+    ),
+    CheckConstraint("version > 0", name="ck_purchase_requests_version_positive"),
+    CheckConstraint("exchange_rate > 0", name="ck_purchase_requests_exchange_rate_positive"),
+    UniqueConstraint("company_id", "code", name="uq_purchase_requests_company_code"),
+)
+
+purchase_request_lines = Table(
+    "purchase_request_lines",
+    metadata,
+    Column("purchase_request_line_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "purchase_request_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("purchase_requests.purchase_request_id"),
+        nullable=False,
+    ),
+    Column(
+        "sku_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("skus.sku_id"),
+        nullable=False,
+    ),
+    Column("line_number", Integer, nullable=False),
+    Column("requested_quantity", Numeric(18, 6), nullable=False),
+    Column("unit_code", String(30), nullable=False),
+    Column("base_quantity", Numeric(18, 6), nullable=False),
+    Column("unit_cost", Numeric(18, 6), nullable=False),
+    Column("version", Integer, nullable=False, server_default="1"),
+    CheckConstraint("line_number > 0", name="ck_purchase_request_lines_line_number_positive"),
+    CheckConstraint(
+        "requested_quantity > 0",
+        name="ck_purchase_request_lines_requested_quantity_positive",
+    ),
+    CheckConstraint("base_quantity > 0", name="ck_purchase_request_lines_base_quantity_positive"),
+    CheckConstraint("unit_cost >= 0", name="ck_purchase_request_lines_unit_cost_positive"),
+    CheckConstraint("version > 0", name="ck_purchase_request_lines_version_positive"),
+    UniqueConstraint(
+        "purchase_request_id",
+        "line_number",
+        name="uq_purchase_request_lines_request_line",
     ),
 )
 
@@ -261,11 +372,43 @@ goods_receipt_lines = Table(
         nullable=False,
     ),
     Column("received_quantity_base", Numeric(18, 6), nullable=False),
+    Column("accepted_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("rejected_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("damaged_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
+    Column("quarantine_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
     Column("lot_code", String(100), nullable=True),
     Column("serial_numbers", JSONB, nullable=False, server_default="[]"),
+    Column("variance_reason", String(200), nullable=True),
+    Column(
+        "approval_authority_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("approval_authorities.approval_authority_id"),
+        nullable=True,
+    ),
     CheckConstraint(
         "received_quantity_base > 0",
         name="ck_goods_receipt_lines_received_quantity_positive",
+    ),
+    CheckConstraint(
+        "accepted_quantity_base >= 0",
+        name="ck_goods_receipt_lines_accepted_quantity_base_nonnegative",
+    ),
+    CheckConstraint(
+        "rejected_quantity_base >= 0",
+        name="ck_goods_receipt_lines_rejected_quantity_base_nonnegative",
+    ),
+    CheckConstraint(
+        "damaged_quantity_base >= 0",
+        name="ck_goods_receipt_lines_damaged_quantity_base_nonnegative",
+    ),
+    CheckConstraint(
+        "quarantine_quantity_base >= 0",
+        name="ck_goods_receipt_lines_quarantine_quantity_base_nonnegative",
+    ),
+    CheckConstraint(
+        "accepted_quantity_base + rejected_quantity_base + "
+        "damaged_quantity_base + quarantine_quantity_base = received_quantity_base",
+        name="ck_goods_receipt_lines_component_quantity_balance",
     ),
 )
 
@@ -349,9 +492,11 @@ branches = Table(
     ),
     Column("code", String(30), nullable=False, unique=True),
     Column("name", String(200), nullable=False),
+    Column("timezone", String(64), nullable=False, server_default="UTC"),
     Column("is_active", Boolean, nullable=False, server_default="true"),
     Column("version", Integer, nullable=False, server_default="1"),
     CheckConstraint("version > 0", name="ck_branches_version_positive"),
+    CheckConstraint("btrim(timezone) <> ''", name="ck_branches_timezone_not_empty"),
 )
 
 warehouses = Table(
@@ -1232,7 +1377,7 @@ sales_orders = Table(
         onupdate=func.now(),
     ),
     CheckConstraint(
-        "status IN ('draft', 'approved', 'held')",
+        "status IN ('draft', 'approved', 'held', 'partially_cancelled', 'cancelled')",
         name="ck_sales_orders_status",
     ),
     CheckConstraint("version > 0", name="ck_sales_orders_version_positive"),
@@ -1420,6 +1565,375 @@ sales_order_line_revisions = Table(
         "sku_id",
         name="uq_sales_order_line_revision_sku_ownership",
     ),
+)
+
+quotations = Table(
+    "quotations",
+    metadata,
+    Column("quotation_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "branch_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("branches.branch_id"),
+        nullable=False,
+    ),
+    Column(
+        "customer_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("customer_accounts.customer_id"),
+        nullable=False,
+    ),
+    Column("status", String(20), nullable=False, server_default="draft"),
+    Column("version", Integer, nullable=False, server_default="1"),
+    Column(
+        "document_series_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("document_series.document_series_id"),
+        nullable=False,
+    ),
+    Column("series_number", Integer, nullable=False),
+    Column("number", String(80), nullable=False, unique=True),
+    Column("expiry_date", Date, nullable=False),
+    Column(
+        "approved_revision_id",
+        PostgresUUID(as_uuid=True),
+        nullable=True,
+    ),
+    Column(
+        "converted_sales_order_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("sales_orders.sales_order_id"),
+        nullable=True,
+    ),
+    Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("updated_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    ),
+    CheckConstraint(
+        "status IN ('draft', 'approved', 'converted', 'expired')",
+        name="ck_quotations_status",
+    ),
+    CheckConstraint("version > 0", name="ck_quotations_version_positive"),
+    CheckConstraint("series_number > 0", name="ck_quotations_series_number_positive"),
+    UniqueConstraint(
+        "document_series_id",
+        "series_number",
+        name="uq_quotations_document_series_number",
+    ),
+    ForeignKeyConstraint(
+        ["quotation_id", "approved_revision_id"],
+        ["quotation_revisions.quotation_id", "quotation_revisions.quotation_revision_id"],
+        name="fk_quotations_approved_revision",
+        use_alter=True,
+    ),
+)
+
+quotation_revisions = Table(
+    "quotation_revisions",
+    metadata,
+    Column("quotation_revision_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "quotation_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("quotations.quotation_id"),
+        nullable=False,
+    ),
+    Column("version", Integer, nullable=False),
+    Column(
+        "branch_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("branches.branch_id"),
+        nullable=False,
+    ),
+    Column(
+        "customer_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("customer_accounts.customer_id"),
+        nullable=False,
+    ),
+    Column("customer_version", Integer, nullable=False),
+    Column(
+        "delivery_address_version_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("customer_address_versions.address_version_id"),
+        nullable=False,
+    ),
+    Column("delivery_address_snapshot", JSONB, nullable=False),
+    Column("currency", String(3), nullable=False),
+    Column("price_inclusion_mode", String(20), nullable=False),
+    Column(
+        "price_list_version_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("price_list_versions.price_list_version_id"),
+        nullable=False,
+    ),
+    Column("price_list_code", String(50), nullable=False),
+    Column("price_list_version", Integer, nullable=False),
+    Column("pricing_date", Date, nullable=False),
+    Column("payment_timing_default", String(30), nullable=False),
+    Column("payment_timing_policy", String(30), nullable=False),
+    Column("payment_timing_override_reason", String(500), nullable=True),
+    Column(
+        "payment_timing_overridden_by",
+        String(200),
+        ForeignKey("users.subject"),
+        nullable=True,
+    ),
+    Column("order_discount_amount", Numeric(18, 6), nullable=False),
+    Column("subtotal", Numeric(24, 6), nullable=False),
+    Column("discount_total", Numeric(24, 6), nullable=False),
+    Column("taxable_total", Numeric(24, 6), nullable=False),
+    Column("tax_total", Numeric(24, 6), nullable=False),
+    Column("grand_total", Numeric(24, 6), nullable=False),
+    Column("expiry_date", Date, nullable=False),
+    Column("calculation_contract_version", Integer, nullable=False, server_default="1"),
+    Column("actor_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("version > 0", name="ck_quotation_revisions_version_positive"),
+    CheckConstraint(
+        "price_inclusion_mode IN ('inclusive', 'exclusive')",
+        name="ck_quotation_revisions_inclusion_mode",
+    ),
+    CheckConstraint(
+        "payment_timing_default IN ('prepaid', 'cash_on_delivery', 'on_account')",
+        name="ck_quotation_revisions_payment_default",
+    ),
+    CheckConstraint(
+        "payment_timing_policy IN ('prepaid', 'cash_on_delivery', 'on_account')",
+        name="ck_quotation_revisions_payment_policy",
+    ),
+    CheckConstraint(
+        "order_discount_amount >= 0 AND discount_total >= 0",
+        name="ck_quotation_revisions_discount_nonnegative",
+    ),
+    CheckConstraint(
+        "subtotal >= 0 AND taxable_total >= 0 AND tax_total >= 0 AND grand_total >= 0",
+        name="ck_quotation_revisions_totals_nonnegative",
+    ),
+    UniqueConstraint("quotation_id", "version", name="uq_quotation_revision"),
+    UniqueConstraint(
+        "quotation_id",
+        "quotation_revision_id",
+        name="uq_quotation_revision_ownership",
+    ),
+    UniqueConstraint(
+        "quotation_id",
+        "quotation_revision_id",
+        "customer_id",
+        name="uq_quotation_revision_customer_ownership",
+    ),
+)
+
+quotation_line_revisions = Table(
+    "quotation_line_revisions",
+    metadata,
+    Column("quotation_line_revision_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "quotation_revision_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("quotation_revisions.quotation_revision_id"),
+        nullable=False,
+    ),
+    Column("line_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("line_position", Integer, nullable=False),
+    Column("sku_id", PostgresUUID(as_uuid=True), ForeignKey("skus.sku_id"), nullable=False),
+    Column("sku_code", String(50), nullable=False),
+    Column("sku_name", String(200), nullable=False),
+    Column("entered_quantity", Numeric(18, 6), nullable=False),
+    Column("entered_unit", String(30), nullable=False),
+    Column("quantity_base", Numeric(18, 6), nullable=False),
+    Column("conversion_snapshot", JSONB, nullable=False),
+    Column(
+        "price_list_line_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("price_list_lines.price_list_line_id"),
+        nullable=False,
+    ),
+    Column("list_unit_price", Numeric(18, 6), nullable=False),
+    Column("floor_unit_price", Numeric(18, 6), nullable=True),
+    Column("manual_override_unit_price", Numeric(18, 6), nullable=True),
+    Column("price_override_reason", String(500), nullable=True),
+    Column("effective_unit_price", Numeric(18, 6), nullable=False),
+    Column("price_source", String(20), nullable=False),
+    Column("below_floor", Boolean, nullable=False),
+    Column("allocated_discount", Numeric(24, 6), nullable=False),
+    Column("tax_snapshot", JSONB, nullable=False),
+    Column("calculation_snapshot", JSONB, nullable=False),
+    Column("taxable_amount", Numeric(24, 6), nullable=False),
+    Column("tax_amount", Numeric(24, 6), nullable=False),
+    Column("line_total", Numeric(24, 6), nullable=False),
+    CheckConstraint("line_position > 0", name="ck_quotation_line_revisions_position"),
+    CheckConstraint(
+        "entered_quantity > 0 AND quantity_base > 0",
+        name="ck_quotation_line_revisions_quantity",
+    ),
+    CheckConstraint(
+        "list_unit_price >= 0 AND effective_unit_price >= 0",
+        name="ck_quotation_line_revisions_price",
+    ),
+    CheckConstraint(
+        "price_source IN ('customer', 'branch')",
+        name="ck_quotation_line_revisions_price_source",
+    ),
+    CheckConstraint(
+        "allocated_discount >= 0 AND taxable_amount >= 0 AND tax_amount >= 0 AND line_total >= 0",
+        name="ck_quotation_line_revisions_amounts",
+    ),
+    UniqueConstraint(
+        "quotation_revision_id",
+        "line_id",
+        name="uq_quotation_line_revision_identity",
+    ),
+    UniqueConstraint(
+        "quotation_revision_id",
+        "line_position",
+        name="uq_quotation_line_revision_position",
+    ),
+    UniqueConstraint(
+        "quotation_revision_id",
+        "line_id",
+        "sku_id",
+        name="uq_quotation_line_revision_sku_ownership",
+    ),
+)
+
+quotation_approvals = Table(
+    "quotation_approvals",
+    metadata,
+    Column("quotation_approval_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column("quotation_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("quotation_revision_id", PostgresUUID(as_uuid=True), nullable=False, unique=True),
+    Column("customer_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("maker_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("approved_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("order_total", Numeric(24, 6), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("order_total >= 0", name="ck_quotation_approvals_order_total"),
+    ForeignKeyConstraint(
+        ["quotation_id", "quotation_revision_id", "customer_id"],
+        [
+            "quotation_revisions.quotation_id",
+            "quotation_revisions.quotation_revision_id",
+            "quotation_revisions.customer_id",
+        ],
+        name="fk_quotation_approvals_customer_revision_ownership",
+    ),
+    UniqueConstraint(
+        "quotation_approval_id",
+        "quotation_id",
+        "customer_id",
+        name="uq_quotation_approval_customer_ownership",
+    ),
+)
+
+quotation_approval_exceptions = Table(
+    "quotation_approval_exceptions",
+    metadata,
+    Column(
+        "exception_approval_id",
+        PostgresUUID(as_uuid=True),
+        primary_key=True,
+    ),
+    Column(
+        "quotation_approval_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("quotation_approvals.quotation_approval_id"),
+        nullable=False,
+    ),
+    Column("exception_type", String(30), nullable=False),
+    Column("maker_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("approved_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("reason", String(500), nullable=False),
+    Column("exception_amount", Numeric(24, 6), nullable=False),
+    Column("exception_percentage", Numeric(9, 6), nullable=True),
+    Column("authority_snapshot", JSONB, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "exception_type IN ('discount', 'below_floor')",
+        name="ck_quotation_approval_exceptions_type",
+    ),
+    CheckConstraint(
+        "exception_amount >= 0",
+        name="ck_quotation_approval_exceptions_amount",
+    ),
+    CheckConstraint(
+        "exception_percentage IS NULL "
+        "OR (exception_percentage >= 0 AND exception_percentage <= 100)",
+        name="ck_quotation_approval_exceptions_percentage",
+    ),
+    CheckConstraint(
+        "maker_subject <> approved_by",
+        name="ck_quotation_approval_exceptions_maker_checker",
+    ),
+    UniqueConstraint(
+        "quotation_approval_id",
+        "exception_type",
+        name="uq_quotation_approval_exception_type",
+    ),
+)
+
+quotation_conversion_events = Table(
+    "quotation_conversion_events",
+    metadata,
+    Column("conversion_event_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "quotation_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("quotations.quotation_id"),
+        nullable=False,
+    ),
+    Column("quotation_revision_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column(
+        "sales_order_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("sales_orders.sales_order_id"),
+        nullable=False,
+    ),
+    Column("sales_order_revision_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("converted_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint("quotation_id", name="uq_quotation_conversion_quotation"),
+    UniqueConstraint("sales_order_id", name="uq_quotation_conversion_sales_order"),
+    ForeignKeyConstraint(
+        ["quotation_id", "quotation_revision_id"],
+        [
+            "quotation_revisions.quotation_id",
+            "quotation_revisions.quotation_revision_id",
+        ],
+        name="fk_quotation_conversion_revision_ownership",
+    ),
+    ForeignKeyConstraint(
+        ["sales_order_id", "sales_order_revision_id"],
+        [
+            "sales_order_revisions.sales_order_id",
+            "sales_order_revisions.sales_order_revision_id",
+        ],
+        name="fk_quotation_conversion_sales_order_revision",
+    ),
+)
+
+Index(
+    "idx_quotations_customer",
+    quotations.c.customer_id,
+    quotations.c.created_at.desc(),
+)
+
+Index(
+    "idx_quotation_revisions_quotation",
+    quotation_revisions.c.quotation_id,
+    quotation_revisions.c.version.desc(),
 )
 
 commercial_approvals = Table(
@@ -1779,11 +2293,13 @@ sales_order_line_commitments = Table(
     Column("reserved_quantity_base", Numeric(18, 6), nullable=False),
     Column("picked_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
     Column("backorder_quantity_base", Numeric(18, 6), nullable=False),
+    Column("cancelled_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
     CheckConstraint(
         "ordered_quantity_base > 0 AND reserved_quantity_base >= 0 "
         "AND picked_quantity_base >= 0 AND backorder_quantity_base >= 0 "
+        "AND cancelled_quantity_base >= 0 "
         "AND reserved_quantity_base + picked_quantity_base + backorder_quantity_base "
-        "= ordered_quantity_base",
+        "+ cancelled_quantity_base = ordered_quantity_base",
         name="ck_sales_order_line_commitments_quantities",
     ),
     ForeignKeyConstraint(
@@ -2476,6 +2992,69 @@ active_sales_order_holds = Table(
         nullable=False,
     ),
     Column("applied_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+)
+
+sales_order_cancellations = Table(
+    "sales_order_cancellations",
+    metadata,
+    Column("cancellation_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "sales_order_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("sales_orders.sales_order_id"),
+        nullable=False,
+    ),
+    Column("reason", String(500), nullable=False),
+    Column("cancelled_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    Column(
+        "cancelled_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    CheckConstraint("btrim(reason) <> ''", name="ck_sales_order_cancellation_reason"),
+    Index(
+        "ix_sales_order_cancellations_order",
+        "sales_order_id",
+        "cancelled_at",
+    ),
+)
+
+sales_order_cancellation_lines = Table(
+    "sales_order_cancellation_lines",
+    metadata,
+    Column("cancellation_line_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "cancellation_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("sales_order_cancellations.cancellation_id"),
+        nullable=False,
+    ),
+    Column("line_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("sku_id", PostgresUUID(as_uuid=True), ForeignKey("skus.sku_id"), nullable=False),
+    Column("cancelled_quantity_base", Numeric(18, 6), nullable=False),
+    Column("reserved_released_quantity_base", Numeric(18, 6), nullable=False),
+    Column("backorder_reduced_quantity_base", Numeric(18, 6), nullable=False),
+    Column("line_total_delta", Numeric(24, 6), nullable=False),
+    CheckConstraint(
+        "cancelled_quantity_base > 0 "
+        "AND reserved_released_quantity_base >= 0 "
+        "AND backorder_reduced_quantity_base >= 0 "
+        "AND reserved_released_quantity_base + backorder_reduced_quantity_base "
+        "= cancelled_quantity_base",
+        name="ck_sales_order_cancellation_line_quantity",
+    ),
+    CheckConstraint(
+        "line_total_delta >= 0",
+        name="ck_sales_order_cancellation_line_value",
+    ),
+    Index(
+        "ix_sales_order_cancellation_lines_order",
+        "cancellation_id",
+        "line_id",
+    ),
 )
 
 pick_releases = Table(
@@ -3672,6 +4251,215 @@ delivery_correction_movement_effects = Table(
     ),
 )
 
+device_registrations = Table(
+    "device_registrations",
+    metadata,
+    Column("device_registration_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column("user_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("device_token", String(500), nullable=False),
+    Column("platform", String(20), nullable=False),
+    Column("app_version", String(50), nullable=True),
+    Column("locale", String(10), nullable=False, server_default="en"),
+    Column("is_active", Boolean, nullable=False, server_default="true"),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "platform IN ('ios', 'android', 'web')",
+        name="ck_device_registrations_platform",
+    ),
+    CheckConstraint(
+        "expires_at > created_at",
+        name="ck_device_registrations_expires_after_created",
+    ),
+    UniqueConstraint(
+        "user_subject",
+        "device_token",
+        "platform",
+        name="uq_device_registration_user_token",
+    ),
+)
+
+notification_preferences = Table(
+    "notification_preferences",
+    metadata,
+    Column("preference_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column("user_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("category", String(50), nullable=False),
+    Column("push_enabled", Boolean, nullable=False, server_default="true"),
+    Column("inbox_enabled", Boolean, nullable=False, server_default="true"),
+    Column("quiet_hours_start", String(5), nullable=True),
+    Column("quiet_hours_end", String(5), nullable=True),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "category IN ('delivery_assignment', 'delivery_confirmation', 'delivery_correction', "
+        "'approval_required', 'payment_received', 'payment_rejected')",
+        name="ck_notification_preferences_category",
+    ),
+    CheckConstraint(
+        "quiet_hours_start IS NULL OR quiet_hours_start ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'",
+        name="ck_notification_preferences_quiet_start",
+    ),
+    CheckConstraint(
+        "quiet_hours_end IS NULL OR quiet_hours_end ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'",
+        name="ck_notification_preferences_quiet_end",
+    ),
+    UniqueConstraint("user_subject", "category", name="uq_notification_preference_user_category"),
+)
+
+operational_notifications = Table(
+    "operational_notifications",
+    metadata,
+    Column("notification_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "source_event_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("outbox_events.outbox_event_id"),
+        nullable=True,
+    ),
+    Column("source_type", String(50), nullable=False),
+    Column("source_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("recipient_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("notification_type", String(50), nullable=False),
+    Column("title", String(200), nullable=False),
+    Column("body", String(1000), nullable=False),
+    Column("deep_link_path", String(200), nullable=False),
+    Column("deep_link_token", String(200), nullable=False),
+    Column(
+        "branch_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("branches.branch_id"),
+        nullable=False,
+    ),
+    Column(
+        "warehouse_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouses.warehouse_id"),
+        nullable=True,
+    ),
+    Column("required_capability", String(100), nullable=True),
+    Column("status", String(20), nullable=False, server_default="pending"),
+    Column("correlation_id", String(100), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("read_at", DateTime(timezone=True), nullable=True),
+    Column("revoked_at", DateTime(timezone=True), nullable=True),
+    CheckConstraint(
+        "status IN ('pending', 'delivered', 'read', 'revoked')",
+        name="ck_operational_notifications_status",
+    ),
+    CheckConstraint(
+        "source_event_id IS NOT NULL OR source_type <> 'outbox_event'",
+        name="ck_operational_notifications_source_event_consistency",
+    ),
+    UniqueConstraint(
+        "source_event_id",
+        "recipient_subject",
+        "notification_type",
+        name="uq_operational_notification_identity",
+    ),
+    UniqueConstraint(
+        "source_type",
+        "source_id",
+        "recipient_subject",
+        "notification_type",
+        name="uq_operational_notification_source_identity",
+    ),
+    Index("ix_operational_notifications_recipient_status", "recipient_subject", "status"),
+    Index("ix_operational_notifications_recipient_created", "recipient_subject", "created_at"),
+)
+
+notification_deliveries = Table(
+    "notification_deliveries",
+    metadata,
+    Column("delivery_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "notification_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("operational_notifications.notification_id"),
+        nullable=False,
+    ),
+    Column(
+        "device_registration_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("device_registrations.device_registration_id"),
+        nullable=False,
+    ),
+    Column("provider", String(50), nullable=False, server_default="noop"),
+    Column("provider_message_id", String(200), nullable=True),
+    Column("status", String(20), nullable=False, server_default="pending"),
+    Column("attempted_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("delivered_at", DateTime(timezone=True), nullable=True),
+    Column("last_error", String(2000), nullable=True),
+    CheckConstraint(
+        "status IN ('pending', 'sent', 'failed', 'delivered')",
+        name="ck_notification_deliveries_status",
+    ),
+    CheckConstraint(
+        "(status = 'delivered' AND delivered_at IS NOT NULL) "
+        "OR (status <> 'delivered' AND delivered_at IS NULL)",
+        name="ck_notification_deliveries_delivered_shape",
+    ),
+    UniqueConstraint(
+        "notification_id", "device_registration_id", name="uq_notification_delivery_identity"
+    ),
+)
+
+notification_read_events = Table(
+    "notification_read_events",
+    metadata,
+    Column("read_event_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "notification_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("operational_notifications.notification_id"),
+        nullable=False,
+    ),
+    Column(
+        "device_registration_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("device_registrations.device_registration_id"),
+        nullable=True,
+    ),
+    Column("read_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("read_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint("notification_id", "read_event_id", name="uq_notification_read_identity"),
+)
+
+notification_effect_events = Table(
+    "notification_effect_events",
+    metadata,
+    Column("effect_event_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "notification_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("operational_notifications.notification_id"),
+        nullable=False,
+    ),
+    Column("effect_type", String(20), nullable=False),
+    Column("source_type", String(50), nullable=False),
+    Column("source_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column(
+        "device_registration_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("device_registrations.device_registration_id"),
+        nullable=True,
+    ),
+    Column("payload", JSONB, nullable=False, server_default="{}"),
+    Column("occurred_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "effect_type IN ('created', 'delivered', 'read', 'revoked', 'failed', 'masked')",
+        name="ck_notification_effect_events_type",
+    ),
+    UniqueConstraint(
+        "notification_id",
+        "effect_type",
+        "source_type",
+        "source_id",
+        name="uq_notification_effect_identity",
+    ),
+)
+
 document_series = Table(
     "document_series",
     metadata,
@@ -3682,7 +4470,55 @@ document_series = Table(
     Column("document_type", String(40), nullable=False),
     Column("prefix", String(30), nullable=False),
     Column("next_number", Integer, nullable=False, server_default="1"),
+    Column("version", Integer, nullable=False, server_default="1"),
+    CheckConstraint("version > 0", name="ck_document_series_version_positive"),
     UniqueConstraint("branch_id", "document_type", name="uq_document_series_branch_type"),
+)
+
+document_templates = Table(
+    "document_templates",
+    metadata,
+    Column("document_template_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "company_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("companies.company_id"),
+        nullable=False,
+    ),
+    Column(
+        "branch_id", PostgresUUID(as_uuid=True), ForeignKey("branches.branch_id"), nullable=True
+    ),
+    Column("document_type", String(40), nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("name", String(200), nullable=False),
+    Column("template_body", String, nullable=False),
+    Column("effective_from", Date, nullable=False),
+    Column("effective_to", Date, nullable=True),
+    Column("is_active", Boolean, nullable=False, server_default="true"),
+    Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    CheckConstraint("version > 0", name="ck_document_templates_version_positive"),
+    CheckConstraint(
+        "effective_to IS NULL OR effective_to >= effective_from",
+        name="ck_document_templates_effective_range",
+    ),
+    UniqueConstraint(
+        "company_id", "document_type", "version", name="uq_document_template_company_type_version"
+    ),
+)
+
+Index(
+    "uq_document_template_branch_type_version",
+    document_templates.c.branch_id,
+    document_templates.c.document_type,
+    document_templates.c.version,
+    unique=True,
+    postgresql_where=document_templates.c.branch_id.is_not(None),
 )
 
 delivery_receipts = Table(
@@ -3774,9 +4610,23 @@ document_series_number_audit = Table(
         ForeignKey("credit_notes.credit_note_id"),
         nullable=True,
     ),
+    Column(
+        "quotation_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("quotations.quotation_id"),
+        nullable=True,
+    ),
     Column("reason", String(500), nullable=True),
     Column("recorded_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     UniqueConstraint("document_series_id", "series_number", name="uq_document_series_number_audit"),
+    CheckConstraint(
+        "(status = 'issued' AND ("
+        "delivery_receipt_id IS NOT NULL OR "
+        "credit_note_id IS NOT NULL OR "
+        "quotation_id IS NOT NULL)) "
+        "OR (status IN ('voided','skipped') AND reason IS NOT NULL)",
+        name="ck_document_series_number_audit_reason",
+    ),
 )
 
 outbox_events = Table(
@@ -4163,4 +5013,148 @@ credit_note_authorizations = Table(
         "idempotency_key",
         name="uq_credit_note_authorization_key",
     ),
+)
+
+expense_categories = Table(
+    "expense_categories",
+    metadata,
+    Column("expense_category_version_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "company_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("companies.company_id"),
+        nullable=False,
+    ),
+    Column("category_code", String(50), nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("name", String(200), nullable=False),
+    Column("description", String, nullable=True),
+    Column("allowed_evidence_types", JSONB, nullable=False, server_default="[]"),
+    Column("attribution_rules", JSONB, nullable=False, server_default="{}"),
+    Column("effective_from", Date, nullable=False),
+    Column("effective_to", Date, nullable=True),
+    Column("status", String(20), nullable=False, server_default="draft"),
+    Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("published_by", String(200), ForeignKey("users.subject"), nullable=True),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    Column("published_at", DateTime(timezone=True), nullable=True),
+    CheckConstraint("version > 0", name="ck_expense_categories_version_positive"),
+    CheckConstraint(
+        "effective_to IS NULL OR effective_to >= effective_from",
+        name="ck_expense_categories_effective_range",
+    ),
+    CheckConstraint(
+        "status IN ('draft', 'published')",
+        name="ck_expense_categories_status",
+    ),
+    CheckConstraint(
+        "(status = 'published') OR (published_by IS NULL AND published_at IS NULL)",
+        name="ck_expense_categories_published_shape",
+    ),
+    UniqueConstraint(
+        "company_id",
+        "category_code",
+        "version",
+        name="uq_expense_categories_company_code_version",
+    ),
+)
+
+Index(
+    "uq_expense_categories_active_code",
+    expense_categories.c.company_id,
+    expense_categories.c.category_code,
+    unique=True,
+    postgresql_where=(expense_categories.c.status == "published"),
+)
+
+expense_policies = Table(
+    "expense_policies",
+    metadata,
+    Column("expense_policy_version_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "company_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("companies.company_id"),
+        nullable=False,
+    ),
+    Column(
+        "branch_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("branches.branch_id"),
+        nullable=True,
+    ),
+    Column("policy_code", String(50), nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("name", String(200), nullable=False),
+    Column("description", String, nullable=True),
+    Column(
+        "category_version_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("expense_categories.expense_category_version_id"),
+        nullable=False,
+    ),
+    Column("category_code", String(50), nullable=False),
+    Column("max_amount", Numeric(18, 2), nullable=True),
+    Column("currencies", JSONB, nullable=False, server_default="[]"),
+    Column("requires_receipt", Boolean, nullable=False, server_default="true"),
+    Column("allowed_evidence_types", JSONB, nullable=False, server_default="[]"),
+    Column("attribution_rules", JSONB, nullable=False, server_default="{}"),
+    Column("effective_from", Date, nullable=False),
+    Column("effective_to", Date, nullable=True),
+    Column("status", String(20), nullable=False, server_default="draft"),
+    Column("created_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("published_by", String(200), ForeignKey("users.subject"), nullable=True),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    Column("published_at", DateTime(timezone=True), nullable=True),
+    CheckConstraint("version > 0", name="ck_expense_policies_version_positive"),
+    CheckConstraint(
+        "effective_to IS NULL OR effective_to >= effective_from",
+        name="ck_expense_policies_effective_range",
+    ),
+    CheckConstraint(
+        "status IN ('draft', 'published')",
+        name="ck_expense_policies_status",
+    ),
+    CheckConstraint(
+        "(status = 'published') OR (published_by IS NULL AND published_at IS NULL)",
+        name="ck_expense_policies_published_shape",
+    ),
+    CheckConstraint(
+        "max_amount IS NULL OR max_amount >= 0",
+        name="ck_expense_policies_max_amount_nonnegative",
+    ),
+)
+
+Index(
+    "uq_expense_policies_version",
+    expense_policies.c.company_id,
+    func.coalesce(
+        expense_policies.c.branch_id,
+        "00000000-0000-0000-0000-000000000000",
+    ),
+    expense_policies.c.policy_code,
+    expense_policies.c.version,
+    unique=True,
+)
+
+Index(
+    "uq_expense_policies_active_code",
+    expense_policies.c.company_id,
+    func.coalesce(
+        expense_policies.c.branch_id,
+        "00000000-0000-0000-0000-000000000000",
+    ),
+    expense_policies.c.policy_code,
+    unique=True,
+    postgresql_where=(expense_policies.c.status == "published"),
 )

@@ -1,0 +1,687 @@
+---
+# Current-system baseline and first-release success-measure definitions
+# Issue: https://github.com/Kagerrak/tradeflow-erp/issues/110
+# This file is validated by apps/api/tests/test_current_system_baseline.py.
+
+baseline_version: "2026-08-19"
+issue: 110
+branch: feature/baseline-current-workflows
+base_commit: "771c0616470f032dba76f52fc27b42b3d36a0442"
+
+classifications:
+  implemented_and_verified:
+    description: >
+      The capability is implemented in TradeFlow and qualified by tests,
+      generated clients, CI gates, and/or an independent review.
+    required_fields:
+      - evidence
+      - verified_by
+  retired_with_approval:
+    description: >
+      The current-system capability is intentionally not replaced. The named
+      business owner has approved the retirement with a recorded reason.
+    required_fields:
+      - approving_owner
+      - approval_date
+      - reason
+  temporary_bridge:
+    description: >
+      The capability is handled outside TradeFlow until a future slice removes
+      the bridge. The bridge has an owner, documented risks, controls, removal
+      date, and migration path.
+    required_fields:
+      - bridge_owner
+      - risks
+      - controls
+      - removal_date
+      - migration_path
+
+inventory:
+  # Customer information management
+  - id: CUST-W-001
+    category: workflow
+    name: Customer account maintenance
+    description: Create and update customer master, status, terms, credit policy, tax identity, contacts, and addresses.
+    classification: implemented_and_verified
+    evidence: apps/api/src/tradeflow_api/customers.py, migration 0003_customers.py, test_organization_customer_contract.py
+    verified_by: merged CI-green foundation
+
+  - id: CUST-W-002
+    category: workflow
+    name: Customer-specific pricing and salesperson assignment
+    description: Assign salesperson and maintain customer-specific price lists.
+    classification: implemented_and_verified
+    evidence: customers.py, sales.py, commercial_approval.py, test_sales_order_draft_contract.py
+    verified_by: merged CI-green foundation
+
+  - id: CUST-W-003
+    category: workflow
+    name: Consolidated customer history timeline
+    description: Chronological view of sales, delivery, invoice, payment, return, and balance drill-down.
+    classification: temporary_bridge
+    bridge_owner: Delivery lead
+    risks: Finance and support rely on current-system reports until TradeFlow history is complete.
+    controls: Daily reconciliation of customer balances; statement export from current system retained.
+    removal_date: "2026-10-31"
+    migration_path: "#61 consolidated customer history; #94–#96 reporting/export slice"
+
+  - id: CUST-S-001
+    category: screen
+    name: Customer directory screen
+    classification: implemented_and_verified
+    evidence: apps/web/components/customer-directory.tsx, mobile customer lookup
+    verified_by: Playwright and native component tests
+
+  - id: CUST-R-001
+    category: report
+    name: Customer statement of account
+    classification: implemented_and_verified
+    evidence: apps/api/src/tradeflow_api/customer_statement.py, finance-statement-workspace.tsx
+    verified_by: PR #37 and CI gate
+
+  - id: CUST-R-002
+    category: report
+    name: Customer sales history export
+    classification: temporary_bridge
+    bridge_owner: Sales operations
+    risks: Role-aware masking may differ between systems.
+    controls: Export reviewed by sales manager; PII fields masked before sharing.
+    removal_date: "2026-11-15"
+    migration_path: "#61 customer history; #96 role-aware export"
+
+  # Inventory management
+  - id: INV-W-001
+    category: workflow
+    name: Product/SKU/warehouse/location master maintenance
+    description: Manage products, SKUs, units, warehouses, stock locations, and tracked identities.
+    classification: implemented_and_verified
+    evidence: apps/api/src/tradeflow_api/catalog_inventory.py, migrations 0006/0010, test_catalog_inventory_contract.py
+    verified_by: merged CI-green foundation
+
+  - id: INV-W-002
+    category: workflow
+    name: Goods receipt with lot/serial capture
+    classification: implemented_and_verified
+    evidence: goods_receipts.py, tracked_stock_picking.py, test_goods_receipt_contract.py
+    verified_by: PR #49 and CI gate
+
+  - id: INV-W-003
+    category: workflow
+    name: Stock picking and dispatch
+    classification: implemented_and_verified
+    evidence: picking.py, dispatch.py, warehouse-picking and warehouse-dispatch Playwright specs
+    verified_by: PR #33 and CI gate
+
+  - id: INV-W-004
+    category: workflow
+    name: Inventory transfer between warehouses
+    classification: temporary_bridge
+    bridge_owner: Inventory lead
+    risks: Transfer value and custody may be misstated while PR #114 is pending.
+    controls: Manual transfer log reconciled weekly; no transfer workflow activated until PR #114 merges.
+    removal_date: "2026-09-15"
+    migration_path: "PR #114 inventory transfers"
+
+  - id: INV-W-005
+    category: workflow
+    name: Customer return receipt and damaged custody
+    classification: temporary_bridge
+    bridge_owner: Returns lead
+    risks: Returned goods may be re-entered incorrectly.
+    controls: Damaged stock held in quarantine pending PR #112; finance credits posted manually.
+    removal_date: "2026-10-15"
+    migration_path: "#56, #65–#70 return authorization and disposition"
+
+  - id: INV-W-006
+    category: workflow
+    name: Stock adjustment and investigation resolution
+    classification: temporary_bridge
+    bridge_owner: Warehouse lead
+    risks: Adjustments may bypass immutable audit trail.
+    controls: All adjustments logged in current system; TradeFlow adjustment slice gated.
+    removal_date: "2026-10-31"
+    migration_path: "#107 inventory adjustment"
+
+  - id: INV-W-007
+    category: workflow
+    name: Reorder suggestions
+    classification: temporary_bridge
+    bridge_owner: Procurement lead
+    risks: Manual reorder may cause stock-outs.
+    controls: Weekly review against current-system reorder report.
+    removal_date: "2026-11-30"
+    migration_path: "#58 reorder/stock aging"
+
+  - id: INV-S-001
+    category: screen
+    name: Inventory directory
+    classification: implemented_and_verified
+    evidence: apps/web/components/inventory-directory.tsx, mobile inventory lookup
+    verified_by: Playwright and native tests
+
+  - id: INV-R-001
+    category: report
+    name: Stock aging view
+    classification: temporary_bridge
+    bridge_owner: Inventory lead
+    risks: Expired stock may ship.
+    controls: FEFO checks during picking; weekly aging review in current system.
+    removal_date: "2026-11-30"
+    migration_path: "#58 stock aging"
+
+  - id: INV-I-001
+    category: integration
+    name: Barcode/scan lookup for picking and receiving
+    classification: implemented_and_verified
+    evidence: Warehouse picking mobile flows, scan fallback tests
+    verified_by: Playwright and native tests
+
+  # Sales order processing
+  - id: SAL-W-001
+    category: workflow
+    name: Sales order entry and pricing
+    classification: implemented_and_verified
+    evidence: sales.py, commercial_approval.py, test_sales_order_draft_contract.py
+    verified_by: PR #19 and CI gate
+
+  - id: SAL-W-002
+    category: workflow
+    name: Quotation-to-order conversion
+    classification: temporary_bridge
+    bridge_owner: Sales lead
+    risks: Quotations may be lost or recreated manually.
+    controls: Quotation register maintained in current system until migration.
+    removal_date: "2026-11-15"
+    migration_path: "#104, #105 quotation-to-order"
+
+  - id: SAL-W-003
+    category: workflow
+    name: Partial reservation, fulfillment, and backorder
+    classification: implemented_and_verified
+    evidence: reservation/fulfillment logic in sales and catalog_inventory, test_sales_order_draft_contract.py
+    verified_by: merged CI-green foundation
+
+  - id: SAL-W-004
+    category: workflow
+    name: Authorized order cancellation
+    classification: temporary_bridge
+    bridge_owner: Sales lead
+    risks: Cancellations may leave reserved stock or uninvoiced exposure.
+    controls: Cancellation requests routed to current-system admin until TradeFlow command exists.
+    removal_date: "2026-10-31"
+    migration_path: "#106 order cancellation"
+
+  - id: SAL-S-001
+    category: screen
+    name: Sales order draft workspace
+    classification: implemented_and_verified
+    evidence: apps/web/components/sales-order-draft-workspace.tsx
+    verified_by: Playwright spec tests/sales-order-draft.spec.ts
+
+  - id: SAL-R-001
+    category: report
+    name: Open order/backorder report
+    classification: temporary_bridge
+    bridge_owner: Sales operations
+    risks: Backorders may be double-promised.
+    controls: Daily reconciliation against current-system open-order report.
+    removal_date: "2026-11-30"
+    migration_path: "#58 open-order/backorder reporting"
+
+  # Delivery
+  - id: DEL-W-001
+    category: workflow
+    name: Delivery assignment and dispatch
+    classification: implemented_and_verified
+    evidence: dispatch.py, warehouse-dispatch Playwright spec
+    verified_by: PR #32 and CI gate
+
+  - id: DEL-W-002
+    category: workflow
+    name: Proof of delivery with signature/photo/timestamp
+    classification: implemented_and_verified
+    evidence: delivery_confirmation.py, delivery_confirmation_outbox.py, object_storage.py, test_delivery_confirmation_contract.py
+    verified_by: PR #25 and CI gate
+
+  - id: DEL-W-003
+    category: workflow
+    name: Delivery exception and return-to-warehouse receipt
+    classification: implemented_and_verified
+    evidence: delivery_exception_custody.py, test_delivery_exception_contract.py
+    verified_by: PR #25 and CI gate
+
+  - id: DEL-S-001
+    category: screen
+    name: Mobile delivery confirmation screen
+    classification: implemented_and_verified
+    evidence: apps/mobile/components/delivery-confirmation.tsx
+    verified_by: Native component and offline sync tests
+
+  # Statements and receivables
+  - id: FIN-W-001
+    category: workflow
+    name: Draft invoice creation from accepted delivery quantities
+    classification: implemented_and_verified
+    evidence: invoice_posting.py, test_invoice_posting_contract.py
+    verified_by: merged foundation and CI gate
+
+  - id: FIN-W-002
+    category: workflow
+    name: Invoice posting to customer ledger
+    classification: implemented_and_verified
+    evidence: invoice_posting.py, test_invoice_posting_contract.py
+    verified_by: merged foundation and CI gate
+
+  - id: FIN-W-003
+    category: workflow
+    name: Payment receipt and clearance
+    classification: implemented_and_verified
+    evidence: payment_clearance.py, payment-clearance-workspace.tsx, test_payment_clearance_contract.py
+    verified_by: PR #39 and CI gate
+
+  - id: FIN-W-004
+    category: workflow
+    name: Payment allocation to open invoices
+    classification: implemented_and_verified
+    evidence: payment_allocation.py, payment_balance.py, finance-allocation-workspace.tsx, test_payment_allocation_contract.py
+    verified_by: PR #116 and CI gate
+
+  - id: FIN-W-005
+    category: workflow
+    name: Immutable credit note request and authorization
+    classification: implemented_and_verified
+    evidence: credit_note.py, test_credit_note_contract.py
+    verified_by: PR #71 and CI gate
+
+  - id: FIN-W-006
+    category: workflow
+    name: Expense claim and posting
+    classification: temporary_bridge
+    bridge_owner: Finance lead
+    risks: Expenses posted outside TradeFlow may lack audit trail.
+    controls: Current-system expense register reconciled monthly.
+    removal_date: "2026-11-30"
+    migration_path: "#59, #83–#87 expense management"
+
+  - id: FIN-W-007
+    category: workflow
+    name: Commission accrual and payout statement
+    classification: temporary_bridge
+    bridge_owner: Finance lead
+    risks: Commissions calculated outside TradeFlow may conflict with returns/credits.
+    controls: Commission worksheet reconciled to current-system sales report; policy gates #63/#64 resolved first.
+    removal_date: "2026-12-15"
+    migration_path: "#60, #64, #88–#93 commissions"
+
+  - id: FIN-S-001
+    category: screen
+    name: Finance allocation workspace
+    classification: implemented_and_verified
+    evidence: apps/web/components/finance-allocation-workspace.tsx
+    verified_by: PR #116 Playwright spec
+
+  - id: FIN-R-001
+    category: report
+    name: Aged receivables
+    classification: temporary_bridge
+    bridge_owner: Finance lead
+    risks: Aging cutoffs may differ between systems.
+    controls: Aging exported from current system weekly until #75/#76.
+    removal_date: "2026-11-15"
+    migration_path: "#75–#76 invoice aging and complete document states"
+
+  # Procurement
+  - id: PUR-W-001
+    category: workflow
+    name: Supplier master maintenance
+    classification: implemented_and_verified
+    evidence: suppliers.py, test_supplier_directory_contract.py
+    verified_by: PR #42 and CI gate
+
+  - id: PUR-W-002
+    category: workflow
+    name: Purchase order creation and approval
+    classification: implemented_and_verified
+    evidence: purchase_orders.py, test_purchase_order_contract.py
+    verified_by: PR #43 and CI gate
+
+  - id: PUR-W-003
+    category: workflow
+    name: Partial goods receipt and backorder
+    classification: implemented_and_verified
+    evidence: goods_receipts.py, test_goods_receipt_contract.py
+    verified_by: merged foundation and CI gate
+
+  - id: PUR-W-004
+    category: workflow
+    name: Receipt variance and quality hold
+    classification: temporary_bridge
+    bridge_owner: Procurement lead
+    risks: Variance may be posted incorrectly.
+    controls: Variance log maintained in current system; finance notified.
+    removal_date: "2026-11-15"
+    migration_path: "#78–#79 receipt variance and supplier return"
+
+  - id: PUR-W-005
+    category: workflow
+    name: Supplier return
+    classification: temporary_bridge
+    bridge_owner: Procurement lead
+    risks: Return value may not match receipt cost.
+    controls: Manual return log linked to current-system PO.
+    removal_date: "2026-11-30"
+    migration_path: "#79 supplier return"
+
+  - id: PUR-W-006
+    category: workflow
+    name: International shipment and landed-cost allocation
+    classification: temporary_bridge
+    bridge_owner: Procurement lead
+    risks: Valuation timing and rounding policies unresolved.
+    controls: Landed costs calculated in current system; policy gate #63 resolved first.
+    removal_date: "2026-12-15"
+    migration_path: "#45, #63, #80–#81 landed cost and foreign currency"
+
+  - id: PUR-S-001
+    category: screen
+    name: Purchase order workspace
+    classification: implemented_and_verified
+    evidence: apps/web/components/purchase-order-workspace.tsx
+    verified_by: Playwright purchase-order specs
+
+  # Roles
+  - id: ROLE-001
+    category: role
+    name: Sales representative
+    classification: implemented_and_verified
+    evidence: organization-access role templates, sales-order-draft tests
+    verified_by: CI gate
+
+  - id: ROLE-002
+    category: role
+    name: Sales manager / commercial approver
+    classification: implemented_and_verified
+    evidence: commercial_approval.py, maker-checker tests
+    verified_by: CI gate
+
+  - id: ROLE-003
+    category: role
+    name: Warehouse clerk
+    classification: implemented_and_verified
+    evidence: warehouse-picking and goods-receipt tests
+    verified_by: CI gate
+
+  - id: ROLE-004
+    category: role
+    name: Delivery staff
+    classification: implemented_and_verified
+    evidence: delivery-confirmation mobile tests
+    verified_by: CI gate
+
+  - id: ROLE-005
+    category: role
+    name: Finance allocator and verifier
+    classification: implemented_and_verified
+    evidence: payment_clearance.py, payment_allocation.py, credit_note.py
+    verified_by: PR #71, #116 and CI gate
+
+  - id: ROLE-006
+    category: role
+    name: Purchasing officer
+    classification: implemented_and_verified
+    evidence: purchase_orders.py, suppliers.py
+    verified_by: CI gate
+
+  - id: ROLE-007
+    category: role
+    name: Operations administrator
+    classification: temporary_bridge
+    bridge_owner: Operations lead
+    risks: Configuration changes may bypass TradeFlow controls.
+    controls: Configuration changes logged in current system; admin role scoped read-only in TradeFlow.
+    removal_date: "2026-11-30"
+    migration_path: "#108 configuration workflow"
+
+  # Integrations
+  - id: INT-001
+    category: integration
+    name: Generated OpenAPI client for web and mobile
+    classification: implemented_and_verified
+    evidence: openapi/openapi.json, packages/api-client, CI drift check
+    verified_by: CI gate
+
+  - id: INT-002
+    category: integration
+    name: Object storage for delivery evidence
+    classification: implemented_and_verified
+    evidence: object_storage.py, test_object_storage_contract.py
+    verified_by: CI gate
+
+  - id: INT-003
+    category: integration
+    name: External accounting/GL feed
+    classification: temporary_bridge
+    bridge_owner: Finance lead
+    risks: Journal entries may be inconsistent until formal export exists.
+    controls: Monthly manual journal entry review.
+    removal_date: "2026-12-31"
+    migration_path: "General ledger integration (post first release)"
+
+  # Exports
+  - id: EXP-001
+    category: export
+    name: Delivery receipt PDF/share
+    classification: implemented_and_verified
+    evidence: delivery receipt generation, Playwright tests
+    verified_by: CI gate
+
+  - id: EXP-002
+    category: export
+    name: Customer statement export
+    classification: implemented_and_verified
+    evidence: finance-statement-workspace.tsx
+    verified_by: PR #37 and CI gate
+
+  - id: EXP-003
+    category: export
+    name: Role-aware customer/product/history export
+    classification: temporary_bridge
+    bridge_owner: Sales operations
+    risks: PII leakage if masking rules differ.
+    controls: Exports reviewed by data owner; no bulk export until #96.
+    removal_date: "2026-11-30"
+    migration_path: "#96 role-aware export"
+
+  # Source data stores
+  - id: DS-001
+    category: data_store
+    name: Legacy/current-system relational database
+    classification: temporary_bridge
+    bridge_owner: Migration lead
+    risks: Schema differences and orphaned historical records.
+    controls: Trial migration #100 validates counts/balances; final migration #115 reconciles control totals.
+    removal_date: "go-live date (recorded in #115)"
+    migration_path: "#100 trial migration; #115 final production migration"
+
+  - id: DS-002
+    category: data_store
+    name: Current-system spreadsheets and local files
+    classification: temporary_bridge
+    bridge_owner: Operations lead
+    risks: Inconsistent master data, version conflicts.
+    controls: Inventory listed in this baseline; migration plan identifies conversion rules.
+    removal_date: "go-live date (recorded in #115)"
+    migration_path: "#100 trial migration; #115 final production migration"
+
+  - id: DS-003
+    category: data_store
+    name: TradeFlow PostgreSQL
+    classification: implemented_and_verified
+    evidence: migrations, infra/compose.yaml, CI migration verification
+    verified_by: CI gate
+
+  - id: DS-004
+    category: data_store
+    name: TradeFlow object storage
+    classification: implemented_and_verified
+    evidence: MinIO in compose, object_storage.py
+    verified_by: CI gate
+
+high_frequency_workflows:
+  - id: HF-ORDER-001
+    name: Create sales order
+    owner: Sales manager
+    sampling_window: 2 weeks, n>=50
+    metrics:
+      - metric: task_time_minutes
+        baseline: 5.0
+        source: approved_masked_observation
+      - metric: correction_rate_percent
+        baseline: 5.0
+        source: approved_masked_observation
+
+  - id: HF-DEL-001
+    name: Record proof of delivery
+    owner: Delivery supervisor
+    sampling_window: 2 weeks, n>=50
+    metrics:
+      - metric: task_time_minutes
+        baseline: 2.0
+        source: approved_masked_observation
+      - metric: exception_rate_percent
+        baseline: 2.0
+        source: approved_masked_observation
+
+  - id: HF-PAY-001
+    name: Allocate payment to invoices
+    owner: Finance manager
+    sampling_window: 2 weeks, n>=50
+    metrics:
+      - metric: task_time_minutes
+        baseline: 3.0
+        source: approved_masked_observation
+      - metric: unmatched_rate_percent
+        baseline: 3.0
+        source: approved_masked_observation
+
+  - id: HF-RET-001
+    name: Process customer return
+    owner: Returns lead
+    sampling_window: 4 weeks, n>=20
+    metrics:
+      - metric: cycle_time_hours
+        baseline: 24.0
+        source: approved_masked_observation
+      - metric: correction_rate_percent
+        baseline: 10.0
+        source: approved_masked_observation
+
+success_measures:
+  - id: SM-ORDER-001
+    name: Order-entry time and correction rate
+    source: Web order-entry workspace telemetry and order audit log
+    formula: Median minutes from new-order to submitted; corrections per 100 submitted orders
+    window: Weekly
+    baseline: "5 min / 5% (current-system baseline, approved observation window)"
+    target: "<= 4 min median and <= 2% correction rate"
+    owner: Sales operations
+    missing_data_behavior: Distinguish no-orders from zero-time; report NULL for missing window
+
+  - id: SM-STOCK-001
+    name: Stock variance and reservation conflicts
+    source: Inventory projection, reservation events, and adjustment log
+    formula: Count of variance exceptions + count of concurrent-reservation conflicts per week
+    window: Weekly
+    baseline: "Current-system baseline TBD during observation window"
+    target: Zero unexplained variances; conflicts resolved without balance edits
+    owner: Warehouse lead
+    missing_data_behavior: Missing source treated as unknown, not zero
+
+  - id: SM-DEL-001
+    name: Delivery completion and exception resolution time
+    source: Delivery confirmation events and exception records
+    formula: Percentage of deliveries completed same day; median exception resolution hours
+    window: Weekly
+    baseline: "95% same-day completion / 4 hr exception resolution (current-system baseline)"
+    target: ">= 98% same-day; <= 2 hr exception resolution"
+    owner: Delivery supervisor
+    missing_data_behavior: Missing confirmation treated as incomplete, not completed
+
+  - id: SM-PAY-001
+    name: Unallocated payment age and statement reconciliation
+    source: payment_receipt_balances, payment_allocations, customer_ledger_entries
+    formula: Max age in days of unapplied cleared receipts; statement-to-ledger variance
+    window: Daily
+    baseline: "<= 7 days / zero variance (post #116 baseline)"
+    target: "<= 3 days / zero variance"
+    owner: Finance manager
+    missing_data_behavior: Missing receipt balance treated as unknown; zero unapplied is explicit
+
+  - id: SM-RET-001
+    name: Return cycle time and damaged-stock visibility
+    source: Return authorization, inspection, and quarantine records
+    formula: Median hours from request to disposition; percentage of damaged stock visible in quarantine
+    window: Weekly
+    baseline: "24 hr / 100% visible (current-system baseline)"
+    target: "<= 12 hr / 100% visible"
+    owner: Returns lead
+    missing_data_behavior: No return record treated as no returns, not zero cycle time
+
+  - id: SM-PUR-001
+    name: Purchase lead time and receipt variance
+    source: Purchase orders and goods receipt events
+    formula: Median days PO to receipt; count and value of receipt variances
+    window: Weekly
+    baseline: "Current-system baseline TBD during observation window"
+    target: "Within current-system baseline; variances <= 1% of receipt value"
+    owner: Procurement lead
+    missing_data_behavior: Missing PO/receipt treated as unknown
+
+  - id: SM-EXP-001
+    name: Expense approval time
+    source: Expense claim events
+    formula: Median hours from claim submission to approval/posting
+    window: Weekly
+    baseline: "48 hr (current-system baseline)"
+    target: "<= 24 hr"
+    owner: Finance lead
+    missing_data_behavior: No claims treated as no data, not zero
+
+  - id: SM-COMM-001
+    name: Commission dispute/recalculation rate
+    source: Commission accrual, adjustment, and reversal events
+    formula: Disputes and recalculations per 100 payouts
+    window: Monthly
+    baseline: "Current-system baseline TBD during observation window"
+    target: "<= 2%"
+    owner: Finance lead
+    missing_data_behavior: Missing commission data treated as unknown
+
+  - id: SM-MOB-001
+    name: Mobile crash-free sessions and sync success
+    source: Mobile telemetry and outbox completion
+    formula: Crash-free session percentage; outbox commands completed / commands queued
+    window: Daily
+    baseline: ">= 99% crash-free / >= 99% sync success (target baseline)"
+    target: ">= 99.5% crash-free / >= 99.5% sync success"
+    owner: Mobile/platform lead
+    missing_data_behavior: Missing telemetry treated as unknown, not 100%
+
+  - id: SM-UAT-001
+    name: User task completion compared with current system
+    source: UAT task scripts and timed observation
+    formula: Percentage of UAT tasks completed without assist; median time vs current-system baseline
+    window: Per UAT cycle
+    baseline: "Current-system baseline from high-frequency workflow observations"
+    target: ">= 95% unassisted and non-inferior task time"
+    owner: Release steering committee
+    missing_data_behavior: Missing UAT result blocks #103 go decision
+
+approval_log:
+  - item_id: BASELINE-001
+    action: published
+    approver: Release steering committee
+    date: "2026-08-19"
+    note: >
+      Initial approved baseline. Business-owner approvals for individual
+      retirements and bridges are recorded in each inventory item.
