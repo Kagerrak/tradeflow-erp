@@ -1423,6 +1423,171 @@
         "title": "CODOnAccountConversionResponse",
         "type": "object"
       },
+      "CancelSalesOrderCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CancelSalesOrderLineCommand"
+            },
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lines",
+          "reason"
+        ],
+        "title": "CancelSalesOrderCommand",
+        "type": "object"
+      },
+      "CancelSalesOrderLineCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "cancel_quantity_base": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Cancel Quantity Base"
+          },
+          "line_id": {
+            "format": "uuid",
+            "title": "Line Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line_id",
+          "cancel_quantity_base"
+        ],
+        "title": "CancelSalesOrderLineCommand",
+        "type": "object"
+      },
+      "CancelSalesOrderResponse": {
+        "properties": {
+          "backorder_reduced_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Backorder Reduced Quantity Base",
+            "type": "string"
+          },
+          "cancellation_id": {
+            "format": "uuid",
+            "title": "Cancellation Id",
+            "type": "string"
+          },
+          "cancelled_by": {
+            "title": "Cancelled By",
+            "type": "string"
+          },
+          "credit_released_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Credit Released Base",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CancelledLineResponse"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "reserved_released_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Reserved Released Quantity Base",
+            "type": "string"
+          },
+          "sales_order_id": {
+            "format": "uuid",
+            "title": "Sales Order Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "approved",
+              "partially_cancelled",
+              "cancelled",
+              "held"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "total_cancelled_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Cancelled Quantity Base",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cancellation_id",
+          "sales_order_id",
+          "status",
+          "reason",
+          "cancelled_by",
+          "lines",
+          "total_cancelled_quantity_base",
+          "reserved_released_quantity_base",
+          "backorder_reduced_quantity_base",
+          "credit_released_base"
+        ],
+        "title": "CancelSalesOrderResponse",
+        "type": "object"
+      },
+      "CancelledLineResponse": {
+        "properties": {
+          "backorder_reduced_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Backorder Reduced Quantity Base",
+            "type": "string"
+          },
+          "cancelled_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cancelled Quantity Base",
+            "type": "string"
+          },
+          "line_id": {
+            "format": "uuid",
+            "title": "Line Id",
+            "type": "string"
+          },
+          "line_total_delta": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Line Total Delta",
+            "type": "string"
+          },
+          "reserved_released_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Reserved Released Quantity Base",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line_id",
+          "cancelled_quantity_base",
+          "reserved_released_quantity_base",
+          "backorder_reduced_quantity_base",
+          "line_total_delta"
+        ],
+        "title": "CancelledLineResponse",
+        "type": "object"
+      },
       "CashReconciliationAdjustmentCommand": {
         "additionalProperties": false,
         "properties": {
@@ -11197,6 +11362,11 @@
             "title": "Backorder Quantity Base",
             "type": "string"
           },
+          "cancelled_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cancelled Quantity Base",
+            "type": "string"
+          },
           "line_id": {
             "format": "uuid",
             "title": "Line Id",
@@ -11205,6 +11375,11 @@
           "ordered_quantity_base": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Ordered Quantity Base",
+            "type": "string"
+          },
+          "picked_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Picked Quantity Base",
             "type": "string"
           },
           "reserved_quantity_base": {
@@ -11223,7 +11398,9 @@
           "sku_id",
           "ordered_quantity_base",
           "reserved_quantity_base",
-          "backorder_quantity_base"
+          "picked_quantity_base",
+          "backorder_quantity_base",
+          "cancelled_quantity_base"
         ],
         "title": "ReservationLineResponse",
         "type": "object"
@@ -11717,6 +11894,10 @@
             "title": "Lines",
             "type": "array"
           },
+          "metadata_version": {
+            "title": "Metadata Version",
+            "type": "integer"
+          },
           "order_discount_amount": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Order Discount Amount",
@@ -11797,7 +11978,9 @@
             "enum": [
               "draft",
               "approved",
-              "held"
+              "held",
+              "partially_cancelled",
+              "cancelled"
             ],
             "title": "Status",
             "type": "string"
@@ -11826,6 +12009,7 @@
           "sales_order_id",
           "status",
           "version",
+          "metadata_version",
           "branch_id",
           "customer_id",
           "customer_version",
@@ -12165,6 +12349,10 @@
             "title": "Grand Total",
             "type": "string"
           },
+          "metadata_version": {
+            "title": "Metadata Version",
+            "type": "integer"
+          },
           "payment_timing_policy": {
             "enum": [
               "prepaid",
@@ -12183,7 +12371,9 @@
             "enum": [
               "draft",
               "approved",
-              "held"
+              "held",
+              "partially_cancelled",
+              "cancelled"
             ],
             "title": "Status",
             "type": "string"
@@ -12197,6 +12387,7 @@
           "sales_order_id",
           "status",
           "version",
+          "metadata_version",
           "branch_id",
           "customer_id",
           "customer_name",
@@ -26545,6 +26736,145 @@
           }
         ],
         "summary": "Update Sales Order Draft",
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/v1/sales/orders/{sales_order_id}/cancellation": {
+      "post": {
+        "operationId": "cancel_sales_order_v1_sales_orders__sales_order_id__cancellation_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sales_order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sales Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "If-Match",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelSalesOrderCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelSalesOrderResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Cancel Sales Order",
         "tags": [
           "sales"
         ]

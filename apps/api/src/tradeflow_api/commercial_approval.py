@@ -32,6 +32,7 @@ from tradeflow_api.models import (
     inventory_availability,
     inventory_reservation_events,
     inventory_reserved_by_sku_warehouse,
+    sales_order_cancellation_lines,
     sales_order_line_commitments,
     sales_order_line_revisions,
     sales_order_revisions,
@@ -75,7 +76,9 @@ class ReservationLineResponse(BaseModel):
     sku_id: UUID
     ordered_quantity_base: Decimal
     reserved_quantity_base: Decimal
+    picked_quantity_base: Decimal
     backorder_quantity_base: Decimal
+    cancelled_quantity_base: Decimal
 
 
 class CreditCheckResponse(BaseModel):
@@ -1204,7 +1207,9 @@ async def approve_sales_order(
                     warehouse_id=command.warehouse_id,
                     ordered_quantity_base=ordered,
                     reserved_quantity_base=reserved,
+                    picked_quantity_base=ZERO,
                     backorder_quantity_base=backordered,
+                    cancelled_quantity_base=ZERO,
                 )
             )
             if reserved > ZERO:
@@ -1231,7 +1236,9 @@ async def approve_sales_order(
                     sku_id=line["sku_id"],
                     ordered_quantity_base=ordered,
                     reserved_quantity_base=reserved,
+                    picked_quantity_base=ZERO,
                     backorder_quantity_base=backordered,
+                    cancelled_quantity_base=ZERO,
                 )
             )
         for sku_id, reserved_delta in reserved_delta_by_sku.items():
@@ -1486,6 +1493,19 @@ async def rebuild_commercial_projections(
                 )
             )
             reservation_items += 1
+        cancelled_quantity = (
+            select(
+                func.coalesce(
+                    func.sum(sales_order_cancellation_lines.c.cancelled_quantity_base), ZERO
+                )
+            )
+            .where(
+                sales_order_cancellation_lines.c.line_id
+                == sales_order_line_revisions.c.line_id
+            )
+            .correlate(sales_order_line_revisions)
+            .scalar_subquery()
+        )
         active_lines = (
             await session.execute(
                 select(
@@ -1526,6 +1546,7 @@ async def rebuild_commercial_projections(
                         ),
                         ZERO,
                     ).label("picked_quantity_base"),
+                    cancelled_quantity.label("cancelled_quantity_base"),
                 )
                 .select_from(
                     commercial_approvals.join(
@@ -1559,6 +1580,7 @@ async def rebuild_commercial_projections(
                     sales_order_line_revisions.c.line_id,
                     sales_order_line_revisions.c.sku_id,
                     sales_order_line_revisions.c.quantity_base,
+                    cancelled_quantity,
                 )
             )
         ).mappings()
@@ -1580,7 +1602,9 @@ async def rebuild_commercial_projections(
                         row["ordered_quantity_base"]
                         - row["reserved_quantity_base"]
                         - row["picked_quantity_base"]
+                        - row["cancelled_quantity_base"]
                     ),
+                    cancelled_quantity_base=row["cancelled_quantity_base"],
                 )
             )
             line_commitments += 1
