@@ -1,7 +1,7 @@
 # First-release scope reconciliation
 
 - Date: August 20, 2026
-- Baseline: `origin/main` at `ae2e010`
+- Baseline: `origin/main` at `74e2b62`
 - Tracker reconciliation: GitHub issue #55
 - Pending evidence: Return Authorization PR #112 at `e9abb2f` (green, awaiting
   explicit PR-specific approval); Inventory Transfer PR #114 local head
@@ -9,7 +9,8 @@
   Issue #110 current-system baseline closed by PR #117; Issue #77 closed by PR
   #118; Issue #78 closed by PR #119 at `4cca220`; Issue #108 closed by PR #120
   at `3f382ca`; Issue #83 closed by PR #121 at `2218cde`; Issue #97 closed by
-  PR #122 at `e266dcd`; Issue #105 closed by PR #123 at `ae2e010`.
+  PR #122 at `e266dcd`; Issue #105 closed by PR #123 at `ae2e010`; Issue #106
+  closed by PR #124 at `74e2b62`.
 
 ## Why the tracker was reopened
 
@@ -70,7 +71,7 @@ PRD behavior or release evidence does not.
 | Reorder and stock-aging views                                                                                           | No API, projection, web route or test exists                                                                                                                                     | Missing: #58, #82                                                                                     |
 | Quotation-to-Order                                                                                                      | `quotations.py`, `quotation_revisions`, `quotation_approvals`, and `quotation_conversion_events` implement draft/version, approval, immutable conversion snapshot and one linked Sales Order Draft via PR #123 | Shipped foundation; quotation numbering/template consumers remain #104                                |
 | Price, discount, tax, terms, credit and Commercial Approval                                                             | `sales.py`, `commercial_approval.py`, migrations `0007`–`0008`, and sales/approval tests                                                                                         | Shipped foundation                                                                                    |
-| Partial reservation, fulfillment, cancellation and Backorder Demand                                                     | Reservation, partial fulfillment and Backorder Demand are tested; no authorized Order Cancellation command exists                                                                | Partial: #104, #106                                                                                   |
+| Partial reservation, fulfillment, cancellation and Backorder Demand                                                     | Reservation, partial fulfillment, Backorder Demand and authorized Order Cancellation with reservation release, exposure update, immutable reasons and re-reservation status implemented by PR #124 | Shipped foundation; parent tracker #104 remains for remaining sales-order lifecycle items              |
 | Fulfillment preparation and Delivery assignment                                                                         | `picking.py`, `dispatch.py`, migrations `0010`–`0011`, web/mobile workbenches and contract tests                                                                                 | Shipped foundation                                                                                    |
 | Multiple Deliveries/Delivery Receipts from eligible order lines                                                         | `dispatch.py`, `delivery_confirmation.py`, `delivery_corrections.py` and their contract tests preserve line/source links                                                         | Shipped foundation                                                                                    |
 | Recipient/signature/photo/timestamp/exception evidence and printable/shareable Delivery Receipt                         | `delivery_confirmation.py`, `delivery_confirmation_outbox.py`, `object_storage.py`, mobile offline evidence tests, and `test_delivery_confirmation_contract.py`                  | Shipped foundation; real-device/recovery evidence remains #98–#99                                     |
@@ -141,11 +142,13 @@ and staging/security.
   evidence) to `main` at `e266dcd`.
 - PR #123 merged issue #105 (quotation creation, approval and conversion to
   Sales Order Draft) to `main` at `ae2e010`.
+- PR #124 merged issue #106 (cancel open Sales Order quantity and complete
+  backorder lifecycle) to `main` at `74e2b62`.
 
 ## Dependency-ready work
 
 The active slice is now closed. The next dependency-ready slices include #94,
-#106–#109. Delivery still proceeds one vertical slice at a time; the additional
+#107–#109. Delivery still proceeds one vertical slice at a time; the additional
 ready issues make blockers visible rather than inviting parallel mutation of
 shared domain foundations.
 
