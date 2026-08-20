@@ -1,7 +1,7 @@
 # First-release scope reconciliation
 
 - Date: August 20, 2026
-- Baseline: `origin/main` at `e266dcd`
+- Baseline: `origin/main` at `ae2e010`
 - Tracker reconciliation: GitHub issue #55
 - Pending evidence: Return Authorization PR #112 at `e9abb2f` (green, awaiting
   explicit PR-specific approval); Inventory Transfer PR #114 local head
@@ -9,7 +9,7 @@
   Issue #110 current-system baseline closed by PR #117; Issue #77 closed by PR
   #118; Issue #78 closed by PR #119 at `4cca220`; Issue #108 closed by PR #120
   at `3f382ca`; Issue #83 closed by PR #121 at `2218cde`; Issue #97 closed by
-  PR #122 at `e266dcd`.
+  PR #122 at `e266dcd`; Issue #105 closed by PR #123 at `ae2e010`.
 
 ## Why the tracker was reopened
 
@@ -68,7 +68,7 @@ PRD behavior or release evidence does not.
 | Receipts, reservations, deliveries, custody and immutable inventory projections                                         | `catalog_inventory.py`, `inventory_projection_service.py`, `goods_receipts.py`, delivery modules and invariant tests; agent-reviewed PR #114 adds Transfer but is not merged     | Partial: customer returns/damage #56, #65–#70; Inventory Transfer pending PR #114; Adjustment #107    |
 | On-hand, Reserved, Available, Quarantine and Damaged quantities                                                         | Availability/custody projections cover Available, Quarantine, Dispatch Staging, In Transit and Investigation; no complete customer-return Damaged Item lifecycle exists          | Partial: #56, #65–#70                                                                                 |
 | Reorder and stock-aging views                                                                                           | No API, projection, web route or test exists                                                                                                                                     | Missing: #58, #82                                                                                     |
-| Quotation-to-Order                                                                                                      | No Quotation model, migration, API, web/mobile workflow or test exists                                                                                                           | Missing: #104, #105                                                                                   |
+| Quotation-to-Order                                                                                                      | `quotations.py`, `quotation_revisions`, `quotation_approvals`, and `quotation_conversion_events` implement draft/version, approval, immutable conversion snapshot and one linked Sales Order Draft via PR #123 | Shipped foundation; quotation numbering/template consumers remain #104                                |
 | Price, discount, tax, terms, credit and Commercial Approval                                                             | `sales.py`, `commercial_approval.py`, migrations `0007`–`0008`, and sales/approval tests                                                                                         | Shipped foundation                                                                                    |
 | Partial reservation, fulfillment, cancellation and Backorder Demand                                                     | Reservation, partial fulfillment and Backorder Demand are tested; no authorized Order Cancellation command exists                                                                | Partial: #104, #106                                                                                   |
 | Fulfillment preparation and Delivery assignment                                                                         | `picking.py`, `dispatch.py`, migrations `0010`–`0011`, web/mobile workbenches and contract tests                                                                                 | Shipped foundation                                                                                    |
@@ -92,7 +92,7 @@ PRD behavior or release evidence does not.
 | Generated OpenAPI clients shared by web/mobile                                                                          | `openapi/openapi.json`, `packages/api-client/src/schema.d.ts`, generation scripts and CI drift checks exist                                                                      | Shipped foundation; every contract-changing slice retains the gate                                    |
 | Logs, metrics, traces, backup, migration and rollback                                                                   | Correlation/tracing and migration checks exist; rate-limit/session middleware and security incident runbooks added by PR #122; production-like recovery evidence remains open | Partial: #97 shipped; #62, #99–#102 remain                                                            |
 | Accessibility, responsive behavior and real-device testing                                                              | Playwright covers desktop/mobile-web and native component tests exist; physical-device and full accessibility/performance evidence is open                                       | Partial: #98                                                                                          |
-| Configurable timezone, currency, tax, numbering and document templates                                                  | Base Currency guard, timezone on companies/branches, effective-dated tax snapshots, document-series versioning and versioned Jinja2 document templates implemented by PR #120 | Shipped foundation; quotation numbering consumers remain #104, #105                                      |
+| Configurable timezone, currency, tax, numbering and document templates                                                  | Base Currency guard, timezone on companies/branches, effective-dated tax snapshots, document-series versioning and versioned Jinja2 document templates implemented by PR #120; quotation conversion consumes document series via PR #123 | Shipped foundation                                                                                      |
 | Import/export tools for legacy migration                                                                                | OpenAPI export is not a business migration/export tool; no legacy import pipeline or role-aware history export exists                                                            | Missing: trial migration #100, final production migration #115, and customer export #96               |
 | Discovery inventory and current workflow time/error baseline                                                            | No approved inventory of current screens/reports/roles/integrations/exports or observed task-time/error baseline exists                                                          | Missing: #110                                                                                         |
 | PRD success measures and release-candidate comparison                                                                   | Telemetry foundations exist, but sources, formulas, baselines, targets and owners for the PRD measures are not documented                                                        | Missing: #110; final comparison feeds #103                                                            |
@@ -139,13 +139,15 @@ and staging/security.
   to `main` at `2218cde`.
 - PR #122 merged issue #97 (production-like staging and authorization/security
   evidence) to `main` at `e266dcd`.
+- PR #123 merged issue #105 (quotation creation, approval and conversion to
+  Sales Order Draft) to `main` at `ae2e010`.
 
 ## Dependency-ready work
 
-The active slice is now closed. The next dependency-ready slices include #94
-and #105–#109. Delivery still proceeds one vertical slice at a time; the
-additional ready issues make blockers visible rather than inviting parallel
-mutation of shared domain foundations.
+The active slice is now closed. The next dependency-ready slices include #94,
+#106–#109. Delivery still proceeds one vertical slice at a time; the additional
+ready issues make blockers visible rather than inviting parallel mutation of
+shared domain foundations.
 
 ## Completion rule
 
