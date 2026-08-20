@@ -1,7 +1,7 @@
 # First-release scope reconciliation
 
 - Date: August 20, 2026
-- Baseline: `origin/main` at `9dd707d`
+- Baseline: `origin/main` at `a4be96b`
 - Tracker reconciliation: GitHub issue #55
 - Pending evidence: Return Authorization PR #112 at `e9abb2f` (green, awaiting
   explicit PR-specific approval); Inventory Transfer PR #114 local head
@@ -10,7 +10,8 @@
   #118; Issue #78 closed by PR #119 at `4cca220`; Issue #108 closed by PR #120
   at `3f382ca`; Issue #83 closed by PR #121 at `2218cde`; Issue #97 closed by
   PR #122 at `e266dcd`; Issue #105 closed by PR #123 at `ae2e010`; Issue #106
-  closed by PR #124 at `74e2b62`; Issue #94 closed by PR #125 at `9dd707d`.
+  closed by PR #124 at `74e2b62`; Issue #94 closed by PR #125 at `9dd707d`;
+  Issue #109 closed by PR #126 at `a4be96b`.
 
 ## Why the tracker was reopened
 
@@ -88,7 +89,7 @@ PRD behavior or release evidence does not.
 | Effective-dated Commission plans, attribution, accrual, reversal and payout                                             | Only `contexts/commissions/CONTEXT.md` exists                                                                                                                                    | Missing and policy-gated: #60, #64, #88–#93                                                           |
 | Customer Product/Category history, drill-down, filters and role-aware export                                            | No reporting/export runtime module or worker exists                                                                                                                              | Missing: #61, #94–#96                                                                                 |
 | Responsive web approvals, purchasing, finance, statements, reports and configuration                                    | Existing web routes cover shipped order/delivery/initial finance/procurement slices                                                                                              | Partial: each functional issue plus configuration #108 and reporting #94–#96                          |
-| Mobile customer lookup, sales, receiving/picking, delivery proof, returns, expense capture, approvals and notifications | Customer/sales/pick/delivery/payment mobile workflows exist; Returns, Expense, broader receiving/approval and notification journeys do not                                       | Partial: #66–#69, #78–#81, #84–#86, notifications #109, device evidence #98                           |
+| Mobile customer lookup, sales, receiving/picking, delivery proof, returns, expense capture, approvals and notifications | Customer/sales/pick/delivery/payment mobile workflows exist; scoped operational notifications, device registration, deep-link auth and inbox implemented by PR #126; Returns, Expense capture and broader receiving/approval journeys remain | Partial: #109 shipped; #66–#69, #84–#86, device evidence #98 remain                                    |
 | One server authorization model, immutable audit, idempotency and database constraints                                   | Existing commands use shared auth, command receipts, scopes and PostgreSQL constraints; authorization matrix evidence and admin non-escalation tests added by PR #122 | Partial by completeness contract: every new command must extend these controls; security matrix #97 shipped |
 | Generated OpenAPI clients shared by web/mobile                                                                          | `openapi/openapi.json`, `packages/api-client/src/schema.d.ts`, generation scripts and CI drift checks exist                                                                      | Shipped foundation; every contract-changing slice retains the gate                                    |
 | Logs, metrics, traces, backup, migration and rollback                                                                   | Correlation/tracing and migration checks exist; rate-limit/session middleware and security incident runbooks added by PR #122; production-like recovery evidence remains open | Partial: #97 shipped; #62, #99–#102 remain                                                            |
@@ -146,14 +147,15 @@ and staging/security.
   backorder lifecycle) to `main` at `74e2b62`.
 - PR #125 merged issue #94 (consolidated customer transaction timeline) to
   `main` at `9dd707d`.
+- PR #126 merged issue #109 (scoped mobile operational notifications and deep
+  links) to `main` at `a4be96b`.
 
 ## Dependency-ready work
 
-The active slice is now closed. The next dependency-ready slices include
-#107–#109. Issue #107 remains blocked by the two policy decisions pending on
-Inventory Transfer PR #114. Delivery still proceeds one vertical slice at a
-time; the additional ready issues make blockers visible rather than inviting
-parallel mutation of shared domain foundations.
+The active slice is now closed. The only remaining dependency-ready slice is
+#107, which remains blocked by the two policy decisions pending on Inventory
+Transfer PR #114. No additional dependency-ready slices remain that can be
+worked without resolving that blocker.
 
 ## Completion rule
 
