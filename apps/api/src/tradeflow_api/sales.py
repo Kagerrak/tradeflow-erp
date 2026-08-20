@@ -209,8 +209,9 @@ class SalesOrderLineResponse(BaseModel):
 
 class SalesOrderDraftResponse(BaseModel):
     sales_order_id: UUID
-    status: Literal["draft", "approved", "held"]
+    status: Literal["draft", "approved", "held", "partially_cancelled", "cancelled"]
     version: int
+    metadata_version: int
     branch_id: UUID
     customer_id: UUID
     customer_version: int
@@ -238,8 +239,9 @@ class SalesOrderDraftResponse(BaseModel):
 
 class SalesOrderSearchItem(BaseModel):
     sales_order_id: UUID
-    status: Literal["draft", "approved", "held"]
+    status: Literal["draft", "approved", "held", "partially_cancelled", "cancelled"]
     version: int
+    metadata_version: int
     branch_id: UUID
     customer_id: UUID
     customer_name: str
@@ -1293,6 +1295,7 @@ async def calculate_draft(
         sales_order_id=sales_order_id,
         status="draft",
         version=version,
+        metadata_version=1,
         branch_id=command.branch_id,
         customer_id=command.customer_id,
         customer_version=context.customer["version"],
@@ -1617,6 +1620,7 @@ async def load_sales_order_response(
         sales_order_id=sales_order_id,
         status=order["status"],
         version=revision["version"],
+        metadata_version=order["metadata_version"],
         branch_id=revision["branch_id"],
         customer_id=revision["customer_id"],
         customer_version=revision["customer_version"],
@@ -1693,6 +1697,7 @@ async def search_sales_order_drafts(
                 sales_orders.c.sales_order_id,
                 sales_orders.c.status,
                 sales_orders.c.version,
+                sales_orders.c.metadata_version,
                 sales_orders.c.branch_id,
                 sales_orders.c.customer_id,
                 customer_accounts.c.legal_name.label("customer_name"),

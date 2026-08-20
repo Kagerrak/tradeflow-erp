@@ -1285,7 +1285,7 @@ sales_orders = Table(
         onupdate=func.now(),
     ),
     CheckConstraint(
-        "status IN ('draft', 'approved', 'held')",
+        "status IN ('draft', 'approved', 'held', 'partially_cancelled', 'cancelled')",
         name="ck_sales_orders_status",
     ),
     CheckConstraint("version > 0", name="ck_sales_orders_version_positive"),
@@ -2201,11 +2201,13 @@ sales_order_line_commitments = Table(
     Column("reserved_quantity_base", Numeric(18, 6), nullable=False),
     Column("picked_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
     Column("backorder_quantity_base", Numeric(18, 6), nullable=False),
+    Column("cancelled_quantity_base", Numeric(18, 6), nullable=False, server_default="0"),
     CheckConstraint(
         "ordered_quantity_base > 0 AND reserved_quantity_base >= 0 "
         "AND picked_quantity_base >= 0 AND backorder_quantity_base >= 0 "
+        "AND cancelled_quantity_base >= 0 "
         "AND reserved_quantity_base + picked_quantity_base + backorder_quantity_base "
-        "= ordered_quantity_base",
+        "+ cancelled_quantity_base = ordered_quantity_base",
         name="ck_sales_order_line_commitments_quantities",
     ),
     ForeignKeyConstraint(
@@ -2898,6 +2900,69 @@ active_sales_order_holds = Table(
         nullable=False,
     ),
     Column("applied_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+)
+
+sales_order_cancellations = Table(
+    "sales_order_cancellations",
+    metadata,
+    Column("cancellation_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "sales_order_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("sales_orders.sales_order_id"),
+        nullable=False,
+    ),
+    Column("reason", String(500), nullable=False),
+    Column("cancelled_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False, unique=True),
+    Column(
+        "cancelled_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    ),
+    CheckConstraint("btrim(reason) <> ''", name="ck_sales_order_cancellation_reason"),
+    Index(
+        "ix_sales_order_cancellations_order",
+        "sales_order_id",
+        "cancelled_at",
+    ),
+)
+
+sales_order_cancellation_lines = Table(
+    "sales_order_cancellation_lines",
+    metadata,
+    Column("cancellation_line_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "cancellation_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("sales_order_cancellations.cancellation_id"),
+        nullable=False,
+    ),
+    Column("line_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("sku_id", PostgresUUID(as_uuid=True), ForeignKey("skus.sku_id"), nullable=False),
+    Column("cancelled_quantity_base", Numeric(18, 6), nullable=False),
+    Column("reserved_released_quantity_base", Numeric(18, 6), nullable=False),
+    Column("backorder_reduced_quantity_base", Numeric(18, 6), nullable=False),
+    Column("line_total_delta", Numeric(24, 6), nullable=False),
+    CheckConstraint(
+        "cancelled_quantity_base > 0 "
+        "AND reserved_released_quantity_base >= 0 "
+        "AND backorder_reduced_quantity_base >= 0 "
+        "AND reserved_released_quantity_base + backorder_reduced_quantity_base "
+        "= cancelled_quantity_base",
+        name="ck_sales_order_cancellation_line_quantity",
+    ),
+    CheckConstraint(
+        "line_total_delta >= 0",
+        name="ck_sales_order_cancellation_line_value",
+    ),
+    Index(
+        "ix_sales_order_cancellation_lines_order",
+        "cancellation_id",
+        "line_id",
+    ),
 )
 
 pick_releases = Table(

@@ -368,6 +368,12 @@ async def require_commercial_approver(
     return require_capability(user, "sales:commercial-approve")
 
 
+async def require_order_canceller(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "sales:order-cancel")
+
+
 async def require_sales_projection_rebuilder(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:

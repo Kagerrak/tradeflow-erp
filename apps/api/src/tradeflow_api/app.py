@@ -44,6 +44,7 @@ from tradeflow_api.observability import (
     instrument_app,
 )
 from tradeflow_api.operational_policies import router as operational_policies_router
+from tradeflow_api.order_cancellation import router as order_cancellation_router
 from tradeflow_api.organization import router as organization_router
 from tradeflow_api.payment_allocation import router as payment_allocation_router
 from tradeflow_api.payment_fulfillment import router as payment_fulfillment_router
@@ -131,6 +132,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(purchase_requests_router)
     app.include_router(quotations_router)
     app.include_router(sales_router)
+    app.include_router(order_cancellation_router)
     app.include_router(suppliers_router)
     instrument_app(app, engine, resolved_settings)
 

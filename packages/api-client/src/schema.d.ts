@@ -1633,6 +1633,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sales/orders/{sales_order_id}/cancellation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Sales Order */
+        post: operations["cancel_sales_order_v1_sales_orders__sales_order_id__cancellation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sales/orders/{sales_order_id}/commercial-approval": {
         parameters: {
             query?: never;
@@ -2410,6 +2427,71 @@ export interface components {
              * @enum {string}
              */
             status: "approved" | "consumed";
+        };
+        /** CancelSalesOrderCommand */
+        CancelSalesOrderCommand: {
+            /** Lines */
+            lines: components["schemas"]["CancelSalesOrderLineCommand"][];
+            /** Reason */
+            reason: string;
+        };
+        /** CancelSalesOrderLineCommand */
+        CancelSalesOrderLineCommand: {
+            /** Cancel Quantity Base */
+            cancel_quantity_base: number | string;
+            /**
+             * Line Id
+             * Format: uuid
+             */
+            line_id: string;
+        };
+        /** CancelSalesOrderResponse */
+        CancelSalesOrderResponse: {
+            /** Backorder Reduced Quantity Base */
+            backorder_reduced_quantity_base: string;
+            /**
+             * Cancellation Id
+             * Format: uuid
+             */
+            cancellation_id: string;
+            /** Cancelled By */
+            cancelled_by: string;
+            /** Credit Released Base */
+            credit_released_base: string;
+            /** Lines */
+            lines: components["schemas"]["CancelledLineResponse"][];
+            /** Reason */
+            reason: string;
+            /** Reserved Released Quantity Base */
+            reserved_released_quantity_base: string;
+            /**
+             * Sales Order Id
+             * Format: uuid
+             */
+            sales_order_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "approved" | "partially_cancelled" | "cancelled" | "held";
+            /** Total Cancelled Quantity Base */
+            total_cancelled_quantity_base: string;
+        };
+        /** CancelledLineResponse */
+        CancelledLineResponse: {
+            /** Backorder Reduced Quantity Base */
+            backorder_reduced_quantity_base: string;
+            /** Cancelled Quantity Base */
+            cancelled_quantity_base: string;
+            /**
+             * Line Id
+             * Format: uuid
+             */
+            line_id: string;
+            /** Line Total Delta */
+            line_total_delta: string;
+            /** Reserved Released Quantity Base */
+            reserved_released_quantity_base: string;
         };
         /** CashReconciliationAdjustmentCommand */
         CashReconciliationAdjustmentCommand: {
@@ -6327,6 +6409,8 @@ export interface components {
         ReservationLineResponse: {
             /** Backorder Quantity Base */
             backorder_quantity_base: string;
+            /** Cancelled Quantity Base */
+            cancelled_quantity_base: string;
             /**
              * Line Id
              * Format: uuid
@@ -6334,6 +6418,8 @@ export interface components {
             line_id: string;
             /** Ordered Quantity Base */
             ordered_quantity_base: string;
+            /** Picked Quantity Base */
+            picked_quantity_base: string;
             /** Reserved Quantity Base */
             reserved_quantity_base: string;
             /**
@@ -6567,6 +6653,8 @@ export interface components {
             grand_total: string;
             /** Lines */
             lines: components["schemas"]["SalesOrderLineResponse"][];
+            /** Metadata Version */
+            metadata_version: number;
             /** Order Discount Amount */
             order_discount_amount: string;
             /**
@@ -6611,7 +6699,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "draft" | "approved" | "held";
+            status: "draft" | "approved" | "held" | "partially_cancelled" | "cancelled";
             /** Subtotal */
             subtotal: string;
             /** Tax Total */
@@ -6745,6 +6833,8 @@ export interface components {
             customer_name: string;
             /** Grand Total */
             grand_total: string;
+            /** Metadata Version */
+            metadata_version: number;
             /**
              * Payment Timing Policy
              * @enum {string}
@@ -6759,7 +6849,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "draft" | "approved" | "held";
+            status: "draft" | "approved" | "held" | "partially_cancelled" | "cancelled";
             /** Version */
             version: number;
         };
@@ -16092,6 +16182,98 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SalesOrderDraftResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    cancel_sales_order_v1_sales_orders__sales_order_id__cancellation_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": number;
+                "Idempotency-Key": string;
+            };
+            path: {
+                sales_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancelSalesOrderCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CancelSalesOrderResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
             /** @description Stable TradeFlow error envelope. */
