@@ -20,6 +20,7 @@ from tradeflow_api.commercial_approval import router as commercial_approval_rout
 from tradeflow_api.config import Settings, get_settings
 from tradeflow_api.credit_notes import router as credit_notes_router
 from tradeflow_api.customer_statement import router as customer_statement_router
+from tradeflow_api.customer_timeline import router as customer_timeline_router
 from tradeflow_api.customers import router as customers_router
 from tradeflow_api.database import (
     check_database,
@@ -121,6 +122,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(expenses_router)
     app.include_router(payment_allocation_router)
     app.include_router(customer_statement_router)
+    app.include_router(customer_timeline_router)
     app.include_router(payment_fulfillment_router)
     if resolved_settings.picking_enabled:
         app.include_router(picking_router)
