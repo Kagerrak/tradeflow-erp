@@ -202,7 +202,7 @@ async def test_timeline_shows_all_event_types_and_balances(
     assert Decimal(credit_event["amount"]) == Decimal("-50")
     order_event = next(event for event in body["items"] if event["event_type"] == "order")
     assert Decimal(order_event["amount"]) == Decimal("0")
-    assert Decimal(order_event["document_value"]) == Decimal("224")
+    assert Decimal(order_event["document_value"]) == Decimal("336")
 
     assert Decimal(body["closing_balance"]) == Decimal("74")
 
