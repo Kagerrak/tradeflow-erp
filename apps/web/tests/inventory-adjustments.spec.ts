@@ -99,7 +99,7 @@ test("requests, posts, and reverses an adjustment through the workspace", async 
   await page
     .getByTestId("adjustment-location")
     .fill("6cadf528-a2ff-4d05-b25c-940c79b112ad");
-  await page.getByTestId("adjustment-quantity").fill("5");
+  await page.getByTestId("adjustment-quantity").fill("5.000000");
   await page.getByTestId("adjustment-reason").fill("Count correction.");
   await page.getByTestId("adjustment-source-reference").fill("COUNT-001");
   await page.getByTestId("adjustment-request").click();
@@ -112,11 +112,10 @@ test("requests, posts, and reverses an adjustment through the workspace", async 
   await page.getByTestId(`adjustment-post-${adjustment.adjustment_id}`).click();
   await expect(page.getByTestId("adjustment-message")).toContainText("posted");
 
+  page.on("dialog", (dialog) => void dialog.accept("Recount corrected."));
   await page
     .getByTestId(`adjustment-reverse-${adjustment.adjustment_id}`)
     .click();
-  await page.getByRole("dialog").locator("input").fill("Recount corrected.");
-  await page.getByRole("dialog").getByText("OK").click();
   await expect(page.getByTestId("adjustment-message")).toContainText(
     "reversed",
   );
