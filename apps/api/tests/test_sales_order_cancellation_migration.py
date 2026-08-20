@@ -22,6 +22,9 @@ from test_sales_order_cancellation_contract import (
 from test_sales_order_cancellation_contract import (
     cancellation_settings as cancellation_settings,
 )
+from test_sales_order_cancellation_contract import (
+    fake_storage as fake_storage,
+)
 from tradeflow_api.config import Settings
 
 

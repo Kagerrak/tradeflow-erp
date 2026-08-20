@@ -750,6 +750,29 @@ async def test_cancellation_respects_optimistic_version(
         warehouse_id=str(fixture["warehouse_id"]),
     )
 
+    order = await _order_version(
+        cancellation_client, cancellation_settings, str(fixture["sales_order_id"])
+    )
+    current_version = cast(int, order["metadata_version"])
+
+    engine = create_async_engine(postgres_url)
+    async with engine.begin() as connection:
+        await connection.execute(
+            text(
+                """
+                UPDATE sales_orders
+                   SET metadata_version = :new_version,
+                       updated_at = now()
+                 WHERE sales_order_id = :sales_order_id
+                """
+            ),
+            {
+                "new_version": current_version + 1,
+                "sales_order_id": fixture["sales_order_id"],
+            },
+        )
+    await engine.dispose()
+
     response = await _cancel(
         cancellation_client,
         cancellation_settings,
@@ -761,7 +784,7 @@ async def test_cancellation_respects_optimistic_version(
             }
         ],
         reason="Stale version.",
-        if_match=1,
+        if_match=current_version,
         key="cancel-stale-version",
     )
     assert response.status_code == 409, response.text
