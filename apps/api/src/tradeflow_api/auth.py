@@ -661,3 +661,15 @@ async def require_organization_administrator(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:
     return require_capability(user, "organization:admin")
+
+
+async def require_notification_manager(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "notification:manage")
+
+
+async def require_notification_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "notification:read")

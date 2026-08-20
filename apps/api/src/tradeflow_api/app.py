@@ -38,6 +38,7 @@ from tradeflow_api.expenses import router as expenses_router
 from tradeflow_api.goods_receipts import router as goods_receipts_router
 from tradeflow_api.invoice_posting import router as invoice_posting_router
 from tradeflow_api.landed_costs import router as landed_costs_router
+from tradeflow_api.notifications import router as notifications_router
 from tradeflow_api.object_storage import S3ObjectStorage
 from tradeflow_api.observability import (
     CorrelationMiddleware,
@@ -124,6 +125,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(customer_statement_router)
     app.include_router(customer_timeline_router)
     app.include_router(payment_fulfillment_router)
+    app.include_router(notifications_router)
     if resolved_settings.picking_enabled:
         app.include_router(picking_router)
     app.include_router(customers_router)

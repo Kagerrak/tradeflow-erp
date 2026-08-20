@@ -4159,6 +4159,215 @@ delivery_correction_movement_effects = Table(
     ),
 )
 
+device_registrations = Table(
+    "device_registrations",
+    metadata,
+    Column("device_registration_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column("user_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("device_token", String(500), nullable=False),
+    Column("platform", String(20), nullable=False),
+    Column("app_version", String(50), nullable=True),
+    Column("locale", String(10), nullable=False, server_default="en"),
+    Column("is_active", Boolean, nullable=False, server_default="true"),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "platform IN ('ios', 'android', 'web')",
+        name="ck_device_registrations_platform",
+    ),
+    CheckConstraint(
+        "expires_at > created_at",
+        name="ck_device_registrations_expires_after_created",
+    ),
+    UniqueConstraint(
+        "user_subject",
+        "device_token",
+        "platform",
+        name="uq_device_registration_user_token",
+    ),
+)
+
+notification_preferences = Table(
+    "notification_preferences",
+    metadata,
+    Column("preference_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column("user_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("category", String(50), nullable=False),
+    Column("push_enabled", Boolean, nullable=False, server_default="true"),
+    Column("inbox_enabled", Boolean, nullable=False, server_default="true"),
+    Column("quiet_hours_start", String(5), nullable=True),
+    Column("quiet_hours_end", String(5), nullable=True),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "category IN ('delivery_assignment', 'delivery_confirmation', 'delivery_correction', "
+        "'approval_required', 'payment_received', 'payment_rejected')",
+        name="ck_notification_preferences_category",
+    ),
+    CheckConstraint(
+        "quiet_hours_start IS NULL OR quiet_hours_start ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'",
+        name="ck_notification_preferences_quiet_start",
+    ),
+    CheckConstraint(
+        "quiet_hours_end IS NULL OR quiet_hours_end ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'",
+        name="ck_notification_preferences_quiet_end",
+    ),
+    UniqueConstraint("user_subject", "category", name="uq_notification_preference_user_category"),
+)
+
+operational_notifications = Table(
+    "operational_notifications",
+    metadata,
+    Column("notification_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "source_event_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("outbox_events.outbox_event_id"),
+        nullable=True,
+    ),
+    Column("source_type", String(50), nullable=False),
+    Column("source_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("recipient_subject", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("notification_type", String(50), nullable=False),
+    Column("title", String(200), nullable=False),
+    Column("body", String(1000), nullable=False),
+    Column("deep_link_path", String(200), nullable=False),
+    Column("deep_link_token", String(200), nullable=False),
+    Column(
+        "branch_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("branches.branch_id"),
+        nullable=False,
+    ),
+    Column(
+        "warehouse_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouses.warehouse_id"),
+        nullable=True,
+    ),
+    Column("required_capability", String(100), nullable=True),
+    Column("status", String(20), nullable=False, server_default="pending"),
+    Column("correlation_id", String(100), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("read_at", DateTime(timezone=True), nullable=True),
+    Column("revoked_at", DateTime(timezone=True), nullable=True),
+    CheckConstraint(
+        "status IN ('pending', 'delivered', 'read', 'revoked')",
+        name="ck_operational_notifications_status",
+    ),
+    CheckConstraint(
+        "source_event_id IS NOT NULL OR source_type <> 'outbox_event'",
+        name="ck_operational_notifications_source_event_consistency",
+    ),
+    UniqueConstraint(
+        "source_event_id",
+        "recipient_subject",
+        "notification_type",
+        name="uq_operational_notification_identity",
+    ),
+    UniqueConstraint(
+        "source_type",
+        "source_id",
+        "recipient_subject",
+        "notification_type",
+        name="uq_operational_notification_source_identity",
+    ),
+    Index("ix_operational_notifications_recipient_status", "recipient_subject", "status"),
+    Index("ix_operational_notifications_recipient_created", "recipient_subject", "created_at"),
+)
+
+notification_deliveries = Table(
+    "notification_deliveries",
+    metadata,
+    Column("delivery_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "notification_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("operational_notifications.notification_id"),
+        nullable=False,
+    ),
+    Column(
+        "device_registration_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("device_registrations.device_registration_id"),
+        nullable=False,
+    ),
+    Column("provider", String(50), nullable=False, server_default="noop"),
+    Column("provider_message_id", String(200), nullable=True),
+    Column("status", String(20), nullable=False, server_default="pending"),
+    Column("attempted_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("delivered_at", DateTime(timezone=True), nullable=True),
+    Column("last_error", String(2000), nullable=True),
+    CheckConstraint(
+        "status IN ('pending', 'sent', 'failed', 'delivered')",
+        name="ck_notification_deliveries_status",
+    ),
+    CheckConstraint(
+        "(status = 'delivered' AND delivered_at IS NOT NULL) "
+        "OR (status <> 'delivered' AND delivered_at IS NULL)",
+        name="ck_notification_deliveries_delivered_shape",
+    ),
+    UniqueConstraint(
+        "notification_id", "device_registration_id", name="uq_notification_delivery_identity"
+    ),
+)
+
+notification_read_events = Table(
+    "notification_read_events",
+    metadata,
+    Column("read_event_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "notification_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("operational_notifications.notification_id"),
+        nullable=False,
+    ),
+    Column(
+        "device_registration_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("device_registrations.device_registration_id"),
+        nullable=True,
+    ),
+    Column("read_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("read_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint("notification_id", "read_event_id", name="uq_notification_read_identity"),
+)
+
+notification_effect_events = Table(
+    "notification_effect_events",
+    metadata,
+    Column("effect_event_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "notification_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("operational_notifications.notification_id"),
+        nullable=False,
+    ),
+    Column("effect_type", String(20), nullable=False),
+    Column("source_type", String(50), nullable=False),
+    Column("source_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column(
+        "device_registration_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("device_registrations.device_registration_id"),
+        nullable=True,
+    ),
+    Column("payload", JSONB, nullable=False, server_default="{}"),
+    Column("occurred_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "effect_type IN ('created', 'delivered', 'read', 'revoked', 'failed', 'masked')",
+        name="ck_notification_effect_events_type",
+    ),
+    UniqueConstraint(
+        "notification_id",
+        "effect_type",
+        "source_type",
+        "source_id",
+        name="uq_notification_effect_identity",
+    ),
+)
+
 document_series = Table(
     "document_series",
     metadata,

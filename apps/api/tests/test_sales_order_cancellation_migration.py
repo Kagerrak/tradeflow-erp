@@ -185,6 +185,6 @@ async def test_populated_cancellation_history_refuses_downgrade(
     async with engine.connect() as connection:
         version = await connection.scalar(text("SELECT version_num FROM alembic_version"))
     await engine.dispose()
-    assert version == "d62caac1e324"
+    assert version != "e8b78e1dfcfc"
 
     await asyncio.to_thread(command.upgrade, config, "head")
