@@ -25,6 +25,12 @@ from tradeflow_api.models import (
     outbox_handler_receipts,
     outbox_processing_state,
 )
+from tradeflow_api.notification_outbox import (
+    HANDLER_NAME as NOTIFICATION_HANDLER_NAME,
+)
+from tradeflow_api.notification_outbox import (
+    create_notifications_for_event,
+)
 from tradeflow_api.object_storage import S3ObjectStorage
 
 from tradeflow_worker.config import get_worker_settings
@@ -190,6 +196,74 @@ async def poll_delivery_confirmation_outbox(context: dict[Any, Any]) -> Any:
     return {"completed": completed, "failed": failed}
 
 
+async def poll_notification_outbox(context: dict[Any, Any]) -> Any:
+    factory = context["database_session_factory"]
+    async with factory() as session, session.begin():
+        event_ids = list(
+            (
+                await session.scalars(
+                    select(outbox_events.c.outbox_event_id)
+                    .select_from(
+                        outbox_events.join(
+                            outbox_processing_state,
+                            outbox_processing_state.c.outbox_event_id
+                            == outbox_events.c.outbox_event_id,
+                        )
+                    )
+                    .where(
+                        outbox_events.c.event_type.in_(
+                            ["delivery.confirmed.v1", "delivery.correction.posted.v1"]
+                        ),
+                        outbox_processing_state.c.available_at <= func.now(),
+                        ~exists().where(
+                            outbox_handler_receipts.c.outbox_event_id
+                            == outbox_events.c.outbox_event_id,
+                            outbox_handler_receipts.c.handler_name == NOTIFICATION_HANDLER_NAME,
+                        ),
+                    )
+                    .order_by(outbox_events.c.occurred_at, outbox_events.c.outbox_event_id)
+                    .limit(50)
+                    .with_for_update(skip_locked=True)
+                )
+            ).all()
+        )
+    completed = 0
+    failed = 0
+    for event_id in event_ids:
+        async with factory() as session, session.begin():
+            await session.execute(
+                update(outbox_processing_state)
+                .where(outbox_processing_state.c.outbox_event_id == event_id)
+                .values(
+                    status="processing",
+                    attempts=outbox_processing_state.c.attempts + 1,
+                    last_error=None,
+                )
+            )
+        try:
+            async with factory() as session, session.begin():
+                await create_notifications_for_event(session, event_id)
+                await session.execute(
+                    update(outbox_processing_state)
+                    .where(outbox_processing_state.c.outbox_event_id == event_id)
+                    .values(status="completed", processed_at=func.now())
+                )
+            completed += 1
+        except Exception as error:
+            async with factory() as session, session.begin():
+                await session.execute(
+                    update(outbox_processing_state)
+                    .where(outbox_processing_state.c.outbox_event_id == event_id)
+                    .values(
+                        status="failed",
+                        available_at=func.now() + text("interval '1 minute'"),
+                        last_error=str(error)[:2000],
+                    )
+                )
+            failed += 1
+    return {"completed": completed, "failed": failed}
+
+
 class Worker:
     settings = get_worker_settings()
     functions = [
@@ -202,7 +276,12 @@ class Worker:
             cast(WorkerCoroutine, poll_delivery_confirmation_outbox),
             second={0, 15, 30, 45},
             unique=True,
-        )
+        ),
+        cron(
+            cast(WorkerCoroutine, poll_notification_outbox),
+            second={5, 20, 35, 50},
+            unique=True,
+        ),
     ]
     on_startup = startup
     on_shutdown = shutdown
