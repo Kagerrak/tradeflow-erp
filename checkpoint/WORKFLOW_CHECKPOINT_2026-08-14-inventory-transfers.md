@@ -5,7 +5,9 @@
   counted-variance inventory adjustments, with ADR-0019 policies accepted
 - Branch: `feature/inventory-transfers` (merged to `main`)
 - Base branch: `main` at `baf1d48`
-- Release PR: #114 (merged)
+- Release PR: #114 (merged; explicit approval recorded by repo owner in
+  https://github.com/Kagerrak/tradeflow-erp/pull/114#issuecomment-5359718827
+  because GitHub self-approval is blocked for the sole collaborator)
 
 ## Established
 
@@ -85,6 +87,9 @@
 ## Shipped
 
 - Merged to `main` via PR #114 at `baf1d48`.
+- Explicit approval recorded by the repo owner in PR comment
+  https://github.com/Kagerrak/tradeflow-erp/pull/114#issuecomment-5359718827
+  (GitHub self-approval is blocked for the sole collaborator).
 - GitHub issue #107 closed with evidence from verify run 32394991241 and the
   local release gate.
 
