@@ -209,9 +209,7 @@ async def test_partial_cancellation_releases_reservation_and_reduces_backorder(
     cancellation_settings: Settings,
     postgres_url: str,
 ) -> None:
-    fixture = await approved_prepaid_order(
-        cancellation_client, cancellation_settings, postgres_url
-    )
+    fixture = await approved_prepaid_order(cancellation_client, cancellation_settings, postgres_url)
     await _ensure_cancellation_capability(postgres_url)
     await _grant_cancellation_authority(
         postgres_url,
@@ -298,9 +296,7 @@ async def test_full_cancellation_cancels_sales_order_and_fulfillment(
     cancellation_settings: Settings,
     postgres_url: str,
 ) -> None:
-    fixture = await approved_prepaid_order(
-        cancellation_client, cancellation_settings, postgres_url
-    )
+    fixture = await approved_prepaid_order(cancellation_client, cancellation_settings, postgres_url)
     await _ensure_cancellation_capability(postgres_url)
     await _grant_cancellation_authority(
         postgres_url,
@@ -335,9 +331,7 @@ async def test_full_cancellation_cancels_sales_order_and_fulfillment(
 
     fulfillment_order_id = cast(
         str,
-        cast(dict[str, object], fixture["fulfillment_order"])[
-            "fulfillment_order_id"
-        ],
+        cast(dict[str, object], fixture["fulfillment_order"])["fulfillment_order_id"],
     )
 
     engine = create_async_engine(postgres_url)
@@ -426,9 +420,7 @@ async def test_cancellation_requires_approval_authority(
     cancellation_settings: Settings,
     postgres_url: str,
 ) -> None:
-    fixture = await approved_prepaid_order(
-        cancellation_client, cancellation_settings, postgres_url
-    )
+    fixture = await approved_prepaid_order(cancellation_client, cancellation_settings, postgres_url)
     await _ensure_cancellation_capability(postgres_url)
 
     order = await _order_version(
@@ -458,9 +450,7 @@ async def test_cancellation_enforces_branch_scope(
     cancellation_settings: Settings,
     postgres_url: str,
 ) -> None:
-    fixture = await approved_prepaid_order(
-        cancellation_client, cancellation_settings, postgres_url
-    )
+    fixture = await approved_prepaid_order(cancellation_client, cancellation_settings, postgres_url)
     await _ensure_cancellation_capability(postgres_url)
     engine = create_async_engine(postgres_url)
     async with engine.connect() as connection:
@@ -525,9 +515,7 @@ async def test_cancellation_enforces_warehouse_scope(
     cancellation_settings: Settings,
     postgres_url: str,
 ) -> None:
-    fixture = await approved_prepaid_order(
-        cancellation_client, cancellation_settings, postgres_url
-    )
+    fixture = await approved_prepaid_order(cancellation_client, cancellation_settings, postgres_url)
     await _ensure_cancellation_capability(postgres_url)
     await _create_canceller(
         postgres_url,
@@ -572,9 +560,7 @@ async def test_cancellation_maker_checker_violation(
     cancellation_settings: Settings,
     postgres_url: str,
 ) -> None:
-    fixture = await approved_prepaid_order(
-        cancellation_client, cancellation_settings, postgres_url
-    )
+    fixture = await approved_prepaid_order(cancellation_client, cancellation_settings, postgres_url)
     await _ensure_cancellation_capability(postgres_url)
     await _grant_cancellation_authority(
         postgres_url,
@@ -611,9 +597,7 @@ async def test_cancellation_idempotent_replay_returns_same_result(
     cancellation_settings: Settings,
     postgres_url: str,
 ) -> None:
-    fixture = await approved_prepaid_order(
-        cancellation_client, cancellation_settings, postgres_url
-    )
+    fixture = await approved_prepaid_order(cancellation_client, cancellation_settings, postgres_url)
     await _ensure_cancellation_capability(postgres_url)
     await _grant_cancellation_authority(
         postgres_url,
@@ -747,9 +731,7 @@ async def test_cancellation_respects_optimistic_version(
     cancellation_settings: Settings,
     postgres_url: str,
 ) -> None:
-    fixture = await approved_prepaid_order(
-        cancellation_client, cancellation_settings, postgres_url
-    )
+    fixture = await approved_prepaid_order(cancellation_client, cancellation_settings, postgres_url)
     await _ensure_cancellation_capability(postgres_url)
     await _grant_cancellation_authority(
         postgres_url,
@@ -774,5 +756,3 @@ async def test_cancellation_respects_optimistic_version(
     )
     assert response.status_code == 409, response.text
     assert response.json()["error"]["code"] == "optimistic_version_conflict"
-
-

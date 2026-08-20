@@ -143,9 +143,7 @@ async def test_populated_cancellation_history_refuses_downgrade(
     config = Config("apps/api/alembic.ini")
     config.set_main_option("sqlalchemy.url", postgres_url)
 
-    fixture = await approved_prepaid_order(
-        cancellation_client, cancellation_settings, postgres_url
-    )
+    fixture = await approved_prepaid_order(cancellation_client, cancellation_settings, postgres_url)
     await _ensure_cancellation_capability(postgres_url)
     await _grant_cancellation_authority(
         postgres_url,
@@ -180,9 +178,7 @@ async def test_populated_cancellation_history_refuses_downgrade(
 
     engine = create_async_engine(postgres_url)
     async with engine.connect() as connection:
-        version = await connection.scalar(
-            text("SELECT version_num FROM alembic_version")
-        )
+        version = await connection.scalar(text("SELECT version_num FROM alembic_version"))
     await engine.dispose()
     assert version == "d62caac1e324"
 

@@ -1499,10 +1499,7 @@ async def rebuild_commercial_projections(
                     func.sum(sales_order_cancellation_lines.c.cancelled_quantity_base), ZERO
                 )
             )
-            .where(
-                sales_order_cancellation_lines.c.line_id
-                == sales_order_line_revisions.c.line_id
-            )
+            .where(sales_order_cancellation_lines.c.line_id == sales_order_line_revisions.c.line_id)
             .correlate(sales_order_line_revisions)
             .scalar_subquery()
         )

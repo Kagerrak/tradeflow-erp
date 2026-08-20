@@ -196,9 +196,7 @@ async def _authority(
     }
 
 
-async def _active_approval_id(
-    session: AsyncSession, sales_order_id: UUID
-) -> UUID | None:
+async def _active_approval_id(session: AsyncSession, sales_order_id: UUID) -> UUID | None:
     return await session.scalar(
         select(commercial_approvals.c.commercial_approval_id)
         .outerjoin(
@@ -213,9 +211,7 @@ async def _active_approval_id(
     )
 
 
-async def _delivered_by_line(
-    session: AsyncSession, sales_order_id: UUID
-) -> dict[UUID, Decimal]:
+async def _delivered_by_line(session: AsyncSession, sales_order_id: UUID) -> dict[UUID, Decimal]:
     rows = (
         (
             await session.execute(
@@ -259,9 +255,7 @@ async def _latest_active_fulfillment_order(
                 )
                 .where(
                     fulfillment_orders.c.sales_order_id == sales_order_id,
-                    fulfillment_order_state.c.status.not_in_(
-                        ("cancelled", "delivered")
-                    ),
+                    fulfillment_order_state.c.status.not_in_(("cancelled", "delivered")),
                 )
                 .order_by(fulfillment_orders.c.reservation_generation.desc())
                 .limit(1)
@@ -624,9 +618,7 @@ async def cancel_sales_order(
 
         remaining_open = ZERO
         for cancellation in cancellations:
-            remaining_open += (
-                cancellation.open_quantity_base - cancellation.cancel_quantity_base
-            )
+            remaining_open += cancellation.open_quantity_base - cancellation.cancel_quantity_base
         for commitment in commitments.values():
             if commitment["line_id"] not in {
                 cancellation.line_id for cancellation in cancellations
