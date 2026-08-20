@@ -9,6 +9,8 @@ from uuid import UUID, uuid4
 import jwt
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
 from tradeflow_api.app import create_app
 from tradeflow_api.config import Settings
 
@@ -95,7 +97,16 @@ async def _bootstrap_transfer_environment(
                         "inventory:post",
                         "inventory:rebuild",
                         "inventory:transfer-request",
+                    ],
+                },
+                {
+                    "code": "WAREHOUSE_RECEIVER",
+                    "name": "Warehouse Receiver",
+                    "capabilities": [
+                        "inventory:read",
+                        "inventory:post",
                         "inventory:transfer-receive",
+                        "inventory:transfer-request",
                     ],
                 },
                 {
@@ -112,6 +123,27 @@ async def _bootstrap_transfer_environment(
                     "subject": "warehouse-cross",
                     "display_name": "Cross Warehouse Controller",
                     "role_template_codes": ["WAREHOUSE"],
+                    "branch_codes": ["MNL", "CEB"],
+                    "warehouse_codes": ["MNL-01", "CEB-01"],
+                },
+                {
+                    "subject": "warehouse-receiver",
+                    "display_name": "Cross Warehouse Receiver",
+                    "role_template_codes": ["WAREHOUSE_RECEIVER"],
+                    "branch_codes": ["MNL", "CEB"],
+                    "warehouse_codes": ["MNL-01", "CEB-01"],
+                },
+                {
+                    "subject": "warehouse-receiver-no-auth",
+                    "display_name": "Unauthorized Warehouse Receiver",
+                    "role_template_codes": ["WAREHOUSE_RECEIVER"],
+                    "branch_codes": ["MNL", "CEB"],
+                    "warehouse_codes": ["MNL-01", "CEB-01"],
+                },
+                {
+                    "subject": "warehouse-receiver-low-limit",
+                    "display_name": "Low Limit Warehouse Receiver",
+                    "role_template_codes": ["WAREHOUSE_RECEIVER"],
                     "branch_codes": ["MNL", "CEB"],
                     "warehouse_codes": ["MNL-01", "CEB-01"],
                 },
@@ -206,6 +238,43 @@ async def _bootstrap_transfer_environment(
         },
     )
     assert opening.status_code == 201, opening.text
+
+    engine = create_async_engine(str(settings.database_url))
+    async with engine.begin() as connection:
+        for branch_code, warehouse_id in (
+            ("MNL", mnl_warehouse["warehouse_id"]),
+            ("CEB", ceb_warehouse["warehouse_id"]),
+        ):
+            branch_id = await connection.scalar(
+                text("SELECT branch_id FROM branches WHERE code = :code"),
+                {"code": branch_code},
+            )
+            assert branch_id is not None
+            await connection.execute(
+                text(
+                    """
+                    INSERT INTO approval_authorities(
+                      approval_authority_id, user_subject, capability_code, branch_id,
+                      warehouse_id, maximum_amount, maker_checker_required
+                    )
+                    VALUES (
+                      :authority_id, :subject, 'inventory:transfer-receive', :branch_id,
+                      :warehouse_id, :maximum_amount, true
+                    )
+                    ON CONFLICT (user_subject, capability_code, branch_id, warehouse_id)
+                      WHERE warehouse_id IS NOT NULL
+                      DO UPDATE SET maximum_amount = EXCLUDED.maximum_amount
+                    """
+                ),
+                {
+                    "authority_id": str(uuid4()),
+                    "subject": "warehouse-receiver",
+                    "branch_id": branch_id,
+                    "warehouse_id": str(warehouse_id),
+                    "maximum_amount": "100000.00",
+                },
+            )
+    await engine.dispose()
 
     return {
         "settings": settings,
@@ -385,7 +454,7 @@ async def test_transfer_request_and_receive_happy_path(transfer_env: dict[str, o
         f"/v1/inventory/transfers/{transfer_id}/receive",
         headers=_auth(
             settings,
-            "warehouse-cross",
+            "warehouse-receiver",
             **{"Idempotency-Key": receive_key},
         ),
         json={"expected_version": 1},
@@ -394,14 +463,14 @@ async def test_transfer_request_and_receive_happy_path(transfer_env: dict[str, o
     received = receive.json()["transfer"]
     assert received["status"] == "received"
     assert received["version"] == 2
-    assert received["received_by"] == "warehouse-cross"
+    assert received["received_by"] == "warehouse-receiver"
     assert received["receive_movement_group_id"] is not None
 
     receive_replay = await client.post(
         f"/v1/inventory/transfers/{transfer_id}/receive",
         headers=_auth(
             settings,
-            "warehouse-cross",
+            "warehouse-receiver",
             **{"Idempotency-Key": receive_key},
         ),
         json={"expected_version": 1},
@@ -476,7 +545,7 @@ async def test_concurrent_identical_transfer_commands_replay_one_effect(
     transfer_id = requests[0].json()["transfer"]["transfer_id"]
     receive_headers = _auth(
         settings,
-        "warehouse-cross",
+        "warehouse-receiver",
         **{"Idempotency-Key": f"concurrent-receive-{uuid4()}"},
     )
     receives = await asyncio.gather(
@@ -631,7 +700,7 @@ async def test_transfer_receive_rejects_already_received(
         f"/v1/inventory/transfers/{transfer_id}/receive",
         headers=_auth(
             settings,
-            "warehouse-cross",
+            "warehouse-receiver",
             **{"Idempotency-Key": f"receive-stale-{uuid4()}"},
         ),
         json={"expected_version": 2},
@@ -643,7 +712,7 @@ async def test_transfer_receive_rejects_already_received(
         f"/v1/inventory/transfers/{transfer_id}/receive",
         headers=_auth(
             settings,
-            "warehouse-cross",
+            "warehouse-receiver",
             **{"Idempotency-Key": f"receive-already-{uuid4()}"},
         ),
         json={"expected_version": 1},
@@ -654,12 +723,242 @@ async def test_transfer_receive_rejects_already_received(
         f"/v1/inventory/transfers/{transfer_id}/receive",
         headers=_auth(
             settings,
-            "warehouse-cross",
+            "warehouse-receiver",
             **{"Idempotency-Key": f"receive-already-2-{uuid4()}"},
         ),
         json={"expected_version": 1},
     )
     assert receive2.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_transfer_receive_rejects_self_receipt(transfer_env: dict[str, object]) -> None:
+    client = transfer_env["client"]
+    settings = transfer_env["settings"]
+    postgres_url = str(settings.database_url)
+    request = await client.post(
+        "/v1/inventory/transfers",
+        headers=_auth(
+            settings,
+            "warehouse-cross",
+            **{"Idempotency-Key": f"transfer-self-receipt-{uuid4()}"},
+        ),
+        json={
+            "sku_id": str(transfer_env["sku_id"]),
+            "from_warehouse_id": str(transfer_env["mnl_warehouse_id"]),
+            "to_warehouse_id": str(transfer_env["ceb_warehouse_id"]),
+            "from_location_id": str(transfer_env["mnl_location_id"]),
+            "to_location_id": str(transfer_env["ceb_location_id"]),
+            "quantity": "3.000000",
+            "unit_code": "EA",
+            "reason": "Self-receipt denial.",
+            "source_reference": "SELF-RECEIPT",
+        },
+    )
+    assert request.status_code == 201, request.text
+    transfer_id = request.json()["transfer"]["transfer_id"]
+
+    # Grant the requester the receive capability just for this test so the
+    # endpoint reaches the maker-checker rule instead of the capability gate.
+    engine = create_async_engine(postgres_url)
+    async with engine.begin() as connection:
+        role_id = await connection.scalar(
+            text("SELECT role_template_id FROM role_templates WHERE code = 'WAREHOUSE'"),
+        )
+        assert role_id is not None
+        await connection.execute(
+            text(
+                """
+                INSERT INTO role_template_capabilities(role_template_id, capability_code)
+                VALUES (:role_id, 'inventory:transfer-receive')
+                ON CONFLICT (role_template_id, capability_code) DO NOTHING
+                """
+            ),
+            {"role_id": role_id},
+        )
+    await engine.dispose()
+
+    receive = await client.post(
+        f"/v1/inventory/transfers/{transfer_id}/receive",
+        headers=_auth(
+            settings,
+            "warehouse-cross",
+            **{"Idempotency-Key": f"receive-self-receipt-{uuid4()}"},
+        ),
+        json={"expected_version": 1},
+    )
+    assert receive.status_code == 403, receive.text
+    assert receive.json()["error"]["code"] == "transfer_maker_checker_required"
+
+
+@pytest.mark.asyncio
+async def test_transfer_receive_requires_approval_authority(
+    transfer_env: dict[str, object],
+) -> None:
+    client = transfer_env["client"]
+    settings = transfer_env["settings"]
+    request = await client.post(
+        "/v1/inventory/transfers",
+        headers=_auth(
+            settings,
+            "warehouse-cross",
+            **{"Idempotency-Key": f"transfer-no-authority-{uuid4()}"},
+        ),
+        json={
+            "sku_id": str(transfer_env["sku_id"]),
+            "from_warehouse_id": str(transfer_env["mnl_warehouse_id"]),
+            "to_warehouse_id": str(transfer_env["ceb_warehouse_id"]),
+            "from_location_id": str(transfer_env["mnl_location_id"]),
+            "to_location_id": str(transfer_env["ceb_location_id"]),
+            "quantity": "2.000000",
+            "unit_code": "EA",
+            "reason": "Missing authority denial.",
+            "source_reference": "NO-AUTHORITY",
+        },
+    )
+    assert request.status_code == 201, request.text
+    transfer_id = request.json()["transfer"]["transfer_id"]
+
+    receive = await client.post(
+        f"/v1/inventory/transfers/{transfer_id}/receive",
+        headers=_auth(
+            settings,
+            "warehouse-receiver-no-auth",
+            **{"Idempotency-Key": f"receive-no-authority-{uuid4()}"},
+        ),
+        json={"expected_version": 1},
+    )
+    assert receive.status_code == 403, receive.text
+    assert receive.json()["error"]["code"] == "approval_authority_required"
+
+
+@pytest.mark.asyncio
+async def test_transfer_receive_respects_approval_limit(
+    transfer_env: dict[str, object],
+) -> None:
+    client = transfer_env["client"]
+    settings = transfer_env["settings"]
+    postgres_url = str(settings.database_url)
+    request = await client.post(
+        "/v1/inventory/transfers",
+        headers=_auth(
+            settings,
+            "warehouse-cross",
+            **{"Idempotency-Key": f"transfer-low-limit-{uuid4()}"},
+        ),
+        json={
+            "sku_id": str(transfer_env["sku_id"]),
+            "from_warehouse_id": str(transfer_env["mnl_warehouse_id"]),
+            "to_warehouse_id": str(transfer_env["ceb_warehouse_id"]),
+            "from_location_id": str(transfer_env["mnl_location_id"]),
+            "to_location_id": str(transfer_env["ceb_location_id"]),
+            "quantity": "5.000000",
+            "unit_code": "EA",
+            "reason": "Approval limit denial.",
+            "source_reference": "LOW-LIMIT",
+        },
+    )
+    assert request.status_code == 201, request.text
+    transfer_id = request.json()["transfer"]["transfer_id"]
+
+    engine = create_async_engine(postgres_url)
+    async with engine.begin() as connection:
+        branch_id = await connection.scalar(
+            text("SELECT branch_id FROM branches WHERE code = 'CEB'"),
+        )
+        await connection.execute(
+            text(
+                """
+                INSERT INTO approval_authorities(
+                  approval_authority_id, user_subject, capability_code, branch_id,
+                  warehouse_id, maximum_amount, maker_checker_required
+                )
+                VALUES (
+                  :authority_id, :subject, 'inventory:transfer-receive', :branch_id,
+                  :warehouse_id, :maximum_amount, true
+                )
+                ON CONFLICT (user_subject, capability_code, branch_id, warehouse_id)
+                  WHERE warehouse_id IS NOT NULL
+                  DO UPDATE SET maximum_amount = EXCLUDED.maximum_amount
+                """
+            ),
+            {
+                "authority_id": str(uuid4()),
+                "subject": "warehouse-receiver-low-limit",
+                "branch_id": branch_id,
+                "warehouse_id": str(transfer_env["ceb_warehouse_id"]),
+                "maximum_amount": "1.00",
+            },
+        )
+    await engine.dispose()
+
+    receive = await client.post(
+        f"/v1/inventory/transfers/{transfer_id}/receive",
+        headers=_auth(
+            settings,
+            "warehouse-receiver-low-limit",
+            **{"Idempotency-Key": f"receive-low-limit-{uuid4()}"},
+        ),
+        json={"expected_version": 1},
+    )
+    assert receive.status_code == 403, receive.text
+    assert receive.json()["error"]["code"] == "approval_limit_exceeded"
+
+
+@pytest.mark.asyncio
+async def test_transfer_receive_succeeds_with_valid_authority(
+    transfer_env: dict[str, object],
+) -> None:
+    client = transfer_env["client"]
+    settings = transfer_env["settings"]
+    postgres_url = str(settings.database_url)
+    request = await client.post(
+        "/v1/inventory/transfers",
+        headers=_auth(
+            settings,
+            "warehouse-cross",
+            **{"Idempotency-Key": f"transfer-valid-auth-{uuid4()}"},
+        ),
+        json={
+            "sku_id": str(transfer_env["sku_id"]),
+            "from_warehouse_id": str(transfer_env["mnl_warehouse_id"]),
+            "to_warehouse_id": str(transfer_env["ceb_warehouse_id"]),
+            "from_location_id": str(transfer_env["mnl_location_id"]),
+            "to_location_id": str(transfer_env["ceb_location_id"]),
+            "quantity": "4.000000",
+            "unit_code": "EA",
+            "reason": "Valid authority receipt.",
+            "source_reference": "VALID-AUTH",
+        },
+    )
+    assert request.status_code == 201, request.text
+    transfer_id = request.json()["transfer"]["transfer_id"]
+
+    receive = await client.post(
+        f"/v1/inventory/transfers/{transfer_id}/receive",
+        headers=_auth(
+            settings,
+            "warehouse-receiver",
+            **{"Idempotency-Key": f"receive-valid-auth-{uuid4()}"},
+        ),
+        json={"expected_version": 1},
+    )
+    assert receive.status_code == 201, receive.text
+    received = receive.json()["transfer"]
+    assert received["status"] == "received"
+    assert received["received_by"] == "warehouse-receiver"
+
+    engine = create_async_engine(postgres_url)
+    async with engine.connect() as connection:
+        authorization_count = await connection.scalar(
+            text(
+                "SELECT count(*) FROM inventory_transfer_authorizations "
+                "WHERE transfer_id = :transfer_id"
+            ),
+            {"transfer_id": transfer_id},
+        )
+    await engine.dispose()
+    assert authorization_count == 1
 
 
 @pytest.mark.asyncio
@@ -812,7 +1111,7 @@ async def test_transfer_lot_identity_is_carried(
         f"/v1/inventory/transfers/{transfer_id}/receive",
         headers=_auth(
             settings,
-            "warehouse-cross",
+            "warehouse-receiver",
             **{"Idempotency-Key": f"transfer-lot-rec-{uuid4()}"},
         ),
         json={"expected_version": 1},

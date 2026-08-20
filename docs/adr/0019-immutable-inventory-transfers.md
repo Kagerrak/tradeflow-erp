@@ -1,7 +1,6 @@
 # ADR-0019: Immutable warehouse stock transfers at source cost
 
-- Status: Proposed — valuation timing and transfer approval controls require
-  explicit business approval
+- Status: Accepted
 - Date: 2026-08-14
 
 ## Context
@@ -41,11 +40,21 @@ valuation is increased by the source cost captured at release time, while source
 valuation is reduced by the same quantity and value. Total Company inventory
 value never changes; receipt changes warehouse ownership while preserving cost.
 
-Capability and dual-Warehouse scope are implemented. Before this decision can be
-accepted, the business must explicitly determine whether request and receipt
-always require different actors and whether transfer value limits or Approval
-Authorities apply. The slice must not merge while that control policy remains
-undecided.
+### Authorization control
+
+Receipt of a transfer requires a different actor from the one who requested it
+(maker-checker). The receiver's subject must not equal `requested_by`.
+
+In addition, receipt requires an `approval_authorities` row for capability
+`inventory:transfer-receive` scoped to the source warehouse (branch plus
+warehouse) with a `maximum_amount` that covers the transfer value
+(`quantity_base * unit_cost`). The existing dual-Warehouse scope check remains:
+the receiver must have both source and destination warehouses in
+`actor.warehouse_ids`.
+
+This brings transfers in line with credit notes and delivery corrections: a
+capable actor with warehouse scope can still be denied if they created the
+transfer, lack an approval authority, or exceed their authority limit.
 
 Both commands require an `Idempotency-Key` header. Replays revalidate current
 Warehouse scope and return the stored response with

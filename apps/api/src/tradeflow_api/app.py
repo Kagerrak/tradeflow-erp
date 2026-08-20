@@ -36,6 +36,7 @@ from tradeflow_api.dispatch import router as dispatch_router
 from tradeflow_api.errors import AppError, error_response, error_responses
 from tradeflow_api.expenses import router as expenses_router
 from tradeflow_api.goods_receipts import router as goods_receipts_router
+from tradeflow_api.inventory_adjustments import router as inventory_adjustments_router
 from tradeflow_api.inventory_movements import router as inventory_movements_router
 from tradeflow_api.invoice_posting import router as invoice_posting_router
 from tradeflow_api.landed_costs import router as landed_costs_router
@@ -113,6 +114,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(CorrelationMiddleware)
     app.include_router(catalog_inventory_router)
     app.include_router(inventory_movements_router)
+    app.include_router(inventory_adjustments_router)
     app.include_router(commercial_approval_router)
     app.include_router(dispatch_router)
     app.include_router(delivery_confirmation_router)

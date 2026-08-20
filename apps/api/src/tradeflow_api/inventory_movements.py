@@ -30,8 +30,10 @@ from tradeflow_api.inventory_projection_service import (
     apply_valuation_delta,
 )
 from tradeflow_api.models import (
+    approval_authorities,
     companies,
     inventory_availability,
+    inventory_transfer_authorizations,
     inventory_transfers,
     inventory_valuation,
     lot_identities,
@@ -40,6 +42,7 @@ from tradeflow_api.models import (
     stock_movements,
     unit_conversions,
     warehouse_stock_locations,
+    warehouses,
 )
 from tradeflow_api.money import currency_quantum
 
@@ -130,6 +133,60 @@ def _ensure_transfer_scope(
             "transfer_destination_forbidden",
             "You are not authorized to transfer into the destination warehouse.",
         )
+
+
+async def _require_transfer_receive_authority(
+    session: AsyncSession,
+    actor: AuthorizedUser,
+    transfer: dict[str, Any],
+) -> UUID:
+    if actor.subject == transfer["requested_by"]:
+        raise AppError(
+            status_code=403,
+            code="transfer_maker_checker_required",
+            message="Requester cannot receive the same Inventory Transfer.",
+        )
+    row = (
+        (
+            await session.execute(
+                select(approval_authorities, warehouses.c.branch_id)
+                .select_from(
+                    approval_authorities.join(
+                        warehouses,
+                        warehouses.c.warehouse_id == transfer["to_warehouse_id"],
+                    )
+                )
+                .where(
+                    approval_authorities.c.user_subject == actor.subject,
+                    approval_authorities.c.capability_code == "inventory:transfer-receive",
+                    approval_authorities.c.branch_id == warehouses.c.branch_id,
+                    or_(
+                        approval_authorities.c.warehouse_id.is_(None),
+                        approval_authorities.c.warehouse_id == transfer["to_warehouse_id"],
+                    ),
+                )
+            )
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if row is None:
+        raise AppError(
+            status_code=403,
+            code="approval_authority_required",
+            message="You do not have Inventory Transfer receive authority for this warehouse.",
+        )
+    transfer_value = (transfer["quantity_base"] * transfer["unit_cost"]).quantize(
+        currency_quantum(transfer["base_currency"]), ROUND_HALF_UP
+    )
+    maximum_amount = row["maximum_amount"]
+    if maximum_amount is not None and transfer_value > maximum_amount:
+        raise AppError(
+            status_code=403,
+            code="approval_limit_exceeded",
+            message="Inventory Transfer value exceeds your approval limit.",
+        )
+    return cast(UUID, row["approval_authority_id"])
 
 
 async def _load_transfer_context(
@@ -769,6 +826,7 @@ async def receive_transfer(
         actor,
         expected_version=command.expected_version,
     )
+    authority_id = await _require_transfer_receive_authority(session, actor, transfer)
     identity, lot_identity_id = await _load_transfer_identity(
         session,
         sku_id=transfer["sku_id"],
@@ -889,6 +947,17 @@ async def receive_transfer(
             received_by=actor.subject,
             received_at=func.now(),
             receive_movement_group_id=receive_group_id,
+        )
+    )
+    await session.execute(
+        insert(inventory_transfer_authorizations).values(
+            authorization_id=uuid4(),
+            transfer_id=transfer_id,
+            approval_authority_id=authority_id,
+            authorized_by=actor.subject,
+            authorized_at=func.now(),
+            correlation_id=request.state.correlation_id,
+            idempotency_key=idempotency_key,
         )
     )
 

@@ -112,7 +112,7 @@ async def test_inventory_transfer_status_transition_requires_receive_movements(
         f"/v1/inventory/transfers/{transfer_id}/receive",
         headers=_auth(
             settings,
-            "warehouse-cross",
+            "warehouse-receiver",
             **{"Idempotency-Key": f"invariant-receive-{uuid4()}"},
         ),
         json={"expected_version": 1},

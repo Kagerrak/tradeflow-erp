@@ -356,6 +356,18 @@ async def require_inventory_transfer_receiver(
     return require_capability(user, "inventory:transfer-receive")
 
 
+async def require_inventory_adjustment_requester(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "inventory:adjustment-request")
+
+
+async def require_inventory_adjustment_approver(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "inventory:adjustment-approve")
+
+
 async def require_sales_order_writer(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:
