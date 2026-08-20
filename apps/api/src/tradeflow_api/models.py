@@ -4181,7 +4181,9 @@ device_registrations = Table(
         name="ck_device_registrations_expires_after_created",
     ),
     UniqueConstraint(
-        "user_subject", "device_token", "platform",
+        "user_subject",
+        "device_token",
+        "platform",
         name="uq_device_registration_user_token",
     ),
 )
@@ -4259,11 +4261,16 @@ operational_notifications = Table(
         name="ck_operational_notifications_source_event_consistency",
     ),
     UniqueConstraint(
-        "source_event_id", "recipient_subject", "notification_type",
+        "source_event_id",
+        "recipient_subject",
+        "notification_type",
         name="uq_operational_notification_identity",
     ),
     UniqueConstraint(
-        "source_type", "source_id", "recipient_subject", "notification_type",
+        "source_type",
+        "source_id",
+        "recipient_subject",
+        "notification_type",
         name="uq_operational_notification_source_identity",
     ),
     Index("ix_operational_notifications_recipient_status", "recipient_subject", "status"),
@@ -4353,7 +4360,10 @@ notification_effect_events = Table(
         name="ck_notification_effect_events_type",
     ),
     UniqueConstraint(
-        "notification_id", "effect_type", "source_type", "source_id",
+        "notification_id",
+        "effect_type",
+        "source_type",
+        "source_id",
         name="uq_notification_effect_identity",
     ),
 )

@@ -220,14 +220,10 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.execute("DROP INDEX IF EXISTS ix_notification_read_events_notification")
     op.execute(
-        "DROP TRIGGER IF EXISTS trg_notification_preferences_immutable "
-        "ON notification_preferences"
+        "DROP TRIGGER IF EXISTS trg_notification_preferences_immutable ON notification_preferences"
     )
     op.execute("DROP FUNCTION IF EXISTS protect_notification_preferences()")
-    op.execute(
-        "DROP TRIGGER IF EXISTS trg_device_registrations_immutable "
-        "ON device_registrations"
-    )
+    op.execute("DROP TRIGGER IF EXISTS trg_device_registrations_immutable ON device_registrations")
     op.execute("DROP FUNCTION IF EXISTS protect_device_registrations()")
     op.execute(
         "DROP TRIGGER IF EXISTS trg_notification_effect_events_immutable "
@@ -235,13 +231,11 @@ def downgrade() -> None:
     )
     op.execute("DROP FUNCTION IF EXISTS protect_notification_effect_events()")
     op.execute(
-        "DROP TRIGGER IF EXISTS trg_notification_read_events_immutable "
-        "ON notification_read_events"
+        "DROP TRIGGER IF EXISTS trg_notification_read_events_immutable ON notification_read_events"
     )
     op.execute("DROP FUNCTION IF EXISTS protect_notification_read_events()")
     op.execute(
-        "DROP TRIGGER IF EXISTS trg_notification_deliveries_immutable "
-        "ON notification_deliveries"
+        "DROP TRIGGER IF EXISTS trg_notification_deliveries_immutable ON notification_deliveries"
     )
     op.execute("DROP FUNCTION IF EXISTS protect_notification_deliveries()")
     op.execute(
