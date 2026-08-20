@@ -3,6 +3,7 @@
 **Scope:** Warehouse-to-warehouse stock transfers at source cost, and counted-variance inventory adjustments.
 **Date:** 2026-08-14 (updated 2026-08-21)
 **Issue:** #107 (part 1 and part 2)
+**Merged:** `main` at `baf1d48` via PR #114.
 
 ## What changed
 
