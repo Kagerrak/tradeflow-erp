@@ -224,7 +224,9 @@ async def test_inbox_is_scoped_to_recipient(
     notification_client: AsyncClient,
     notification_settings: Settings,
 ) -> None:
-    await _bootstrap_organization(notification_client, notification_settings)
+    org = await _bootstrap_organization(notification_client, notification_settings)
+    branch_id = UUID(org["branches"][0]["branch_id"])
+    warehouse_id = UUID(org["branches"][0]["warehouses"][0]["warehouse_id"])
     engine = create_async_engine(postgres_url)
     async with engine.begin() as connection:
         await connection.execute(
@@ -240,8 +242,8 @@ async def test_inbox_is_scoped_to_recipient(
                 "id": uuid4(),
                 "source_id": uuid4(),
                 "recipient": "notify-user",
-                "branch_id": uuid4(),
-                "warehouse_id": uuid4(),
+                "branch_id": branch_id,
+                "warehouse_id": warehouse_id,
             },
         )
     await engine.dispose()
@@ -269,7 +271,9 @@ async def test_read_and_revoke_notification(
     notification_client: AsyncClient,
     notification_settings: Settings,
 ) -> None:
-    await _bootstrap_organization(notification_client, notification_settings)
+    org = await _bootstrap_organization(notification_client, notification_settings)
+    branch_id = UUID(org["branches"][0]["branch_id"])
+    warehouse_id = UUID(org["branches"][0]["warehouses"][0]["warehouse_id"])
     notification_id = uuid4()
     engine = create_async_engine(postgres_url)
     async with engine.begin() as connection:
@@ -286,8 +290,8 @@ async def test_read_and_revoke_notification(
                 "id": notification_id,
                 "source_id": uuid4(),
                 "recipient": "notify-user",
-                "branch_id": uuid4(),
-                "warehouse_id": uuid4(),
+                "branch_id": branch_id,
+                "warehouse_id": warehouse_id,
             },
         )
     await engine.dispose()

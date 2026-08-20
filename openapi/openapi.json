@@ -7597,6 +7597,10 @@
             ],
             "title": "Read At"
           },
+          "recipient_subject": {
+            "title": "Recipient Subject",
+            "type": "string"
+          },
           "required_capability": {
             "anyOf": [
               {
@@ -7639,6 +7643,7 @@
         "required": [
           "notification_id",
           "notification_type",
+          "recipient_subject",
           "title",
           "body",
           "deep_link_path",

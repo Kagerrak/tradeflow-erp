@@ -90,6 +90,7 @@ class NotificationPreferenceResponse(BaseModel):
 class InboxItemResponse(BaseModel):
     notification_id: str
     notification_type: str
+    recipient_subject: str
     title: str
     body: str
     deep_link_path: str
@@ -233,6 +234,7 @@ async def register_device(
         .mappings()
         .one()
     )
+    await session.commit()
     return DeviceRegistrationResponse(
         device_registration_id=str(row["device_registration_id"]),
         user_subject=row["user_subject"],
@@ -303,6 +305,7 @@ async def deactivate_device(
     )
     if result.scalar_one_or_none() is None:
         raise AppError(404, "device_not_found", "Device registration not found.")
+    await session.commit()
 
 
 @router.get(
@@ -372,6 +375,7 @@ async def update_preference(
     row = result.mappings().one_or_none()
     if row is None:
         raise AppError(404, "preference_not_found", "Notification preference not found.")
+    await session.commit()
     return NotificationPreferenceResponse(
         preference_id=str(row["preference_id"]),
         user_subject=row["user_subject"],
@@ -408,6 +412,11 @@ async def list_inbox(
         item = dict(row)
         if item["status"] == "revoked":
             item = _masked(item)
+        item["notification_id"] = str(item["notification_id"])
+        item["source_id"] = str(item["source_id"])
+        item["branch_id"] = str(item["branch_id"])
+        if item["warehouse_id"] is not None:
+            item["warehouse_id"] = str(item["warehouse_id"])
         items.append(InboxItemResponse(**item))
     return InboxResponse(items=items)
 
@@ -506,6 +515,7 @@ async def mark_read(
             index_elements=["notification_id", "effect_type", "source_type", "source_id"]
         )
     )
+    await session.commit()
 
 
 @router.post(
@@ -568,6 +578,7 @@ async def revoke_notification(
             index_elements=["notification_id", "effect_type", "source_type", "source_id"]
         )
     )
+    await session.commit()
 
 
 @router.get(

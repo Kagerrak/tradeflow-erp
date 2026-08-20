@@ -5029,6 +5029,8 @@ export interface components {
             notification_type: string;
             /** Read At */
             read_at: string | null;
+            /** Recipient Subject */
+            recipient_subject: string;
             /** Required Capability */
             required_capability: string | null;
             /** Source Id */
