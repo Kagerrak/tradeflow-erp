@@ -1,0 +1,28 @@
+# Production-like staging override for TradeFlow ERP.
+# Use with the base compose file:
+#   docker compose -f infra/compose.yaml -f infra/compose.staging.yaml up -d
+#
+# Requirements before using this file:
+# - Provide real OIDC issuer and JWKS endpoint values via environment or .env.staging.
+# - Do NOT set TRADEFLOW_AUTH_TEST_SECRET; the application rejects it outside dev/test.
+# - Provide strong database, object storage, and MinIO credentials.
+# - Enable telemetry and point OTLP_ENDPOINT at your observability stack.
+
+services:
+  api:
+    environment:
+      TRADEFLOW_ENVIRONMENT: preview
+      TRADEFLOW_AUTH_ISSUER: ${TRADEFLOW_AUTH_ISSUER:?TRADEFLOW_AUTH_ISSUER is required for staging}
+      TRADEFLOW_AUTH_AUDIENCE: ${TRADEFLOW_AUTH_AUDIENCE:-tradeflow-api}
+      TRADEFLOW_AUTH_JWKS_URL: ${TRADEFLOW_AUTH_JWKS_URL:?TRADEFLOW_AUTH_JWKS_URL is required for staging}
+      TRADEFLOW_AUTH_TEST_SECRET: ""
+      TRADEFLOW_TELEMETRY_ENABLED: "true"
+      TRADEFLOW_OTLP_ENDPOINT: ${TRADEFLOW_OTLP_ENDPOINT:-}
+      TRADEFLOW_RATE_LIMIT_ENABLED: "true"
+      TRADEFLOW_RATE_LIMIT_REQUESTS_PER_MINUTE: "120"
+
+  worker:
+    environment:
+      TRADEFLOW_WORKER_ENVIRONMENT: preview
+      TRADEFLOW_WORKER_TELEMETRY_ENABLED: "true"
+      TRADEFLOW_WORKER_OTLP_ENDPOINT: ${TRADEFLOW_OTLP_ENDPOINT:-}
