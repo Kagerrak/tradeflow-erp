@@ -51,6 +51,7 @@ from tradeflow_api.picking import router as picking_router
 from tradeflow_api.platform import router as platform_router
 from tradeflow_api.purchase_orders import router as purchase_orders_router
 from tradeflow_api.purchase_requests import router as purchase_requests_router
+from tradeflow_api.rate_limit import RateLimitMiddleware
 from tradeflow_api.sales import router as sales_router
 from tradeflow_api.suppliers import router as suppliers_router
 
@@ -103,6 +104,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.token_verifier = verifier
     app.state.session_factory = create_session_factory(engine)
     app.state.object_storage = S3ObjectStorage(resolved_settings)
+    app.add_middleware(RateLimitMiddleware, settings=resolved_settings)
     app.add_middleware(CorrelationMiddleware)
     app.include_router(catalog_inventory_router)
     app.include_router(commercial_approval_router)
