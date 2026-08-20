@@ -1,0 +1,105 @@
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Block test secrets in staging and production configuration
+        run: |
+          # Fail if any staging/production compose or env file contains a literal test secret.
+          if grep -R "TRADEFLOW_AUTH_TEST_SECRET" infra/compose.staging.yaml .env* 2>/dev/null; then
+            echo "ERROR: TRADEFLOW_AUTH_TEST_SECRET must not be present in staging/production files."
+            exit 1
+          fi
+          # Block obvious placeholder secrets.
+          if grep -Rin "password.*\(password\|secret\|123456\|changeme\)" infra/compose*.yaml 2>/dev/null; then
+            echo "ERROR: Staging compose files contain weak placeholder credentials."
+            exit 1
+          fi
+          echo "No test secrets found in staging/production configuration."
+
+      - name: Check for high-entropy secret patterns in source
+        run: |
+          # Scan source files for common secret-like patterns. This is a lightweight
+          # complement to pre-commit hooks and GitHub secret scanning.
+          set +e
+          hits=0
+          for pattern in \
+            'sk-[a-zA-Z0-9]{20,}' \
+            'AKIA[0-9A-Z]{16}' \
+            'ghp_[a-zA-Z0-9]{36}' \
+            'glpat-[a-zA-Z0-9\-]{20}' \
+            'private_key' \
+            '-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----'; do
+            matches=$(grep -Rin "$pattern" apps/ packages/ scripts/ infra/ 2>/dev/null || true)
+            if [ -n "$matches" ]; then
+              echo "Possible secret pattern matched: $pattern"
+              echo "$matches"
+              hits=$((hits + 1))
+            fi
+          done
+          if [ "$hits" -gt 0 ]; then
+            echo "ERROR: Found $hits potential secret pattern(s). Review and exclude false positives explicitly."
+            exit 1
+          fi
+          echo "No obvious secret patterns found."
+
+  dependency-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          comment-summary-in-pr: on-failure
+
+  log-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify test logs do not embed secrets
+        run: |
+          # After tests run in CI, logs are not persisted by default. This step validates
+          # that no log file checked into the repository contains credential material.
+          if grep -Rin "TRADEFLOW_AUTH_TEST_SECRET\|password\|secret_key" \
+            --include="*.log" --include="*.txt" . 2>/dev/null; then
+            echo "ERROR: Log files contain sensitive values."
+            exit 1
+          fi
+          echo "No credential material found in repository logs."
+
+  sbom-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: anchore/sbom-action@v0
+        with:
+          format: spdx-json
+          output-file: /tmp/tradeflow-sbom.spdx.json
+
+      - name: Validate SBOM was generated
+        run: |
+          if [ ! -s /tmp/tradeflow-sbom.spdx.json ]; then
+            echo "ERROR: SBOM generation failed."
+            exit 1
+          fi
+          echo "SBOM generated with $(grep -c 'SPDXID' /tmp/tradeflow-sbom.spdx.json) packages."
