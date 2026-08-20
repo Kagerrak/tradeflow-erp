@@ -1,10 +1,15 @@
 # First-release scope reconciliation
 
-- Date: August 14, 2026
-- Baseline: `origin/main` at `5daf8ce`
+- Date: August 20, 2026
+- Baseline: `origin/main` at `f195560`
 - Tracker reconciliation: GitHub issue #55
-- Pending evidence: Return Authorization PR #112 at `e9abb2f`; Inventory
-  Transfer PR #114 at `17e1030`
+- Release decision: Issue #107 / PR #114 remain in first-release scope. First
+  release is blocked until PR #114 lands; Option B (hold release) approved.
+- Pending evidence: Return Authorization PR #112 at `8e649cf` (green, awaiting
+  explicit PR-specific approval); Inventory Transfer PR #114 local head
+  `5466111` (pending two business-policy decisions before push/review/merge);
+  Issue #72 closed by PR #116; Issue #110 current-system baseline closed by PR
+  #117; Issue #77 in progress via PR #118.
 
 ## Why the tracker was reopened
 
@@ -60,7 +65,7 @@ PRD behavior or release evidence does not.
 | Assigned salesperson and customer-specific pricing                                                                      | `customers.py`, `sales.py`, `commercial_approval.py`, and `test_sales_order_draft_contract.py`                                                                                   | Shipped foundation                                                                                    |
 | Consolidated customer sales, delivery, return, payment and balance timeline                                             | Only the Customer directory and `customer_statement.py` exist; there is no cross-context reporting module or export worker                                                       | Missing: #61, #94–#96                                                                                 |
 | Products, SKUs, units, Warehouses, Stock Locations and tracked identities                                               | `catalog_inventory.py`, migrations `0006_catalog_inventory.py` and `0010_tracked_stock_picking.py`, and their contract tests                                                     | Shipped foundation                                                                                    |
-| Receipts, reservations, deliveries, custody and immutable inventory projections                                         | `catalog_inventory.py`, `inventory_projection_service.py`, `goods_receipts.py`, delivery modules and invariant tests; agent-reviewed PR #114 adds Transfer but is not merged     | Partial: customer returns/damage #56, #65–#70; Inventory Transfer pending PR #114; Adjustment #107    |
+| Receipts, reservations, deliveries, custody and immutable inventory projections                                         | `catalog_inventory.py`, `inventory_projection_service.py`, `goods_receipts.py`, delivery modules and invariant tests; agent-reviewed PR #114 adds Transfer but is not merged     | Partial: customer returns/damage #56, #65–#70; Inventory Transfer pending PR #114; Adjustment (#107 part 2) remains in first-release scope and is blocked on PR #114 |
 | On-hand, Reserved, Available, Quarantine and Damaged quantities                                                         | Availability/custody projections cover Available, Quarantine, Dispatch Staging, In Transit and Investigation; no complete customer-return Damaged Item lifecycle exists          | Partial: #56, #65–#70                                                                                 |
 | Reorder and stock-aging views                                                                                           | No API, projection, web route or test exists                                                                                                                                     | Missing: #58, #82                                                                                     |
 | Quotation-to-Order                                                                                                      | No Quotation model, migration, API, web/mobile workflow or test exists                                                                                                           | Missing: #104, #105                                                                                   |
@@ -75,7 +80,7 @@ PRD behavior or release evidence does not.
 | Return request/approval against Delivered Quantity                                                                      | Draft PR #112 implements Return Authorization but is stacked on unmerged PR #111 and its migration descends from `d524a29c32b8`, bypassing current Credit Note merge head `0017` | Missing on `main`; pending reconciliation and review: #56, #65, PR #112                               |
 | Offline return evidence, Return Receipt/Inspection and controlled damaged custody                                       | Delivery-exception Return-to-Warehouse Receipt exists, but not the customer Returns lifecycle                                                                                    | Missing: #66–#67                                                                                      |
 | Restock, Replacement, repair, Supplier Return, write-off and finance credit outcomes                                    | No Return Disposition or outcome model exists                                                                                                                                    | Missing: #68–#70, with Finance #71 and Supplier Return #79                                            |
-| Supplier, Purchase Request/approval, Purchase Order and Goods Receipt                                                   | `suppliers.py`, `purchase_orders.py` and `goods_receipts.py` exist; Purchase Request does not                                                                                    | Partial: #58, #77                                                                                     |
+| Supplier, Purchase Request/approval, Purchase Order and Goods Receipt                                                   | `suppliers.py`, `purchase_orders.py`, `goods_receipts.py`, and `purchase_requests.py` with contract tests and web workspace via PR #118                                          | Partial: #58 supplier config; #77 implemented, pending merge in PR #118                               |
 | Partial receipt, Receipt Variance, Purchase Backorder and Supplier Return                                               | Basic partial Goods Receipt exists; explicit variance/quality/backorder and Supplier Return do not                                                                               | Partial: #78–#79                                                                                      |
 | Foreign currency, Inbound Shipment, customs evidence and Landed Cost                                                    | `landed_costs.py` implements line-value allocation; approved Exchange Rate Snapshot and shipment/customs workflow are absent                                                     | Partial and policy-gated: #63, #80–#81                                                                |
 | Expense categories, claims, evidence, duplicate checks, attribution, approval, posting and payment                      | Finance context defines Expense/Expense Claim; no runtime code, migration, client or UI exists                                                                                   | Missing: #59, #83–#87                                                                                 |
@@ -100,6 +105,16 @@ PRD behavior or release evidence does not.
   and reversals. Policy-sensitive international valuation work remains blocked.
 - #64 must select the Commission Basis and earning trigger before commission
   posting rules can be implemented.
+- PR #114 / ADR-0019 require two business-policy decisions before the Inventory
+  Transfer slice can merge:
+  1. **Transfer valuation timing**: Confirm whether the source Warehouse owns
+     quantity and value until destination receipt, or whether value should move
+     at release.
+  2. **Transfer authorization control**: Confirm whether request and receipt
+     must be performed by different actors, and whether transfer value limits
+     or Approval Authorities apply.
+  Issue #107 part 2 (counted-variance Inventory Adjustments) also remains in
+  first-release scope and cannot be deferred.
 
 Only the affected dependency chains pause. Independent, low-risk work remains
 available in Returns, invoice-to-cash, Procurement, Expenses, customer history,
@@ -107,28 +122,34 @@ and staging/security.
 
 ## In-flight reconciliation
 
-- PR #111 is this scope-lock change. It remains draft and must not close #55
-  until its updated evidence is reviewed and merged with explicit approval.
-- PR #112 is green on its historical stack but is not merge-ready against
-  current `main`: it depends on PR #111, and migration `e93736a741bd` descends
-  directly from `d524a29c32b8` rather than the Credit Note merge head `0017`.
-  It requires a current-main reconciliation and a new full gate before it can
-  count as implementation evidence.
-- PR #113 merged immutable Credit Notes to `main`. Issue #71 remains open, and
-  the merged run recorded a migration-test environment failure whose fix is in
-  PR #114; tracker closure must wait for reconciled green evidence.
-- PR #114 completed its agent final review and remote CI gate, but GitHub/human
-  review is pending. It remains unmerged, so Inventory Transfer is pending
-  evidence rather than day-one completion.
+- PR #111 merged the scope-lock tracker reconciliation to `main` at `5832ba6`.
+- PR #112 is open, green, and mergeable against current `main` at `8e649cf`, but
+  has no GitHub review decision. It must not be merged without explicit
+  PR-specific approval.
+- PR #113 merged immutable Credit Notes to `main`. Issue #71 remains open pending
+  final tracker closure.
+- PR #114 local head `5466111` is nine commits ahead of the stale GitHub head
+  `17e1030` and has completed an agent final review plus a remote CI gate. Per
+  the August 20 release decision, issue #107 and PR #114 remain in first-release
+  scope; first release is blocked until PR #114 lands. Two business-policy
+  decisions remain pending before push/review/merge (see Policy gates). Once the
+  decisions are made, the local commits must be pushed, the branch reconciled
+  with current `main` if needed, and the PR explicitly approved and merged.
+- PR #116 merged issue #72 (unapplied/overpaid Payment Receipts) to `main` at
+  `771c061`.
+- PR #117 merged issue #110 (current-system baseline and success measures) to
+  `main` at `f195560`.
+- PR #118 implements issue #77 (create and approve Purchase Requests before
+  Purchase Orders) and is the active slice.
 
 ## Dependency-ready work
 
-The next contribution is to review and explicitly approve PR #111, then
-reconcile PR #112 onto the current migration and financial foundation. Other
-independent entry slices are #72, #77, #78, #83, #94, #97, and #105–#110.
-Delivery still proceeds one vertical slice at a time; the additional ready
-issues make blockers visible rather than inviting parallel mutation of shared
-domain foundations.
+PR #114 / issue #107 is now the release-blocking priority. The two pending
+policy decisions must be resolved, the local commits pushed, and the PR merged
+before first release can proceed. The active implementation slice remains #77
+(Purchase Requests) only where it does not delay the PR #114 policy resolution;
+once PR #114 is merged, the next dependency-ready slices include #78, #83, #94,
+#97, and #105–#109. Delivery still proceeds one vertical slice at a time.
 
 ## Completion rule
 
