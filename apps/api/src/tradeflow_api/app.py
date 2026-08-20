@@ -51,6 +51,7 @@ from tradeflow_api.picking import router as picking_router
 from tradeflow_api.platform import router as platform_router
 from tradeflow_api.purchase_orders import router as purchase_orders_router
 from tradeflow_api.purchase_requests import router as purchase_requests_router
+from tradeflow_api.quotations import router as quotations_router
 from tradeflow_api.rate_limit import RateLimitMiddleware
 from tradeflow_api.sales import router as sales_router
 from tradeflow_api.suppliers import router as suppliers_router
@@ -128,6 +129,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(platform_router)
     app.include_router(purchase_orders_router)
     app.include_router(purchase_requests_router)
+    app.include_router(quotations_router)
     app.include_router(sales_router)
     app.include_router(suppliers_router)
     instrument_app(app, engine, resolved_settings)

@@ -451,6 +451,26 @@
         "title": "ApprovePurchaseRequestCommand",
         "type": "object"
       },
+      "ApproveQuotationCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "exception_reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exception Reason"
+          }
+        },
+        "title": "ApproveQuotationCommand",
+        "type": "object"
+      },
       "AssignDeliveryCommand": {
         "additionalProperties": false,
         "properties": {
@@ -3072,6 +3092,21 @@
         "title": "ConvertPurchaseRequestCommand",
         "type": "object"
       },
+      "ConvertQuotationCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "sales_order_id": {
+            "format": "uuid",
+            "title": "Sales Order Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sales_order_id"
+        ],
+        "title": "ConvertQuotationCommand",
+        "type": "object"
+      },
       "ConvertedLineResponse": {
         "properties": {
           "line_number": {
@@ -3917,6 +3952,110 @@
           "lines"
         ],
         "title": "CreatePurchaseRequestCommand",
+        "type": "object"
+      },
+      "CreateQuotationCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "delivery_address_version_id": {
+            "format": "uuid",
+            "title": "Delivery Address Version Id",
+            "type": "string"
+          },
+          "expected_customer_version": {
+            "minimum": 1.0,
+            "title": "Expected Customer Version",
+            "type": "integer"
+          },
+          "expected_price_list_version_id": {
+            "format": "uuid",
+            "title": "Expected Price List Version Id",
+            "type": "string"
+          },
+          "expected_pricing_date": {
+            "format": "date",
+            "title": "Expected Pricing Date",
+            "type": "string"
+          },
+          "expiry_date": {
+            "format": "date",
+            "title": "Expiry Date",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/QuotationLineInput"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "order_discount_amount": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Order Discount Amount"
+          },
+          "payment_timing_override_reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Timing Override Reason"
+          },
+          "payment_timing_policy": {
+            "anyOf": [
+              {
+                "enum": [
+                  "prepaid",
+                  "cash_on_delivery",
+                  "on_account"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Timing Policy"
+          }
+        },
+        "required": [
+          "branch_id",
+          "customer_id",
+          "expected_customer_version",
+          "expected_price_list_version_id",
+          "expected_pricing_date",
+          "delivery_address_version_id",
+          "expiry_date",
+          "lines"
+        ],
+        "title": "CreateQuotationCommand",
         "type": "object"
       },
       "CreateSalesOrderDraftCommand": {
@@ -9948,6 +10087,721 @@
         "title": "PurchaseRequestSummary",
         "type": "object"
       },
+      "QuotationApprovalExceptionResponse": {
+        "properties": {
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "exception_type": {
+            "enum": [
+              "discount",
+              "below_floor"
+            ],
+            "title": "Exception Type",
+            "type": "string"
+          },
+          "percentage": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percentage"
+          }
+        },
+        "required": [
+          "exception_type",
+          "amount",
+          "percentage"
+        ],
+        "title": "QuotationApprovalExceptionResponse",
+        "type": "object"
+      },
+      "QuotationApprovalResponse": {
+        "properties": {
+          "approved_by": {
+            "title": "Approved By",
+            "type": "string"
+          },
+          "exceptions": {
+            "items": {
+              "$ref": "#/components/schemas/QuotationApprovalExceptionResponse"
+            },
+            "title": "Exceptions",
+            "type": "array"
+          },
+          "maker_subject": {
+            "title": "Maker Subject",
+            "type": "string"
+          },
+          "quotation_approval_id": {
+            "format": "uuid",
+            "title": "Quotation Approval Id",
+            "type": "string"
+          },
+          "quotation_id": {
+            "format": "uuid",
+            "title": "Quotation Id",
+            "type": "string"
+          },
+          "quotation_revision_id": {
+            "format": "uuid",
+            "title": "Quotation Revision Id",
+            "type": "string"
+          },
+          "required_exceptions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Exceptions",
+            "type": "array"
+          },
+          "status": {
+            "const": "approved",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "quotation_approval_id",
+          "quotation_id",
+          "quotation_revision_id",
+          "status",
+          "approved_by",
+          "maker_subject",
+          "required_exceptions",
+          "exceptions"
+        ],
+        "title": "QuotationApprovalResponse",
+        "type": "object"
+      },
+      "QuotationConversionResponse": {
+        "properties": {
+          "quotation_id": {
+            "format": "uuid",
+            "title": "Quotation Id",
+            "type": "string"
+          },
+          "sales_order_id": {
+            "format": "uuid",
+            "title": "Sales Order Id",
+            "type": "string"
+          },
+          "sales_order_revision_id": {
+            "format": "uuid",
+            "title": "Sales Order Revision Id",
+            "type": "string"
+          },
+          "status": {
+            "const": "converted",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "quotation_id",
+          "sales_order_id",
+          "sales_order_revision_id",
+          "status"
+        ],
+        "title": "QuotationConversionResponse",
+        "type": "object"
+      },
+      "QuotationLineInput": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_price_list_line_id": {
+            "format": "uuid",
+            "title": "Expected Price List Line Id",
+            "type": "string"
+          },
+          "expected_unit_conversion_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Unit Conversion Id"
+          },
+          "expected_unit_conversion_version": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Unit Conversion Version"
+          },
+          "line_id": {
+            "format": "uuid",
+            "title": "Line Id",
+            "type": "string"
+          },
+          "manual_override_unit_price": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manual Override Unit Price"
+          },
+          "price_override_reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Override Reason"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "unit_code": {
+            "pattern": "^[A-Z][A-Z0-9_-]{0,29}$",
+            "title": "Unit Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line_id",
+          "sku_id",
+          "expected_price_list_line_id",
+          "expected_unit_conversion_id",
+          "quantity",
+          "unit_code"
+        ],
+        "title": "QuotationLineInput",
+        "type": "object"
+      },
+      "QuotationLineResponse": {
+        "properties": {
+          "allocated_discount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Allocated Discount",
+            "type": "string"
+          },
+          "below_floor": {
+            "title": "Below Floor",
+            "type": "boolean"
+          },
+          "calculation_snapshot": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Calculation Snapshot",
+            "type": "object"
+          },
+          "conversion_snapshot": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Conversion Snapshot",
+            "type": "object"
+          },
+          "effective_unit_price": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Effective Unit Price",
+            "type": "string"
+          },
+          "entered_quantity": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Entered Quantity",
+            "type": "string"
+          },
+          "entered_unit": {
+            "title": "Entered Unit",
+            "type": "string"
+          },
+          "floor_unit_price": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Floor Unit Price"
+          },
+          "line_id": {
+            "format": "uuid",
+            "title": "Line Id",
+            "type": "string"
+          },
+          "line_position": {
+            "title": "Line Position",
+            "type": "integer"
+          },
+          "line_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Line Total",
+            "type": "string"
+          },
+          "list_unit_price": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "List Unit Price",
+            "type": "string"
+          },
+          "manual_override_unit_price": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manual Override Unit Price"
+          },
+          "price_list_code": {
+            "title": "Price List Code",
+            "type": "string"
+          },
+          "price_list_line_id": {
+            "format": "uuid",
+            "title": "Price List Line Id",
+            "type": "string"
+          },
+          "price_list_version": {
+            "title": "Price List Version",
+            "type": "integer"
+          },
+          "price_list_version_id": {
+            "format": "uuid",
+            "title": "Price List Version Id",
+            "type": "string"
+          },
+          "price_override_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Override Reason"
+          },
+          "price_source": {
+            "enum": [
+              "customer",
+              "branch"
+            ],
+            "title": "Price Source",
+            "type": "string"
+          },
+          "quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity Base",
+            "type": "string"
+          },
+          "sku_code": {
+            "title": "Sku Code",
+            "type": "string"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          },
+          "sku_name": {
+            "title": "Sku Name",
+            "type": "string"
+          },
+          "tax_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tax Amount",
+            "type": "string"
+          },
+          "tax_snapshot": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Tax Snapshot",
+            "type": "object"
+          },
+          "taxable_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Taxable Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line_id",
+          "line_position",
+          "sku_id",
+          "sku_code",
+          "sku_name",
+          "entered_quantity",
+          "entered_unit",
+          "quantity_base",
+          "conversion_snapshot",
+          "price_list_line_id",
+          "price_list_code",
+          "price_list_version_id",
+          "price_list_version",
+          "price_source",
+          "list_unit_price",
+          "floor_unit_price",
+          "manual_override_unit_price",
+          "price_override_reason",
+          "effective_unit_price",
+          "allocated_discount",
+          "tax_snapshot",
+          "calculation_snapshot",
+          "taxable_amount",
+          "tax_amount",
+          "line_total",
+          "below_floor"
+        ],
+        "title": "QuotationLineResponse",
+        "type": "object"
+      },
+      "QuotationResponse": {
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "calculation_contract_version": {
+            "title": "Calculation Contract Version",
+            "type": "integer"
+          },
+          "converted_sales_order_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Converted Sales Order Id"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "customer_version": {
+            "title": "Customer Version",
+            "type": "integer"
+          },
+          "delivery_address_snapshot": {
+            "additionalProperties": true,
+            "title": "Delivery Address Snapshot",
+            "type": "object"
+          },
+          "delivery_address_version_id": {
+            "format": "uuid",
+            "title": "Delivery Address Version Id",
+            "type": "string"
+          },
+          "discount_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Total",
+            "type": "string"
+          },
+          "expiry_date": {
+            "format": "date",
+            "title": "Expiry Date",
+            "type": "string"
+          },
+          "grand_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Grand Total",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/QuotationLineResponse"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "order_discount_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Order Discount Amount",
+            "type": "string"
+          },
+          "payment_timing_default": {
+            "enum": [
+              "prepaid",
+              "cash_on_delivery",
+              "on_account"
+            ],
+            "title": "Payment Timing Default",
+            "type": "string"
+          },
+          "payment_timing_overridden_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Timing Overridden By"
+          },
+          "payment_timing_override_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Timing Override Reason"
+          },
+          "payment_timing_policy": {
+            "enum": [
+              "prepaid",
+              "cash_on_delivery",
+              "on_account"
+            ],
+            "title": "Payment Timing Policy",
+            "type": "string"
+          },
+          "price_inclusion_mode": {
+            "enum": [
+              "inclusive",
+              "exclusive"
+            ],
+            "title": "Price Inclusion Mode",
+            "type": "string"
+          },
+          "price_list_code": {
+            "title": "Price List Code",
+            "type": "string"
+          },
+          "price_list_version": {
+            "title": "Price List Version",
+            "type": "integer"
+          },
+          "price_list_version_id": {
+            "format": "uuid",
+            "title": "Price List Version Id",
+            "type": "string"
+          },
+          "pricing_date": {
+            "format": "date",
+            "title": "Pricing Date",
+            "type": "string"
+          },
+          "quotation_id": {
+            "format": "uuid",
+            "title": "Quotation Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "approved",
+              "converted",
+              "expired"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "subtotal": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Subtotal",
+            "type": "string"
+          },
+          "tax_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tax Total",
+            "type": "string"
+          },
+          "taxable_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Taxable Total",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "quotation_id",
+          "number",
+          "status",
+          "version",
+          "branch_id",
+          "customer_id",
+          "customer_version",
+          "delivery_address_version_id",
+          "delivery_address_snapshot",
+          "currency",
+          "price_inclusion_mode",
+          "price_list_version_id",
+          "price_list_code",
+          "price_list_version",
+          "pricing_date",
+          "expiry_date",
+          "payment_timing_default",
+          "payment_timing_policy",
+          "payment_timing_override_reason",
+          "payment_timing_overridden_by",
+          "order_discount_amount",
+          "subtotal",
+          "discount_total",
+          "taxable_total",
+          "tax_total",
+          "grand_total",
+          "calculation_contract_version",
+          "converted_sales_order_id",
+          "lines"
+        ],
+        "title": "QuotationResponse",
+        "type": "object"
+      },
+      "QuotationSearchItem": {
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "customer_name": {
+            "title": "Customer Name",
+            "type": "string"
+          },
+          "expiry_date": {
+            "format": "date",
+            "title": "Expiry Date",
+            "type": "string"
+          },
+          "grand_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Grand Total",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "quotation_id": {
+            "format": "uuid",
+            "title": "Quotation Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "approved",
+              "converted",
+              "expired"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "quotation_id",
+          "number",
+          "status",
+          "version",
+          "branch_id",
+          "customer_id",
+          "customer_name",
+          "currency",
+          "grand_total",
+          "expiry_date"
+        ],
+        "title": "QuotationSearchItem",
+        "type": "object"
+      },
+      "QuotationSearchResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QuotationSearchItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "QuotationSearchResponse",
+        "type": "object"
+      },
       "ReadyResponse": {
         "properties": {
           "database": {
@@ -12283,6 +13137,110 @@
           "effective_from"
         ],
         "title": "UpdateConversionCommand",
+        "type": "object"
+      },
+      "UpdateQuotationCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "delivery_address_version_id": {
+            "format": "uuid",
+            "title": "Delivery Address Version Id",
+            "type": "string"
+          },
+          "expected_customer_version": {
+            "minimum": 1.0,
+            "title": "Expected Customer Version",
+            "type": "integer"
+          },
+          "expected_price_list_version_id": {
+            "format": "uuid",
+            "title": "Expected Price List Version Id",
+            "type": "string"
+          },
+          "expected_pricing_date": {
+            "format": "date",
+            "title": "Expected Pricing Date",
+            "type": "string"
+          },
+          "expiry_date": {
+            "format": "date",
+            "title": "Expiry Date",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/QuotationLineInput"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "order_discount_amount": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Order Discount Amount"
+          },
+          "payment_timing_override_reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Timing Override Reason"
+          },
+          "payment_timing_policy": {
+            "anyOf": [
+              {
+                "enum": [
+                  "prepaid",
+                  "cash_on_delivery",
+                  "on_account"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Timing Policy"
+          }
+        },
+        "required": [
+          "branch_id",
+          "customer_id",
+          "expected_customer_version",
+          "expected_price_list_version_id",
+          "expected_pricing_date",
+          "delivery_address_version_id",
+          "expiry_date",
+          "lines"
+        ],
+        "title": "UpdateQuotationCommand",
         "type": "object"
       },
       "UpdateSalesOrderDraftCommand": {
@@ -26257,6 +27215,697 @@
         "summary": "Rebuild Commercial Projections",
         "tags": [
           "sales"
+        ]
+      }
+    },
+    "/v1/sales/quotations": {
+      "get": {
+        "operationId": "search_quotations_v1_sales_quotations_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 200,
+              "title": "Query",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotationSearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Search Quotations",
+        "tags": [
+          "quotations"
+        ]
+      },
+      "post": {
+        "operationId": "create_quotation_v1_sales_quotations_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateQuotationCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Quotation",
+        "tags": [
+          "quotations"
+        ]
+      }
+    },
+    "/v1/sales/quotations/{quotation_id}": {
+      "get": {
+        "operationId": "get_quotation_v1_sales_quotations__quotation_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "quotation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Quotation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Quotation",
+        "tags": [
+          "quotations"
+        ]
+      },
+      "put": {
+        "operationId": "update_quotation_v1_sales_quotations__quotation_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "quotation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Quotation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "If-Match",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateQuotationCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Quotation",
+        "tags": [
+          "quotations"
+        ]
+      }
+    },
+    "/v1/sales/quotations/{quotation_id}/approval": {
+      "post": {
+        "operationId": "approve_quotation_v1_sales_quotations__quotation_id__approval_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "quotation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Quotation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "If-Match",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveQuotationCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotationApprovalResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Approve Quotation",
+        "tags": [
+          "quotations"
+        ]
+      }
+    },
+    "/v1/sales/quotations/{quotation_id}/convert": {
+      "post": {
+        "operationId": "convert_quotation_v1_sales_quotations__quotation_id__convert_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "quotation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Quotation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "If-Match",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConvertQuotationCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotationConversionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Convert Quotation",
+        "tags": [
+          "quotations"
         ]
       }
     },
