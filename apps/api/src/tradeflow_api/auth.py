@@ -374,6 +374,24 @@ async def require_sales_projection_rebuilder(
     return require_capability(user, "sales:projection-rebuild")
 
 
+async def require_quotation_writer(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "sales:quotation-write")
+
+
+async def require_quotation_approver(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "sales:quotation-approve")
+
+
+async def require_quotation_converter(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "sales:quotation-convert")
+
+
 async def require_payment_reader(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:

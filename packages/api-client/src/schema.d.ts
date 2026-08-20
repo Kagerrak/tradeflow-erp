@@ -1735,6 +1735,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sales/quotations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search Quotations */
+        get: operations["search_quotations_v1_sales_quotations_get"];
+        put?: never;
+        /** Create Quotation */
+        post: operations["create_quotation_v1_sales_quotations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sales/quotations/{quotation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Quotation */
+        get: operations["get_quotation_v1_sales_quotations__quotation_id__get"];
+        /** Update Quotation */
+        put: operations["update_quotation_v1_sales_quotations__quotation_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sales/quotations/{quotation_id}/approval": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Quotation */
+        post: operations["approve_quotation_v1_sales_quotations__quotation_id__approval_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sales/quotations/{quotation_id}/convert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Convert Quotation */
+        post: operations["convert_quotation_v1_sales_quotations__quotation_id__convert_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sales/tax-code-versions": {
         parameters: {
             query?: never;
@@ -1941,6 +2011,11 @@ export interface components {
         ApprovePurchaseRequestCommand: {
             /** Expected Version */
             expected_version: number;
+        };
+        /** ApproveQuotationCommand */
+        ApproveQuotationCommand: {
+            /** Exception Reason */
+            exception_reason?: string | null;
         };
         /** AssignDeliveryCommand */
         AssignDeliveryCommand: {
@@ -2976,6 +3051,14 @@ export interface components {
             /** Purchase Order Code */
             purchase_order_code: string;
         };
+        /** ConvertQuotationCommand */
+        ConvertQuotationCommand: {
+            /**
+             * Sales Order Id
+             * Format: uuid
+             */
+            sales_order_id: string;
+        };
         /** ConvertedLineResponse */
         ConvertedLineResponse: {
             /** Line Number */
@@ -3270,6 +3353,52 @@ export interface components {
              * Format: uuid
              */
             supplier_id: string;
+        };
+        /** CreateQuotationCommand */
+        CreateQuotationCommand: {
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /**
+             * Delivery Address Version Id
+             * Format: uuid
+             */
+            delivery_address_version_id: string;
+            /** Expected Customer Version */
+            expected_customer_version: number;
+            /**
+             * Expected Price List Version Id
+             * Format: uuid
+             */
+            expected_price_list_version_id: string;
+            /**
+             * Expected Pricing Date
+             * Format: date
+             */
+            expected_pricing_date: string;
+            /**
+             * Expiry Date
+             * Format: date
+             */
+            expiry_date: string;
+            /** Lines */
+            lines: components["schemas"]["QuotationLineInput"][];
+            /**
+             * Order Discount Amount
+             * @default 0
+             */
+            order_discount_amount: number | string;
+            /** Payment Timing Override Reason */
+            payment_timing_override_reason?: string | null;
+            /** Payment Timing Policy */
+            payment_timing_policy?: ("prepaid" | "cash_on_delivery" | "on_account") | null;
         };
         /** CreateSalesOrderDraftCommand */
         CreateSalesOrderDraftCommand: {
@@ -5758,6 +5887,319 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** QuotationApprovalExceptionResponse */
+        QuotationApprovalExceptionResponse: {
+            /** Amount */
+            amount: string;
+            /**
+             * Exception Type
+             * @enum {string}
+             */
+            exception_type: "discount" | "below_floor";
+            /** Percentage */
+            percentage: string | null;
+        };
+        /** QuotationApprovalResponse */
+        QuotationApprovalResponse: {
+            /** Approved By */
+            approved_by: string;
+            /** Exceptions */
+            exceptions: components["schemas"]["QuotationApprovalExceptionResponse"][];
+            /** Maker Subject */
+            maker_subject: string;
+            /**
+             * Quotation Approval Id
+             * Format: uuid
+             */
+            quotation_approval_id: string;
+            /**
+             * Quotation Id
+             * Format: uuid
+             */
+            quotation_id: string;
+            /**
+             * Quotation Revision Id
+             * Format: uuid
+             */
+            quotation_revision_id: string;
+            /** Required Exceptions */
+            required_exceptions: string[];
+            /**
+             * Status
+             * @constant
+             */
+            status: "approved";
+        };
+        /** QuotationConversionResponse */
+        QuotationConversionResponse: {
+            /**
+             * Quotation Id
+             * Format: uuid
+             */
+            quotation_id: string;
+            /**
+             * Sales Order Id
+             * Format: uuid
+             */
+            sales_order_id: string;
+            /**
+             * Sales Order Revision Id
+             * Format: uuid
+             */
+            sales_order_revision_id: string;
+            /**
+             * Status
+             * @constant
+             */
+            status: "converted";
+        };
+        /** QuotationLineInput */
+        QuotationLineInput: {
+            /**
+             * Expected Price List Line Id
+             * Format: uuid
+             */
+            expected_price_list_line_id: string;
+            /** Expected Unit Conversion Id */
+            expected_unit_conversion_id: string | null;
+            /** Expected Unit Conversion Version */
+            expected_unit_conversion_version?: number | null;
+            /**
+             * Line Id
+             * Format: uuid
+             */
+            line_id: string;
+            /** Manual Override Unit Price */
+            manual_override_unit_price?: number | string | null;
+            /** Price Override Reason */
+            price_override_reason?: string | null;
+            /** Quantity */
+            quantity: number | string;
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+            /** Unit Code */
+            unit_code: string;
+        };
+        /** QuotationLineResponse */
+        QuotationLineResponse: {
+            /** Allocated Discount */
+            allocated_discount: string;
+            /** Below Floor */
+            below_floor: boolean;
+            /** Calculation Snapshot */
+            calculation_snapshot: {
+                [key: string]: string;
+            };
+            /** Conversion Snapshot */
+            conversion_snapshot: {
+                [key: string]: string;
+            };
+            /** Effective Unit Price */
+            effective_unit_price: string;
+            /** Entered Quantity */
+            entered_quantity: string;
+            /** Entered Unit */
+            entered_unit: string;
+            /** Floor Unit Price */
+            floor_unit_price: string | null;
+            /**
+             * Line Id
+             * Format: uuid
+             */
+            line_id: string;
+            /** Line Position */
+            line_position: number;
+            /** Line Total */
+            line_total: string;
+            /** List Unit Price */
+            list_unit_price: string;
+            /** Manual Override Unit Price */
+            manual_override_unit_price: string | null;
+            /** Price List Code */
+            price_list_code: string;
+            /**
+             * Price List Line Id
+             * Format: uuid
+             */
+            price_list_line_id: string;
+            /** Price List Version */
+            price_list_version: number;
+            /**
+             * Price List Version Id
+             * Format: uuid
+             */
+            price_list_version_id: string;
+            /** Price Override Reason */
+            price_override_reason: string | null;
+            /**
+             * Price Source
+             * @enum {string}
+             */
+            price_source: "customer" | "branch";
+            /** Quantity Base */
+            quantity_base: string;
+            /** Sku Code */
+            sku_code: string;
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Tax Amount */
+            tax_amount: string;
+            /** Tax Snapshot */
+            tax_snapshot: {
+                [key: string]: string;
+            };
+            /** Taxable Amount */
+            taxable_amount: string;
+        };
+        /** QuotationResponse */
+        QuotationResponse: {
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Calculation Contract Version */
+            calculation_contract_version: number;
+            /** Converted Sales Order Id */
+            converted_sales_order_id: string | null;
+            /** Currency */
+            currency: string;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /** Customer Version */
+            customer_version: number;
+            /** Delivery Address Snapshot */
+            delivery_address_snapshot: {
+                [key: string]: unknown;
+            };
+            /**
+             * Delivery Address Version Id
+             * Format: uuid
+             */
+            delivery_address_version_id: string;
+            /** Discount Total */
+            discount_total: string;
+            /**
+             * Expiry Date
+             * Format: date
+             */
+            expiry_date: string;
+            /** Grand Total */
+            grand_total: string;
+            /** Lines */
+            lines: components["schemas"]["QuotationLineResponse"][];
+            /** Number */
+            number: string;
+            /** Order Discount Amount */
+            order_discount_amount: string;
+            /**
+             * Payment Timing Default
+             * @enum {string}
+             */
+            payment_timing_default: "prepaid" | "cash_on_delivery" | "on_account";
+            /** Payment Timing Overridden By */
+            payment_timing_overridden_by: string | null;
+            /** Payment Timing Override Reason */
+            payment_timing_override_reason: string | null;
+            /**
+             * Payment Timing Policy
+             * @enum {string}
+             */
+            payment_timing_policy: "prepaid" | "cash_on_delivery" | "on_account";
+            /**
+             * Price Inclusion Mode
+             * @enum {string}
+             */
+            price_inclusion_mode: "inclusive" | "exclusive";
+            /** Price List Code */
+            price_list_code: string;
+            /** Price List Version */
+            price_list_version: number;
+            /**
+             * Price List Version Id
+             * Format: uuid
+             */
+            price_list_version_id: string;
+            /**
+             * Pricing Date
+             * Format: date
+             */
+            pricing_date: string;
+            /**
+             * Quotation Id
+             * Format: uuid
+             */
+            quotation_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "approved" | "converted" | "expired";
+            /** Subtotal */
+            subtotal: string;
+            /** Tax Total */
+            tax_total: string;
+            /** Taxable Total */
+            taxable_total: string;
+            /** Version */
+            version: number;
+        };
+        /** QuotationSearchItem */
+        QuotationSearchItem: {
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /** Customer Name */
+            customer_name: string;
+            /**
+             * Expiry Date
+             * Format: date
+             */
+            expiry_date: string;
+            /** Grand Total */
+            grand_total: string;
+            /** Number */
+            number: string;
+            /**
+             * Quotation Id
+             * Format: uuid
+             */
+            quotation_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "approved" | "converted" | "expired";
+            /** Version */
+            version: number;
+        };
+        /** QuotationSearchResponse */
+        QuotationSearchResponse: {
+            /** Items */
+            items: components["schemas"]["QuotationSearchItem"][];
+            /** Total */
+            total: number;
+        };
         /** ReadyResponse */
         ReadyResponse: {
             /** Database */
@@ -6689,6 +7131,52 @@ export interface components {
             effective_from: string;
             /** Effective To */
             effective_to?: string | null;
+        };
+        /** UpdateQuotationCommand */
+        UpdateQuotationCommand: {
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /**
+             * Customer Id
+             * Format: uuid
+             */
+            customer_id: string;
+            /**
+             * Delivery Address Version Id
+             * Format: uuid
+             */
+            delivery_address_version_id: string;
+            /** Expected Customer Version */
+            expected_customer_version: number;
+            /**
+             * Expected Price List Version Id
+             * Format: uuid
+             */
+            expected_price_list_version_id: string;
+            /**
+             * Expected Pricing Date
+             * Format: date
+             */
+            expected_pricing_date: string;
+            /**
+             * Expiry Date
+             * Format: date
+             */
+            expiry_date: string;
+            /** Lines */
+            lines: components["schemas"]["QuotationLineInput"][];
+            /**
+             * Order Discount Amount
+             * @default 0
+             */
+            order_discount_amount: number | string;
+            /** Payment Timing Override Reason */
+            payment_timing_override_reason?: string | null;
+            /** Payment Timing Policy */
+            payment_timing_policy?: ("prepaid" | "cash_on_delivery" | "on_account") | null;
         };
         /** UpdateSalesOrderDraftCommand */
         UpdateSalesOrderDraftCommand: {
@@ -16106,6 +16594,479 @@ export interface operations {
             };
             /** @description Stable TradeFlow error envelope. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    search_quotations_v1_sales_quotations_get: {
+        parameters: {
+            query?: {
+                query?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuotationSearchResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_quotation_v1_sales_quotations_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateQuotationCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuotationResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_quotation_v1_sales_quotations__quotation_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quotation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuotationResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    update_quotation_v1_sales_quotations__quotation_id__put: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": number;
+                "Idempotency-Key": string;
+            };
+            path: {
+                quotation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateQuotationCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuotationResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    approve_quotation_v1_sales_quotations__quotation_id__approval_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": number;
+                "Idempotency-Key": string;
+            };
+            path: {
+                quotation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveQuotationCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuotationApprovalResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    convert_quotation_v1_sales_quotations__quotation_id__convert_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": number;
+                "Idempotency-Key": string;
+            };
+            path: {
+                quotation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConvertQuotationCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuotationConversionResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
