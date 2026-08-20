@@ -1,18 +1,15 @@
 # First-release scope reconciliation
 
 - Date: August 21, 2026
-- Baseline: `origin/main` at `9be7f9d` (feature branch `feature/inventory-transfers` reconciled)
-- Tracker reconciliation: GitHub issue #55
-- Release decision: Issue #107 / PR #114 remain in first-release scope. First
-  release is blocked until PR #114 lands; Option B (hold release) approved.
-  The two PR #114 / ADR-0019 business-policy decisions are resolved, issue
-  #107 part 2 (counted-variance Inventory Adjustments) is implemented, and the
-  full release gate has passed.
+- Baseline: `origin/main` at `baf1d48` (PR #114 merged)
+- Tracker reconciliation: GitHub issue #55 (closed)
+- Release decision: Issue #107 / PR #114 have landed and are no longer blocking
+  the first release. The two PR #114 / ADR-0019 business-policy decisions are
+  resolved, issue #107 part 2 (counted-variance Inventory Adjustments) is
+  implemented, and the full release gate has passed.
 - Pending evidence: Return Authorization PR #112 at `8e649cf` (green, awaiting
-  explicit PR-specific approval); Inventory Transfer PR #114 local head
-  `9be7f9d` (ready for push, explicit review/approval and merge); Issue #72
-  closed by PR #116; Issue #110 current-system baseline closed by PR #117;
-  Issue #77 in progress via PR #118.
+  explicit PR-specific approval); Issue #72 closed by PR #116; Issue #110
+  current-system baseline closed by PR #117; Issue #77 in progress via PR #118.
 
 ## Why the tracker was reopened
 
@@ -131,12 +128,11 @@ and staging/security.
   PR-specific approval.
 - PR #113 merged immutable Credit Notes to `main`. Issue #71 remains open pending
   final tracker closure.
-- PR #114 local head `9be7f9d` reconciles the feature branch with current
-  `main`, resolves the two ADR-0019 business-policy decisions, implements issue
-  #107 part 2 (counted-variance Inventory Adjustments), and has passed the full
-  release gate (pytest, Playwright, native tests, typecheck, lint, format,
-  build, OpenAPI client generation, and downgrade-base/upgrade-head migration
-  cycle). The branch is ready to push for explicit PR review/approval and merge.
+- PR #114 merged issue #107 (immutable source-cost warehouse transfers and
+  counted-variance Inventory Adjustments) to `main` at `baf1d48` after passing
+  the full release gate (pytest, Playwright, native tests, typecheck, lint,
+  format, build, OpenAPI client generation, and downgrade-base/upgrade-head
+  migration cycle). Issue #107 is closed.
 - PR #116 merged issue #72 (unapplied/overpaid Payment Receipts) to `main` at
   `771c061`.
 - PR #117 merged issue #110 (current-system baseline and success measures) to
@@ -146,12 +142,10 @@ and staging/security.
 
 ## Dependency-ready work
 
-PR #114 / issue #107 is now the release-blocking priority. The two pending
-policy decisions must be resolved, the local commits pushed, and the PR merged
-before first release can proceed. The active implementation slice remains #77
-(Purchase Requests) only where it does not delay the PR #114 policy resolution;
-once PR #114 is merged, the next dependency-ready slices include #78, #83, #94,
-#97, and #105–#109. Delivery still proceeds one vertical slice at a time.
+Issue #107 / PR #114 are now closed and merged. The next dependency-ready
+slices include #78, #83, #94, #97, and #105–#109, subject to the remaining
+policy gates and tracker approvals. Delivery still proceeds one vertical slice
+at a time.
 
 ## Completion rule
 

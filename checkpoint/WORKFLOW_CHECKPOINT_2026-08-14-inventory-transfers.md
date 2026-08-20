@@ -3,9 +3,9 @@
 - Date: August 21, 2026
 - Phase: Issue #107 complete — immutable warehouse transfers at source cost and
   counted-variance inventory adjustments, with ADR-0019 policies accepted
-- Branch: `feature/inventory-transfers`
-- Base branch: `main` (reconciled at `9be7f9d`)
-- Release PR: #114 (ready for final review/approval and merge)
+- Branch: `feature/inventory-transfers` (merged to `main`)
+- Base branch: `main` at `baf1d48`
+- Release PR: #114 (merged)
 
 ## Established
 
@@ -84,7 +84,9 @@
 
 ## Shipped
 
-- Not yet merged. PR #114 is ready for explicit review/approval and merge.
+- Merged to `main` via PR #114 at `baf1d48`.
+- GitHub issue #107 closed with evidence from verify run 32394991241 and the
+  local release gate.
 
 ## Residual risks and follow-ups
 
@@ -95,5 +97,6 @@
 
 ## Next issue
 
-- Obtain explicit PR review/approval for PR #114 and merge to `main`.
 - Continue first-release delivery from the next dependency-ready slice.
+- Update `docs/delivery/first-release-reconciliation.md` and release notes to
+  reflect the merged state.
