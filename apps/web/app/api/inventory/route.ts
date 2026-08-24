@@ -1,3 +1,4 @@
+import { getServerApiConfig } from "@/lib/server-api";
 import {
   searchInventoryDirectory,
   type InventoryDirectoryState,
@@ -16,8 +17,8 @@ const statusByKind: Record<InventoryDirectoryState["kind"], number> = {
 
 export async function GET(request: NextRequest): Promise<Response> {
   const state = await searchInventoryDirectory({
-    accessToken: process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN,
-    baseUrl: process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000",
+    accessToken: getServerApiConfig().accessToken,
+    baseUrl: getServerApiConfig().baseUrl,
     correlationId: crypto.randomUUID(),
     query: request.nextUrl.searchParams.get("query") ?? "",
   });

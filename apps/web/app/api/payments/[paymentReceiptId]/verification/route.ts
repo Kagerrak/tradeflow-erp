@@ -1,3 +1,4 @@
+import { getServerApiConfig } from "@/lib/server-api";
 import {
   type PaymentVerificationInput,
   verifyPaymentReceipt,
@@ -25,8 +26,8 @@ export async function POST(
   const { paymentReceiptId } = await context.params;
   const body = (await request.json()) as VerificationBody;
   const state = await verifyPaymentReceipt({
-    accessToken: process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN,
-    baseUrl: process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000",
+    accessToken: getServerApiConfig().accessToken,
+    baseUrl: getServerApiConfig().baseUrl,
     command: body.command,
     correlationId,
     idempotencyKey: body.idempotencyKey,

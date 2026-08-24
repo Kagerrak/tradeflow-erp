@@ -1,3 +1,4 @@
+import { getServerApiConfig } from "@/lib/server-api";
 import { createTradeFlowClient, type components } from "@tradeflow/api-client";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +26,7 @@ type CreatePurchaseRequestInput =
 export async function GET(request: Request): Promise<Response> {
   const correlationId = crypto.randomUUID();
   const url = new URL(request.url);
-  const accessToken = process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN;
+  const accessToken = getServerApiConfig().accessToken;
   if (accessToken === undefined || accessToken.length === 0) {
     return Response.json(
       {
@@ -39,7 +40,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const client = createTradeFlowClient({
     accessToken,
-    baseUrl: process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000",
+    baseUrl: getServerApiConfig().baseUrl,
     correlationId,
   });
 
@@ -88,7 +89,7 @@ export async function GET(request: Request): Promise<Response> {
 
 export async function POST(request: Request): Promise<Response> {
   const correlationId = crypto.randomUUID();
-  const accessToken = process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN;
+  const accessToken = getServerApiConfig().accessToken;
   if (accessToken === undefined || accessToken.length === 0) {
     return Response.json(
       {
@@ -103,7 +104,7 @@ export async function POST(request: Request): Promise<Response> {
   const command = (await request.json()) as CreatePurchaseRequestInput;
   const client = createTradeFlowClient({
     accessToken,
-    baseUrl: process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000",
+    baseUrl: getServerApiConfig().baseUrl,
     correlationId,
   });
 

@@ -1,3 +1,4 @@
+import { getServerApiConfig } from "@/lib/server-api";
 import { createTradeFlowClient } from "@tradeflow/api-client";
 
 export async function GET(
@@ -10,7 +11,7 @@ export async function GET(
   const fromDate = searchParams.get("from_date");
   const toDate = searchParams.get("to_date");
   const asOf = searchParams.get("as_of");
-  const accessToken = process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN;
+  const accessToken = getServerApiConfig().accessToken;
   if (accessToken === undefined || accessToken.length === 0) {
     return Response.json(
       {
@@ -35,7 +36,7 @@ export async function GET(
   }
   const client = createTradeFlowClient({
     accessToken,
-    baseUrl: process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000",
+    baseUrl: getServerApiConfig().baseUrl,
     correlationId,
   });
   try {

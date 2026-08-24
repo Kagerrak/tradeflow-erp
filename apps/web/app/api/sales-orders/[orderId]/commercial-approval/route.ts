@@ -1,3 +1,4 @@
+import { getServerApiConfig } from "@/lib/server-api";
 import {
   commerciallyApproveSalesOrder,
   type CommercialApprovalInput,
@@ -18,8 +19,8 @@ export async function POST(
   const body = (await request.json()) as RequestBody;
   const { orderId } = await context.params;
   const state = await commerciallyApproveSalesOrder({
-    accessToken: process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN,
-    baseUrl: process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000",
+    accessToken: getServerApiConfig().accessToken,
+    baseUrl: getServerApiConfig().baseUrl,
     command: body.command,
     correlationId,
     expectedVersion: body.expectedVersion,
