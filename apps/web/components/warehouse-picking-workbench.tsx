@@ -11,8 +11,8 @@ import {
   type PostPickState,
   type PickReversalState,
 } from "@tradeflow/warehouse-picking";
-import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { PageHeader } from "./ui/page-header";
 
 type LoadState = PickingContextState | { kind: "idle" } | { kind: "loading" };
 
@@ -309,99 +309,91 @@ export function WarehousePickingWorkbench({
   };
 
   return (
-    <div className="picking-app">
-      <header className="picking-header">
-        <Link href="/" className="picking-wordmark">
-          TradeFlow
-        </Link>
-        <nav aria-label="Warehouse navigation">
-          <Link href="/inventory">Inventory</Link>
-          <strong>Picking</strong>
-          <Link href="/payments">Payments</Link>
-        </nav>
-        <span>Server-authoritative custody</span>
-      </header>
+    <>
+      <PageHeader
+        description="One released commitment. Every identity and quantity follows an immutable path into Dispatch Staging."
+        eyebrow="Warehouse"
+        title="Picking"
+      />
 
-      <main className="picking-main">
-        <section className="picking-intro">
-          <div>
-            <p className="eyebrow">Warehouse ledger / 008</p>
-            <h1>Move proof, not just product.</h1>
-          </div>
-          <p>
-            One Warehouse. One released commitment. Every identity and quantity
-            follows an immutable path into Dispatch Staging.
-          </p>
-        </section>
-
-        <form className="picking-order-search" onSubmit={openOrder}>
-          <label htmlFor="fulfillment-order-id">Fulfillment Order ID</label>
-          <div>
-            <input
-              id="fulfillment-order-id"
-              onChange={(event) => setOrderInput(event.target.value)}
-              placeholder="Open released warehouse work"
-              value={orderInput}
-            />
-            <button type="submit">Open pick work</button>
-          </div>
-        </form>
-
-        <div className="picking-workspace">
-          <aside className="picking-queue" aria-labelledby="queue-title">
-            <p className="picking-section-number">01 / Supervisor queue</p>
-            <h2 id="queue-title">Released work</h2>
-            {context === undefined ? (
-              <p className="picking-muted">
-                Open a Fulfillment Order to inspect its Warehouse custody.
-              </p>
-            ) : (
-              <button className="picking-queue-item" type="button">
-                <span>{context.status.replaceAll("_", " ")}</span>
-                <strong>{context.fulfillmentOrderId}</strong>
-                <small>Warehouse {context.warehouseId}</small>
-              </button>
-            )}
-            <HistorySummary history={history} />
-          </aside>
-
-          <section className="picking-desk" aria-live="polite">
-            <WorkbenchState
-              activeOrderId={activeOrderId}
-              commandState={commandState}
-              context={context}
-              history={history}
-              loadState={loadState}
-              manual={manual}
-              manualMode={manualMode}
-              message={message}
-              onManualChange={setManual}
-              onManualMode={() => {
-                setManualMode(true);
-                setScanState(null);
-                if (selectedLine !== undefined) {
-                  setManual({
-                    ...emptyManual,
-                    unitCode: selectedLine.baseStockingUnit,
-                  });
-                }
-              }}
-              onPost={() => void postCurrentPick()}
-              onResolve={() => void resolveScan()}
-              onRetry={() => void load(activeOrderId)}
-              onReverse={(pick) => void reverse(pick)}
-              onSelectLine={setSelectedLineId}
-              reversalReason={reversalReason}
-              scan={scan}
-              scanState={scanState}
-              selectedLineId={selectedLineId}
-              setReversalReason={setReversalReason}
-              setScan={setScan}
-            />
-          </section>
+      <section className="picking-intro card">
+        <div>
+          <p className="eyebrow">Warehouse ledger / 008</p>
+          <h1>Move proof, not just product.</h1>
         </div>
-      </main>
-    </div>
+        <p>
+          One Warehouse. One released commitment. Every identity and quantity
+          follows an immutable path into Dispatch Staging.
+        </p>
+      </section>
+
+      <form className="picking-order-search" onSubmit={openOrder}>
+        <label htmlFor="fulfillment-order-id">Fulfillment Order ID</label>
+        <div>
+          <input
+            id="fulfillment-order-id"
+            onChange={(event) => setOrderInput(event.target.value)}
+            placeholder="Open released warehouse work"
+            value={orderInput}
+          />
+          <button type="submit">Open pick work</button>
+        </div>
+      </form>
+
+      <div className="picking-workspace">
+        <aside className="picking-queue" aria-labelledby="queue-title">
+          <p className="picking-section-number">01 / Supervisor queue</p>
+          <h2 id="queue-title">Released work</h2>
+          {context === undefined ? (
+            <p className="picking-muted">
+              Open a Fulfillment Order to inspect its Warehouse custody.
+            </p>
+          ) : (
+            <button className="picking-queue-item" type="button">
+              <span>{context.status.replaceAll("_", " ")}</span>
+              <strong>{context.fulfillmentOrderId}</strong>
+              <small>Warehouse {context.warehouseId}</small>
+            </button>
+          )}
+          <HistorySummary history={history} />
+        </aside>
+
+        <section className="picking-desk" aria-live="polite">
+          <WorkbenchState
+            activeOrderId={activeOrderId}
+            commandState={commandState}
+            context={context}
+            history={history}
+            loadState={loadState}
+            manual={manual}
+            manualMode={manualMode}
+            message={message}
+            onManualChange={setManual}
+            onManualMode={() => {
+              setManualMode(true);
+              setScanState(null);
+              if (selectedLine !== undefined) {
+                setManual({
+                  ...emptyManual,
+                  unitCode: selectedLine.baseStockingUnit,
+                });
+              }
+            }}
+            onPost={() => void postCurrentPick()}
+            onResolve={() => void resolveScan()}
+            onRetry={() => void load(activeOrderId)}
+            onReverse={(pick) => void reverse(pick)}
+            onSelectLine={setSelectedLineId}
+            reversalReason={reversalReason}
+            scan={scan}
+            scanState={scanState}
+            selectedLineId={selectedLineId}
+            setReversalReason={setReversalReason}
+            setScan={setScan}
+          />
+        </section>
+      </div>
+    </>
   );
 }
 

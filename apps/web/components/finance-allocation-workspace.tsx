@@ -1,8 +1,8 @@
 "use client";
 
 import type { components } from "@tradeflow/api-client";
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { PageHeader } from "./ui/page-header";
 
 type ReceiptList = components["schemas"]["PaymentReceiptListResponse"];
 type Receipt = components["schemas"]["PaymentReceiptResponse"];
@@ -174,167 +174,166 @@ export function FinanceAllocationWorkspace() {
   };
 
   return (
-    <div className="finance-app">
-      <header className="finance-header">
-        <Link href="/">TradeFlow</Link>
-        <span>Finance / Payment allocation</span>
-        <span>Server-authoritative ledger</span>
-      </header>
-      <main className="finance-main">
-        <section className="finance-title">
+    <>
+      <PageHeader
+        description="Match cleared customer funds against posted invoices and reduce the customer's open balance."
+        eyebrow="Finance"
+        title="Payment allocation"
+      />
+
+      <section className="finance-title card">
+        <div>
+          <p className="eyebrow">Cleared receipt → invoice</p>
+          <h1>Apply payments to open invoices.</h1>
+        </div>
+        <p>
+          Match cleared customer funds against posted invoices and reduce the
+          customer&apos;s open balance.
+        </p>
+      </section>
+
+      <section className="finance-panel">
+        <div className="finance-section-head">
           <div>
-            <p className="eyebrow">Cleared receipt → invoice</p>
-            <h1>Apply payments to open invoices.</h1>
+            <span>Maker / finance desk</span>
+            <h2>Cleared receipts</h2>
           </div>
-          <p>
-            Match cleared customer funds against posted invoices and reduce the
-            customer&apos;s open balance.
+          <strong>
+            {receipts.kind === "ready" ? receipts.receipts.total : "—"}
+          </strong>
+        </div>
+
+        {message !== null && (
+          <p className="finance-message" role="status">
+            {message}
           </p>
-        </section>
+        )}
 
-        <section className="finance-panel">
-          <div className="finance-section-head">
-            <div>
-              <span>Maker / finance desk</span>
-              <h2>Cleared receipts</h2>
-            </div>
-            <strong>
-              {receipts.kind === "ready" ? receipts.receipts.total : "—"}
-            </strong>
-          </div>
-
-          {message !== null && (
-            <p className="finance-message" role="status">
-              {message}
-            </p>
-          )}
-
-          {receipts.kind === "loading" ? (
-            <p className="finance-empty" role="status">
-              Loading cleared receipts…
-            </p>
-          ) : receipts.kind === "unavailable" ? (
-            <p className="finance-empty" role="alert">
-              Receipt list unavailable. Reference {receipts.correlationId}
-            </p>
-          ) : receipts.receipts.items.length === 0 ? (
-            <p className="finance-empty" role="status">
-              No cleared receipts are visible for this Finance scope.
-            </p>
-          ) : (
-            <div className="finance-queue">
-              {receipts.receipts.items.map((receipt) => (
-                <article
-                  className={
-                    selectedReceipt?.payment_receipt_id ===
-                    receipt.payment_receipt_id
-                      ? "finance-selected"
-                      : ""
-                  }
-                  key={receipt.payment_receipt_id}
-                >
-                  <div>
-                    <span className="finance-status neutral">
-                      {receipt.status}
-                    </span>
-                    <h3>
-                      {receipt.currency} {receipt.amount}
-                    </h3>
-                    <p>{receipt.payment_method.replaceAll("_", " ")}</p>
-                    <p>
-                      {receipt.application_state.replaceAll("_", " ")} ·{" "}
-                      {receipt.currency} {receipt.unapplied_amount} unapplied
-                    </p>
-                    <small>{receipt.payment_receipt_id}</small>
-                  </div>
-                  <button
-                    disabled={busy}
-                    onClick={() => void selectReceipt(receipt)}
-                    type="button"
-                  >
-                    Select
-                  </button>
-                </article>
-              ))}
-            </div>
-          )}
-
-          {selectedReceipt !== null && allocationDetail !== null && (
-            <div className="finance-fields">
-              <label className="finance-wide">
-                Selected receipt
-                <input readOnly value={selectedReceipt.payment_receipt_id} />
-              </label>
-              <div>
-                <span>Application state</span>
-                <strong>
-                  {allocationDetail.application_state.replaceAll("_", " ")}
-                </strong>
-              </div>
-              <div>
-                <span>Cleared / allocated / unapplied</span>
-                <strong>
-                  {allocationDetail.cleared_amount} /{" "}
-                  {allocationDetail.allocated_amount} /{" "}
-                  {allocationDetail.available_amount}
-                </strong>
-              </div>
-              <label>
-                Open invoice
-                <select
-                  aria-label="Open invoice"
-                  onChange={(event) => setInvoiceId(event.target.value)}
-                  value={invoiceId}
-                >
-                  <option value="">Select an open invoice</option>
-                  {openInvoices.map((invoice) => (
-                    <option
-                      key={invoice.draft_invoice_id}
-                      value={invoice.draft_invoice_id}
-                    >
-                      {invoice.draft_invoice_id} · {invoice.currency}{" "}
-                      {invoice.open_balance} open
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Amount to allocate
-                <input
-                  inputMode="decimal"
-                  onChange={(event) => setAmount(event.target.value)}
-                  value={amount}
-                />
-              </label>
-              <button
-                className="finance-primary"
-                disabled={busy}
-                onClick={() => void allocate()}
-                type="button"
+        {receipts.kind === "loading" ? (
+          <p className="finance-empty" role="status">
+            Loading cleared receipts…
+          </p>
+        ) : receipts.kind === "unavailable" ? (
+          <p className="finance-empty" role="alert">
+            Receipt list unavailable. Reference {receipts.correlationId}
+          </p>
+        ) : receipts.receipts.items.length === 0 ? (
+          <p className="finance-empty" role="status">
+            No cleared receipts are visible for this Finance scope.
+          </p>
+        ) : (
+          <div className="finance-queue">
+            {receipts.receipts.items.map((receipt) => (
+              <article
+                className={
+                  selectedReceipt?.payment_receipt_id ===
+                  receipt.payment_receipt_id
+                    ? "finance-selected"
+                    : ""
+                }
+                key={receipt.payment_receipt_id}
               >
-                {busy ? "Allocating…" : "Allocate to invoice"}
-              </button>
-              {allocationDetail.application_state === "partially_applied" &&
-                Number(allocationDetail.available_amount) > 0 && (
-                  <p className="finance-message" role="status">
-                    Excess customer funds remain Unapplied Payment and have not
-                    reduced another invoice.
+                <div>
+                  <span className="finance-status neutral">
+                    {receipt.status}
+                  </span>
+                  <h3>
+                    {receipt.currency} {receipt.amount}
+                  </h3>
+                  <p>{receipt.payment_method.replaceAll("_", " ")}</p>
+                  <p>
+                    {receipt.application_state.replaceAll("_", " ")} ·{" "}
+                    {receipt.currency} {receipt.unapplied_amount} unapplied
                   </p>
-                )}
-              {allocationDetail.allocations.length > 0 && (
-                <div className="finance-wide">
-                  <strong>Allocation history</strong>
-                  {allocationDetail.allocations.map((allocation) => (
-                    <p key={allocation.allocation_id}>
-                      {allocation.amount} → {allocation.invoice_id}
-                    </p>
-                  ))}
+                  <small>{receipt.payment_receipt_id}</small>
                 </div>
-              )}
+                <button
+                  disabled={busy}
+                  onClick={() => void selectReceipt(receipt)}
+                  type="button"
+                >
+                  Select
+                </button>
+              </article>
+            ))}
+          </div>
+        )}
+
+        {selectedReceipt !== null && allocationDetail !== null && (
+          <div className="finance-fields">
+            <label className="finance-wide">
+              Selected receipt
+              <input readOnly value={selectedReceipt.payment_receipt_id} />
+            </label>
+            <div>
+              <span>Application state</span>
+              <strong>
+                {allocationDetail.application_state.replaceAll("_", " ")}
+              </strong>
             </div>
-          )}
-        </section>
-      </main>
-    </div>
+            <div>
+              <span>Cleared / allocated / unapplied</span>
+              <strong>
+                {allocationDetail.cleared_amount} /{" "}
+                {allocationDetail.allocated_amount} /{" "}
+                {allocationDetail.available_amount}
+              </strong>
+            </div>
+            <label>
+              Open invoice
+              <select
+                aria-label="Open invoice"
+                onChange={(event) => setInvoiceId(event.target.value)}
+                value={invoiceId}
+              >
+                <option value="">Select an open invoice</option>
+                {openInvoices.map((invoice) => (
+                  <option
+                    key={invoice.draft_invoice_id}
+                    value={invoice.draft_invoice_id}
+                  >
+                    {invoice.draft_invoice_id} · {invoice.currency}{" "}
+                    {invoice.open_balance} open
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Amount to allocate
+              <input
+                inputMode="decimal"
+                onChange={(event) => setAmount(event.target.value)}
+                value={amount}
+              />
+            </label>
+            <button
+              className="finance-primary"
+              disabled={busy}
+              onClick={() => void allocate()}
+              type="button"
+            >
+              {busy ? "Allocating…" : "Allocate to invoice"}
+            </button>
+            {allocationDetail.application_state === "partially_applied" &&
+              Number(allocationDetail.available_amount) > 0 && (
+                <p className="finance-message" role="status">
+                  Excess customer funds remain Unapplied Payment and have not
+                  reduced another invoice.
+                </p>
+              )}
+            {allocationDetail.allocations.length > 0 && (
+              <div className="finance-wide">
+                <strong>Allocation history</strong>
+                {allocationDetail.allocations.map((allocation) => (
+                  <p key={allocation.allocation_id}>
+                    {allocation.amount} → {allocation.invoice_id}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+    </>
   );
 }

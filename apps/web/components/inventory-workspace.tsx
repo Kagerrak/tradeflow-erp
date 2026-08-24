@@ -1,8 +1,18 @@
 "use client";
 
 import type { InventoryDirectoryState } from "@tradeflow/inventory-directory";
-import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { EmptyState } from "./ui/empty-state";
+import { ErrorState } from "./ui/error-state";
+import { PageHeader } from "./ui/page-header";
+
+const inventoryTabs = [
+  { href: "/inventory", label: "Stock ledger" },
+  { href: "/inventory/transfers", label: "Transfers" },
+  { href: "/inventory/adjustments", label: "Adjustments" },
+];
 
 type ScreenState = InventoryDirectoryState | { kind: "loading" };
 
@@ -18,6 +28,7 @@ async function loadInventory(query: string): Promise<InventoryDirectoryState> {
 }
 
 export function InventoryWorkspace() {
+  const pathname = usePathname();
   const [query, setQuery] = useState("");
   const [state, setState] = useState<ScreenState>({ kind: "loading" });
   const search = useCallback(async (nextQuery: string) => {
@@ -53,55 +64,70 @@ export function InventoryWorkspace() {
     void search(query);
   };
 
-  return (
-    <div className="inventory-app">
-      <header className="inventory-header">
-        <Link href="/" className="inventory-wordmark">
-          TradeFlow
-        </Link>
-        <span>Inventory control</span>
-        <span>Server-authoritative</span>
-      </header>
-      <main className="inventory-main">
-        <section className="inventory-intro">
-          <div>
-            <p className="eyebrow">Stock ledger / 004</p>
-            <h1>Promise only what is actually available.</h1>
-          </div>
-          <p>
-            On-hand and value are rebuilt from posted movements. Results are
-            limited to your assigned Warehouses.
-          </p>
-        </section>
-        <section
-          className="inventory-directory"
-          aria-labelledby="inventory-title"
+  const tabs = (
+    <>
+      {inventoryTabs.map((tab) => (
+        <Link
+          key={tab.href}
+          href={tab.href}
+          aria-current={pathname === tab.href ? "page" : undefined}
         >
-          <div className="inventory-section-head">
-            <div>
-              <p className="section-number">01 / Availability</p>
-              <h2 id="inventory-title">Warehouse stock</h2>
-            </div>
-            <span className="projection-badge">Immutable movement basis</span>
+          {tab.label}
+        </Link>
+      ))}
+    </>
+  );
+
+  return (
+    <>
+      <PageHeader
+        description="On-hand and value are rebuilt from posted movements. Results are limited to your assigned warehouses."
+        eyebrow="Inventory"
+        tabs={tabs}
+        title="Stock ledger"
+      />
+
+      <section className="inventory-intro card">
+        <div>
+          <p className="eyebrow">Stock ledger / 004</p>
+          <h2>Promise only what is actually available.</h2>
+        </div>
+        <p>
+          On-hand and value are rebuilt from posted movements. Results are
+          limited to your assigned warehouses.
+        </p>
+      </section>
+
+      <section
+        className="inventory-directory card"
+        aria-labelledby="inventory-title"
+      >
+        <div className="inventory-section-head">
+          <div>
+            <span className="section-number">Warehouse stock</span>
+            <h2 id="inventory-title">Availability</h2>
           </div>
-          <form className="inventory-search" onSubmit={submit}>
-            <label htmlFor="inventory-query">
-              Search SKU code or product name
-            </label>
-            <div>
-              <input
-                id="inventory-query"
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="e.g. COLA-330"
-                value={query}
-              />
-              <button type="submit">Search stock</button>
-            </div>
-          </form>
-          <InventoryState retry={() => void search(query)} state={state} />
-        </section>
-      </main>
-    </div>
+          <span className="projection-badge">Immutable movement basis</span>
+        </div>
+        <form className="inventory-search" onSubmit={submit}>
+          <label htmlFor="inventory-query">
+            Search SKU code or product name
+          </label>
+          <div>
+            <input
+              id="inventory-query"
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="e.g. COLA-330"
+              value={query}
+            />
+            <button className="btn-primary" type="submit">
+              Search stock
+            </button>
+          </div>
+        </form>
+        <InventoryState retry={() => void search(query)} state={state} />
+      </section>
+    </>
   );
 }
 
@@ -116,8 +142,7 @@ function InventoryState({
     return (
       <div className="inventory-message" role="status">
         <span className="inventory-loader" aria-hidden="true" />
-        <h3>Loading scoped availability…</h3>
-        <p>Reading the latest committed stock projection.</p>
+        <p>Loading scoped availability…</p>
       </div>
     );
   }
@@ -130,39 +155,36 @@ function InventoryState({
           : state.kind === "validation"
             ? "Revise the inventory search"
             : "Inventory is temporarily unavailable";
+    const message =
+      state.kind === "forbidden"
+        ? "Ask an operations administrator for inventory read access and warehouse scope."
+        : state.kind === "unauthenticated"
+          ? "Sign in through your identity provider, then return here."
+          : state.kind === "validation"
+            ? "Use a valid SKU code or product name."
+            : "Confirm the service connection and try again.";
     return (
-      <div className="inventory-message" role="alert">
-        <span className="inventory-alert" aria-hidden="true">
-          !
-        </span>
-        <h3>{title}</h3>
-        <p>
-          {state.kind === "forbidden"
-            ? "Ask an operations administrator for inventory read access and Warehouse scope."
-            : state.kind === "unauthenticated"
-              ? "Sign in through your identity provider, then return here."
-              : state.kind === "validation"
-                ? "Use a valid SKU code or product name."
-                : "Confirm the service connection and try again."}
-        </p>
-        <p className="support-reference">
-          Support reference <code>{state.correlationId}</code>
-        </p>
-        {state.kind === "unavailable" && (
-          <button type="button" onClick={retry}>
-            Retry availability
-          </button>
-        )}
-      </div>
+      <ErrorState
+        action={
+          state.kind === "unavailable" ? (
+            <button className="btn-primary" onClick={retry} type="button">
+              Retry availability
+            </button>
+          ) : undefined
+        }
+        correlationId={state.correlationId}
+        title={title}
+      >
+        <p>{message}</p>
+      </ErrorState>
     );
   }
   if (state.total === 0) {
     return (
-      <div className="inventory-message inventory-empty">
-        <span aria-hidden="true">∅</span>
-        <h3>No stock in your Warehouse scope</h3>
-        <p>Revise the search or post authorized opening stock.</p>
-      </div>
+      <EmptyState
+        description="Revise the search or post authorized opening stock."
+        title="No stock in your Warehouse scope"
+      />
     );
   }
   return (

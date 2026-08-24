@@ -1,67 +1,11 @@
-.picking-app {
-  min-height: 100svh;
-  background:
-    linear-gradient(var(--paper-300) 1px, transparent 1px) 0 7.25rem / 100%
-      4.5rem no-repeat,
-    var(--paper-50);
-}
-
-.picking-header {
-  display: grid;
-  min-height: 4.5rem;
-  align-items: center;
-  gap: var(--space-lg);
-  border-bottom: 1px solid var(--ink-950);
-  padding: 0 clamp(1rem, 4vw, 3rem);
-  grid-template-columns: auto 1fr auto;
-}
-
-.picking-wordmark {
-  color: var(--ink-950);
-  font-family: var(--font-display);
-  font-size: 1.4rem;
-  font-weight: 650;
-  text-decoration: none;
-}
-
-.picking-header nav {
-  display: flex;
-  justify-content: center;
-  gap: var(--space-xl);
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.picking-header nav a {
-  color: var(--ink-500);
-  text-decoration: none;
-}
-
-.picking-header nav strong {
-  color: var(--orange-600);
-}
-
-.picking-header > span {
-  color: var(--ink-500);
-  font-size: 0.68rem;
-  font-weight: 650;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.picking-main {
-  padding: 0 clamp(1rem, 4vw, 3rem) 4rem;
-}
-
 .picking-intro {
   display: grid;
   gap: 2rem;
-  padding: clamp(3rem, 8vw, 6.5rem) 0 3rem;
+  padding: 1.5rem 0 2rem;
 }
 
 .picking-intro h1 {
-  max-width: 10ch;
+  max-width: 18ch;
 }
 
 .picking-intro > p {
@@ -102,10 +46,10 @@
 .picking-capture textarea,
 .picking-history input {
   min-height: 3rem;
-  border: 1px solid var(--paper-300);
+  border: 1px solid var(--border);
   border-radius: 0;
   outline: none;
-  background: var(--paper-100);
+  background: var(--background);
   color: var(--ink-950);
   font: inherit;
 }
@@ -153,7 +97,7 @@
 .picking-order-search button,
 .picking-post {
   background: var(--ink-950) !important;
-  color: var(--paper-50);
+  color: var(--card);
 }
 
 .picking-workspace {
@@ -162,7 +106,7 @@
 }
 
 .picking-queue {
-  border-bottom: 1px solid var(--paper-300);
+  border-bottom: 1px solid var(--border);
   padding: 1.5rem 0;
 }
 
@@ -185,7 +129,7 @@
 
 .picking-muted {
   max-width: 20rem;
-  color: var(--ink-500);
+  color: var(--ink-600);
   font-size: 0.85rem;
 }
 
@@ -196,7 +140,7 @@
   border: 0;
   border-left: 3px solid var(--orange-600);
   padding: 0.85rem 0.85rem 0.85rem 1rem;
-  background: var(--paper-100);
+  background: var(--background);
   color: var(--ink-950);
   text-align: left;
 }
@@ -204,7 +148,7 @@
 .picking-queue-item span,
 .picking-queue-item small,
 .picking-history-count span {
-  color: var(--ink-500);
+  color: var(--ink-600);
   font-size: 0.65rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -222,7 +166,7 @@
   align-items: baseline;
   justify-content: space-between;
   margin-top: 1.5rem;
-  border-top: 1px solid var(--paper-300);
+  border-top: 1px solid var(--border);
   padding-top: 0.75rem;
 }
 
@@ -248,9 +192,9 @@
   display: grid;
   min-height: 6.5rem;
   align-content: center;
-  border: 1px solid var(--paper-300);
+  border: 1px solid var(--border);
   padding: 1rem;
-  background: var(--paper-100);
+  background: var(--background);
 }
 
 .custody-rail > div:nth-of-type(2) {
@@ -259,7 +203,7 @@
 }
 
 .custody-rail span {
-  color: var(--ink-500);
+  color: var(--ink-600);
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -318,8 +262,8 @@
 .picking-line-tabs .line-tab {
   min-height: 2.25rem;
   flex: 0 0 auto;
-  border-color: var(--paper-300);
-  color: var(--ink-500);
+  border-color: var(--border);
+  color: var(--ink-600);
 }
 
 .picking-line-tabs .line-tab-active {
@@ -353,7 +297,7 @@
 .picking-line-numbers {
   display: grid;
   margin: 0;
-  border-top: 1px solid var(--paper-300);
+  border-top: 1px solid var(--border);
   grid-template-columns: repeat(3, 1fr);
 }
 
@@ -362,7 +306,7 @@
 }
 
 .picking-line-numbers dt {
-  color: var(--ink-500);
+  color: var(--ink-600);
   font-size: 0.65rem;
   text-transform: uppercase;
 }
@@ -381,7 +325,7 @@
 .picking-fefo > span {
   display: block;
   padding: 0.6rem 0;
-  color: var(--ink-500);
+  color: var(--ink-600);
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -394,7 +338,7 @@
   min-height: 2.8rem !important;
   align-items: center;
   border: 0 !important;
-  border-top: 1px solid var(--paper-300) !important;
+  border-top: 1px solid var(--border) !important;
   padding: 0.55rem 0 !important;
   grid-template-columns: 1.2fr 1fr 0.8fr auto;
   text-align: left;
@@ -507,7 +451,7 @@
   margin-bottom: 1.5rem;
   border-left: 3px solid var(--ink-650);
   padding: 1.25rem;
-  background: var(--paper-100);
+  background: var(--background);
 }
 
 .picking-state p,
@@ -553,7 +497,7 @@
 .picking-history article {
   display: grid;
   gap: 1rem;
-  border-top: 1px solid var(--paper-300);
+  border-top: 1px solid var(--border);
   padding: 1rem 0;
 }
 
@@ -563,7 +507,7 @@
 
 .picking-history article span,
 .picking-history article small {
-  color: var(--ink-500);
+  color: var(--ink-600);
   font-size: 0.68rem;
   text-transform: uppercase;
 }
@@ -605,7 +549,7 @@
   }
 
   .picking-queue {
-    border-right: 1px solid var(--paper-300);
+    border-right: 1px solid var(--border);
     border-bottom: 0;
     padding-right: 1.5rem;
   }
@@ -620,18 +564,6 @@
 }
 
 @media (max-width: 43.99rem) {
-  .picking-header {
-    grid-template-columns: 1fr auto;
-  }
-
-  .picking-header nav {
-    display: none;
-  }
-
-  .picking-header > span {
-    text-align: right;
-  }
-
   .picking-order-search > div,
   .picking-scan-row {
     align-items: stretch;

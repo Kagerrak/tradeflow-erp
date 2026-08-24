@@ -1,10 +1,14 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "baseUrl": ".",
     "incremental": true,
     "jsx": "preserve",
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "module": "ESNext",
+    "paths": {
+      "@/*": ["./*"]
+    },
     "plugins": [{ "name": "next" }],
     "types": ["node"]
   },

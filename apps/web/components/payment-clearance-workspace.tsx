@@ -7,8 +7,8 @@ import {
   type PaymentReceiptCommandState,
   type PaymentReceiptListState,
 } from "@tradeflow/payment-clearance";
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { PageHeader } from "./ui/page-header";
 
 const methods = ["cash", "bank_transfer", "check", "electronic"] as const;
 
@@ -324,321 +324,319 @@ export function PaymentClearanceWorkspace() {
   };
 
   return (
-    <div className="payment-app">
-      <header className="payment-header">
-        <Link href="/">TradeFlow</Link>
-        <span>Finance / Payment clearance</span>
-        <span>Server-authoritative ledger</span>
-      </header>
-      <main className="payment-main">
-        <section className="payment-title">
-          <div>
-            <p className="eyebrow">Receipt → clear → cover → pick</p>
-            <h1>Make cleared money visible.</h1>
-          </div>
-          <p>
-            Record what arrived, separate evidence from cleared funds, and show
-            Warehouse exactly when reserved value is safe to pick.
-          </p>
-        </section>
+    <>
+      <PageHeader
+        description="Record what arrived, separate evidence from cleared funds, and show Warehouse exactly when reserved value is safe to pick."
+        eyebrow="Finance"
+        title="Payment clearance"
+      />
 
-        <section className="payment-workbench">
-          <div className="payment-maker">
-            <div className="payment-section-head">
-              <div>
-                <span>Maker / receipt desk</span>
-                <h2>Record customer payment</h2>
-              </div>
-              <strong>PHP</strong>
-            </div>
-            <div className="payment-methods" aria-label="Payment method">
-              {methods.map((value) => (
-                <button
-                  aria-pressed={method === value}
-                  key={value}
-                  onClick={() => setMethod(value)}
-                  type="button"
-                >
-                  {value.replaceAll("_", " ")}
-                </button>
-              ))}
-            </div>
-            <div className="payment-fields">
-              <label>
-                Branch ID
-                <input
-                  onChange={(event) => setBranchId(event.target.value)}
-                  value={branchId}
-                />
-              </label>
-              <label>
-                Customer Account ID
-                <input
-                  onChange={(event) => setCustomerId(event.target.value)}
-                  value={customerId}
-                />
-              </label>
-              <label>
-                Sales Order ID <small>optional</small>
-                <input
-                  onChange={(event) => setSalesOrderId(event.target.value)}
-                  value={salesOrderId}
-                />
-              </label>
-              <label>
-                Received amount
-                <input
-                  inputMode="decimal"
-                  onChange={(event) => setAmount(event.target.value)}
-                  value={amount}
-                />
-              </label>
-              {method !== "cash" && (
-                <>
-                  <label>
-                    External reference
-                    <input
-                      onChange={(event) => setReference(event.target.value)}
-                      value={reference}
-                    />
-                  </label>
-                  <label>
-                    Account or provider
-                    <input
-                      onChange={(event) => setProvider(event.target.value)}
-                      value={provider}
-                    />
-                  </label>
-                  <label className="payment-wide">
-                    Evidence document URL
-                    <input
-                      onChange={(event) => setDocumentUrl(event.target.value)}
-                      value={documentUrl}
-                    />
-                  </label>
-                </>
-              )}
-            </div>
-            {message !== null && (
-              <p className="payment-message" role="alert">
-                {message}
-              </p>
-            )}
-            <button
-              className="payment-primary"
-              disabled={busy}
-              onClick={() => void record()}
-              type="button"
-            >
-              {busy ? "Posting…" : "Record immutable receipt"}
-            </button>
-          </div>
+      <section className="payment-title card">
+        <div>
+          <p className="eyebrow">Receipt → clear → cover → pick</p>
+          <h1>Make cleared money visible.</h1>
+        </div>
+        <p>
+          Record what arrived, separate evidence from cleared funds, and show
+          Warehouse exactly when reserved value is safe to pick.
+        </p>
+      </section>
 
-          <div className="payment-checker">
-            <div className="payment-section-head">
-              <div>
-                <span>Checker / evidence queue</span>
-                <h2>Pending verification</h2>
-              </div>
-              <strong>{queue?.kind === "ready" ? queue.total : "—"}</strong>
+      <section className="payment-workbench">
+        <div className="payment-maker">
+          <div className="payment-section-head">
+            <div>
+              <span>Maker / receipt desk</span>
+              <h2>Record customer payment</h2>
             </div>
-            {queue === null ? (
-              <p className="payment-empty" role="status">
-                Loading scoped receipts…
-              </p>
-            ) : queue.kind !== "ready" ? (
-              <p className="payment-empty" role="alert">
-                Verification queue unavailable. Reference {queue.correlationId}
-              </p>
-            ) : queue.items.length === 0 ? (
-              <p className="payment-empty" role="status">
-                No non-cash evidence is waiting for this Finance scope.
-              </p>
-            ) : (
-              <div className="payment-queue">
-                {queue.items.map((receipt) => (
-                  <article key={receipt.paymentReceiptId}>
-                    <div>
-                      <StatusLabel state={receipt.status} />
-                      <h3>
-                        {receipt.currency} {receipt.amount}
-                      </h3>
-                      <p>
-                        {receipt.paymentMethod.replaceAll("_", " ")} ·{" "}
-                        {receipt.externalReferenceNormalized}
-                      </p>
-                      <small>Recorded by {receipt.recordedBy}</small>
-                    </div>
-                    <button
-                      disabled={busy}
-                      onClick={() => void verify(receipt)}
-                      type="button"
-                    >
-                      {receipt.paymentMethod === "check"
-                        ? "Verify evidence"
-                        : "Clear payment"}
-                    </button>
-                  </article>
-                ))}
-              </div>
-            )}
-            <div className="payment-section-head">
-              <div>
-                <span>Checker / COD exception</span>
-                <h2>Convert unpaid COD to On Account</h2>
-              </div>
-            </div>
-            <div className="payment-fields">
-              <label>
-                Delivery ID
-                <input
-                  onChange={(event) =>
-                    setConversionDeliveryId(event.target.value)
-                  }
-                  value={conversionDeliveryId}
-                />
-              </label>
-              <label>
-                Current Delivery version
-                <input
-                  inputMode="numeric"
-                  onChange={(event) => setConversionVersion(event.target.value)}
-                  value={conversionVersion}
-                />
-              </label>
-              <label className="payment-wide">
-                Credit Override reason
-                <input
-                  onChange={(event) => setConversionReason(event.target.value)}
-                  value={conversionReason}
-                />
-              </label>
-            </div>
-            <button
-              className="payment-primary"
-              disabled={busy}
-              onClick={() => void convertCOD()}
-              type="button"
-            >
-              Approve COD conversion
-            </button>
-            {conversionMessage !== null && (
-              <p className="payment-message" role="status">
-                {conversionMessage}
-              </p>
-            )}
-            <div className="payment-section-head">
-              <div>
-                <span>Finance / cash custody</span>
-                <h2>Reconcile physical COD cash</h2>
-              </div>
-            </div>
-            <div className="payment-fields">
-              <label>
-                Cash Payment Receipt ID
-                <input
-                  onChange={(event) => setCashReceiptId(event.target.value)}
-                  value={cashReceiptId}
-                />
-              </label>
-              <label>
-                Counted cash
-                <input
-                  inputMode="decimal"
-                  onChange={(event) => setCashCounted(event.target.value)}
-                  value={cashCounted}
-                />
-              </label>
-              <label className="payment-wide">
-                Reconciliation or discrepancy reason
-                <input
-                  onChange={(event) => setCashReason(event.target.value)}
-                  value={cashReason}
-                />
-              </label>
-            </div>
-            <button
-              className="payment-primary"
-              disabled={busy}
-              onClick={() => void reconcileCash()}
-              type="button"
-            >
-              Reconcile COD cash
-            </button>
-            {cashMessage !== null && (
-              <p className="payment-message" role="status">
-                {cashMessage}
-              </p>
-            )}
+            <strong>PHP</strong>
           </div>
-        </section>
-
-        {result !== null && (
-          <section className="payment-result" aria-live="polite">
-            {result.kind === "recorded" || result.kind === "updated" ? (
-              <>
-                <StatusLabel state={result.receipt.status} />
-                <h2>
-                  {
-                    paymentStateContent[
-                      result.receipt.status as PaymentOperationalState
-                    ].title
-                  }
-                </h2>
-                <p>
-                  {
-                    paymentStateContent[
-                      result.receipt.status as PaymentOperationalState
-                    ].nextAction
-                  }
-                </p>
-                {result.receipt.status === "cleared" && (
-                  <p>
-                    {result.receipt.currency} {result.receipt.unappliedAmount}{" "}
-                    remains{" "}
-                    {result.receipt.applicationState.replaceAll("_", " ")}; no
-                    unrelated invoice balance changed.
-                  </p>
-                )}
-              </>
-            ) : (
-              <>
-                <span className="payment-status critical">Command stopped</span>
-                <h2>TradeFlow did not change the ledger</h2>
-                <p>
-                  Resolve the {result.kind.replaceAll("_", " ")} boundary and
-                  retry with the same command identity.
-                </p>
-              </>
-            )}
-          </section>
-        )}
-
-        <section className="payment-state-guide" aria-labelledby="state-guide">
-          <div>
-            <p className="eyebrow">Shared operational language</p>
-            <h2 id="state-guide">Every state says what happens next.</h2>
-          </div>
-          <div className="payment-state-grid">
-            {(
-              Object.entries(paymentStateContent) as Array<
-                [
-                  PaymentOperationalState,
-                  (typeof paymentStateContent)[PaymentOperationalState],
-                ]
+          <div className="payment-methods" aria-label="Payment method">
+            {methods.map((value) => (
+              <button
+                aria-pressed={method === value}
+                key={value}
+                onClick={() => setMethod(value)}
+                type="button"
               >
-            ).map(([state, content]) => (
-              <article key={state}>
-                <StatusLabel state={state} />
-                <h3>{content.title}</h3>
-                <p>{content.description}</p>
-                <strong>Next / {content.nextAction}</strong>
-              </article>
+                {value.replaceAll("_", " ")}
+              </button>
             ))}
           </div>
+          <div className="payment-fields">
+            <label>
+              Branch ID
+              <input
+                onChange={(event) => setBranchId(event.target.value)}
+                value={branchId}
+              />
+            </label>
+            <label>
+              Customer Account ID
+              <input
+                onChange={(event) => setCustomerId(event.target.value)}
+                value={customerId}
+              />
+            </label>
+            <label>
+              Sales Order ID <small>optional</small>
+              <input
+                onChange={(event) => setSalesOrderId(event.target.value)}
+                value={salesOrderId}
+              />
+            </label>
+            <label>
+              Received amount
+              <input
+                inputMode="decimal"
+                onChange={(event) => setAmount(event.target.value)}
+                value={amount}
+              />
+            </label>
+            {method !== "cash" && (
+              <>
+                <label>
+                  External reference
+                  <input
+                    onChange={(event) => setReference(event.target.value)}
+                    value={reference}
+                  />
+                </label>
+                <label>
+                  Account or provider
+                  <input
+                    onChange={(event) => setProvider(event.target.value)}
+                    value={provider}
+                  />
+                </label>
+                <label className="payment-wide">
+                  Evidence document URL
+                  <input
+                    onChange={(event) => setDocumentUrl(event.target.value)}
+                    value={documentUrl}
+                  />
+                </label>
+              </>
+            )}
+          </div>
+          {message !== null && (
+            <p className="payment-message" role="alert">
+              {message}
+            </p>
+          )}
+          <button
+            className="payment-primary"
+            disabled={busy}
+            onClick={() => void record()}
+            type="button"
+          >
+            {busy ? "Posting…" : "Record immutable receipt"}
+          </button>
+        </div>
+
+        <div className="payment-checker">
+          <div className="payment-section-head">
+            <div>
+              <span>Checker / evidence queue</span>
+              <h2>Pending verification</h2>
+            </div>
+            <strong>{queue?.kind === "ready" ? queue.total : "—"}</strong>
+          </div>
+          {queue === null ? (
+            <p className="payment-empty" role="status">
+              Loading scoped receipts…
+            </p>
+          ) : queue.kind !== "ready" ? (
+            <p className="payment-empty" role="alert">
+              Verification queue unavailable. Reference {queue.correlationId}
+            </p>
+          ) : queue.items.length === 0 ? (
+            <p className="payment-empty" role="status">
+              No non-cash evidence is waiting for this Finance scope.
+            </p>
+          ) : (
+            <div className="payment-queue">
+              {queue.items.map((receipt) => (
+                <article key={receipt.paymentReceiptId}>
+                  <div>
+                    <StatusLabel state={receipt.status} />
+                    <h3>
+                      {receipt.currency} {receipt.amount}
+                    </h3>
+                    <p>
+                      {receipt.paymentMethod.replaceAll("_", " ")} ·{" "}
+                      {receipt.externalReferenceNormalized}
+                    </p>
+                    <small>Recorded by {receipt.recordedBy}</small>
+                  </div>
+                  <button
+                    disabled={busy}
+                    onClick={() => void verify(receipt)}
+                    type="button"
+                  >
+                    {receipt.paymentMethod === "check"
+                      ? "Verify evidence"
+                      : "Clear payment"}
+                  </button>
+                </article>
+              ))}
+            </div>
+          )}
+          <div className="payment-section-head">
+            <div>
+              <span>Checker / COD exception</span>
+              <h2>Convert unpaid COD to On Account</h2>
+            </div>
+          </div>
+          <div className="payment-fields">
+            <label>
+              Delivery ID
+              <input
+                onChange={(event) =>
+                  setConversionDeliveryId(event.target.value)
+                }
+                value={conversionDeliveryId}
+              />
+            </label>
+            <label>
+              Current Delivery version
+              <input
+                inputMode="numeric"
+                onChange={(event) => setConversionVersion(event.target.value)}
+                value={conversionVersion}
+              />
+            </label>
+            <label className="payment-wide">
+              Credit Override reason
+              <input
+                onChange={(event) => setConversionReason(event.target.value)}
+                value={conversionReason}
+              />
+            </label>
+          </div>
+          <button
+            className="payment-primary"
+            disabled={busy}
+            onClick={() => void convertCOD()}
+            type="button"
+          >
+            Approve COD conversion
+          </button>
+          {conversionMessage !== null && (
+            <p className="payment-message" role="status">
+              {conversionMessage}
+            </p>
+          )}
+          <div className="payment-section-head">
+            <div>
+              <span>Finance / cash custody</span>
+              <h2>Reconcile physical COD cash</h2>
+            </div>
+          </div>
+          <div className="payment-fields">
+            <label>
+              Cash Payment Receipt ID
+              <input
+                onChange={(event) => setCashReceiptId(event.target.value)}
+                value={cashReceiptId}
+              />
+            </label>
+            <label>
+              Counted cash
+              <input
+                inputMode="decimal"
+                onChange={(event) => setCashCounted(event.target.value)}
+                value={cashCounted}
+              />
+            </label>
+            <label className="payment-wide">
+              Reconciliation or discrepancy reason
+              <input
+                onChange={(event) => setCashReason(event.target.value)}
+                value={cashReason}
+              />
+            </label>
+          </div>
+          <button
+            className="payment-primary"
+            disabled={busy}
+            onClick={() => void reconcileCash()}
+            type="button"
+          >
+            Reconcile COD cash
+          </button>
+          {cashMessage !== null && (
+            <p className="payment-message" role="status">
+              {cashMessage}
+            </p>
+          )}
+        </div>
+      </section>
+
+      {result !== null && (
+        <section className="payment-result" aria-live="polite">
+          {result.kind === "recorded" || result.kind === "updated" ? (
+            <>
+              <StatusLabel state={result.receipt.status} />
+              <h2>
+                {
+                  paymentStateContent[
+                    result.receipt.status as PaymentOperationalState
+                  ].title
+                }
+              </h2>
+              <p>
+                {
+                  paymentStateContent[
+                    result.receipt.status as PaymentOperationalState
+                  ].nextAction
+                }
+              </p>
+              {result.receipt.status === "cleared" && (
+                <p>
+                  {result.receipt.currency} {result.receipt.unappliedAmount}{" "}
+                  remains {result.receipt.applicationState.replaceAll("_", " ")}
+                  ; no unrelated invoice balance changed.
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              <span className="payment-status critical">Command stopped</span>
+              <h2>TradeFlow did not change the ledger</h2>
+              <p>
+                Resolve the {result.kind.replaceAll("_", " ")} boundary and
+                retry with the same command identity.
+              </p>
+            </>
+          )}
         </section>
-      </main>
-    </div>
+      )}
+
+      <section className="payment-state-guide" aria-labelledby="state-guide">
+        <div>
+          <p className="eyebrow">Shared operational language</p>
+          <h2 id="state-guide">Every state says what happens next.</h2>
+        </div>
+        <div className="payment-state-grid">
+          {(
+            Object.entries(paymentStateContent) as Array<
+              [
+                PaymentOperationalState,
+                (typeof paymentStateContent)[PaymentOperationalState],
+              ]
+            >
+          ).map(([state, content]) => (
+            <article key={state}>
+              <StatusLabel state={state} />
+              <h3>{content.title}</h3>
+              <p>{content.description}</p>
+              <strong>Next / {content.nextAction}</strong>
+            </article>
+          ))}
+        </div>
+      </section>
+    </>
   );
 }
 

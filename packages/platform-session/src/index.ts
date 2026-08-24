@@ -29,7 +29,7 @@ export const platformStateContent = {
   forbidden: {
     action: "Ask an operations administrator",
     detail:
-      "Your identity is valid, but platform:read is not assigned within your operational scope.",
+      "Your identity is valid, but platform:read is not assigned within your operational scope. Ask an operations administrator to add the platform read capability.",
     heading: "Platform access is not assigned",
     index: "HOLD / 403",
     kicker: "Authority required",
@@ -38,7 +38,7 @@ export const platformStateContent = {
   unauthenticated: {
     action: "Open your identity provider",
     detail:
-      "No active TradeFlow session was found. Sign in through your organization’s provider, then return here.",
+      "No active TradeFlow session was found. Open your identity provider, sign in through your organization, then return here.",
     heading: "Sign in to continue",
     index: "HOLD / 401",
     kicker: "Identity required",

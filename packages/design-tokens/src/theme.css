@@ -1,18 +1,81 @@
 :root {
-  --ink-950: #0d1a23;
-  --ink-800: #263640;
-  --ink-650: #586570;
-  --ink-500: #77818a;
-  --paper-50: #faf7ef;
-  --paper-100: #f5f0e7;
-  --paper-200: #eee8dc;
-  --paper-300: #d8cfc1;
-  --orange-600: #c64e0b;
-  --orange-100: #f7e5d3;
-  --green-700: #17643c;
-  --green-100: #e1f1e5;
+  /* Warm paper-tinted neutrals */
+  --warm-50: #faf7ef;
+  --warm-100: #f5f0e3;
+  --warm-200: #e9e2d4;
+  --warm-300: #d8cfbd;
+  --warm-400: #b8b09e;
+  --warm-500: #918b7d;
+  --warm-600: #6d675e;
+  --warm-700: #504b45;
+  --warm-800: #36332f;
+  --warm-900: #211f1d;
+
+  /* Deep ink / navy */
+  --ink-950: #10182b;
+  --ink-900: #162039;
+  --ink-800: #1d2b47;
+  --ink-700: #2d415e;
+  --ink-650: #3d516d;
+  --ink-600: #4a5f7d;
+  --ink-500: #74839a;
+  --ink-400: #9ba6b5;
+
+  /* Safety-orange accent */
+  --orange-600: #b5450a;
+  --orange-500: #c64e0b;
+  --orange-400: #e06318;
+  --orange-300: #f5a66b;
+  --orange-100: #ffe8d6;
+  --orange-50: #fff6ee;
+
+  /* Semantic status colors */
+  --green-700: #166534;
+  --green-100: #dcfce7;
+  --green-50: #f0fdf4;
+  --amber-700: #92400e;
+  --amber-100: #fef3c7;
+  --amber-50: #fffbeb;
   --red-700: #9d332c;
-  --red-100: #f5e4df;
-  --amber-700: #8a570f;
-  --amber-100: #f3ead2;
+  --red-600: #b53c33;
+  --red-100: #fee2e2;
+  --red-50: #fef2f2;
+
+  /* shadcn/ui-compatible semantic aliases */
+  --background: var(--warm-50);
+  --foreground: var(--ink-950);
+  --card: var(--warm-50);
+  --card-foreground: var(--ink-950);
+  --popover: var(--warm-50);
+  --popover-foreground: var(--ink-950);
+  --primary: var(--orange-600);
+  --primary-foreground: var(--warm-50);
+  --secondary: var(--warm-200);
+  --secondary-foreground: var(--ink-950);
+  --muted: var(--warm-200);
+  --muted-foreground: var(--ink-600);
+  --accent: var(--warm-200);
+  --accent-foreground: var(--ink-950);
+  --destructive: var(--red-700);
+  --destructive-foreground: var(--warm-50);
+  --border: var(--warm-300);
+  --input: var(--warm-300);
+  --ring: var(--orange-600);
+  --radius: 0.5rem;
+
+  /* Typography */
+  --font-body: "IBM Plex Sans Variable", "IBM Plex Sans", sans-serif;
+  --font-display: "Newsreader Variable", "Newsreader", serif;
+
+  /* Spacing (kept for compatibility) */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 0.75rem;
+  --space-lg: 1rem;
+  --space-xl: 1.5rem;
+  --space-2xl: 2rem;
+  --space-3xl: 3rem;
+
+  /* Easing */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }

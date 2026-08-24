@@ -1,8 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type components } from "@tradeflow/api-client";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { PageHeader } from "./ui/page-header";
 
 type ApiCorrectionDetail = components["schemas"]["DeliveryCorrectionResponse"];
 type ApiCorrectionSummary = components["schemas"]["DeliveryCorrectionSummary"];
@@ -51,6 +53,12 @@ type CorrectionDetail = Omit<ApiCorrectionDetail, "lines"> & {
 type ReceiptDetail = Omit<ApiReceiptDetail, "confirmation_lines"> & {
   confirmation_lines: CorrectionLine[];
 };
+
+const deliveryTabs = [
+  { href: "/deliveries", label: "Deliveries" },
+  { href: "/delivery-exceptions", label: "Exceptions" },
+  { href: "/delivery-corrections", label: "Corrections" },
+];
 
 function isFailurePayload(
   payload: SignedAccessResponse | Failure,
@@ -397,84 +405,93 @@ export function DeliveryCorrectionWorkspace() {
     }
   };
 
-  return (
-    <div className="correction-app">
-      <header className="correction-header">
-        <Link href="/">TradeFlow</Link>
-        <nav aria-label="Delivery Correction navigation">
-          <Link href="/deliveries">Deliver</Link>
-          <Link href="/delivery-exceptions">Exceptions</Link>
-          <strong>Corrections</strong>
-        </nav>
-        <span>Immutable review / live</span>
-      </header>
-      <main className="correction-main">
-        <section className="correction-intro">
-          <p className="eyebrow">Correction register / 008</p>
-          <h1>Correct the record. Keep the evidence.</h1>
-          <p>
-            Compare the issued receipt with one complete proposal. Authorization
-            adds linked reversals and replacements; it never edits the original.
-          </p>
-        </section>
-        <nav
-          aria-label="Delivery Correction queues"
-          className="correction-tabs"
-        >
-          {(
-            [
-              ["pending_authorization", "Pending approval"],
-              ["posted", "Posted chain"],
-              ["request", "Request correction"],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              aria-pressed={queue === value}
-              key={value}
-              onClick={() => selectQueue(value)}
-            >
-              {label}
-            </button>
-          ))}
-        </nav>
+  const pathname = usePathname();
 
-        {queue === "request" ? (
-          <RequestWorkspace
-            action={detailState}
-            detail={detail}
-            evidenceIds={evidenceIds}
-            onCreate={() => void create()}
-            onEditEvidence={(value) => {
-              createIdentity.current = null;
-              setEvidenceIds(value);
-            }}
-            onEditProposal={editProposal}
-            onEditReason={(value) => {
-              createIdentity.current = null;
-              setReason(value);
-            }}
-            onLoad={() => void loadOriginal()}
-            original={original}
-            proposed={proposed}
-            reason={reason}
-            receiptId={receiptId}
-            setReceiptId={setReceiptId}
-          />
-        ) : (
-          <ReviewWorkspace
-            acknowledged={acknowledged}
-            action={detailState}
-            detail={detail}
-            loadState={state}
-            onAcknowledge={setAcknowledged}
-            onAuthorize={() => void authorize()}
-            onChoose={(item) => void choose(item)}
-            onRetry={() => void loadQueue(queue)}
-            original={original}
-          />
-        )}
-      </main>
-    </div>
+  const tabs = (
+    <>
+      {deliveryTabs.map((tab) => (
+        <Link
+          key={tab.href}
+          href={tab.href}
+          aria-current={pathname === tab.href ? "page" : undefined}
+        >
+          {tab.label}
+        </Link>
+      ))}
+    </>
+  );
+
+  return (
+    <>
+      <PageHeader
+        description="Compare the issued receipt with one complete proposal. Authorization adds linked reversals and replacements; it never edits the original."
+        eyebrow="Delivery"
+        tabs={tabs}
+        title="Corrections"
+      />
+
+      <section className="correction-intro card">
+        <p className="eyebrow">Correction register / 008</p>
+        <h1>Correct the record. Keep the evidence.</h1>
+        <p>
+          Compare the issued receipt with one complete proposal. Authorization
+          adds linked reversals and replacements; it never edits the original.
+        </p>
+      </section>
+      <nav aria-label="Delivery Correction queues" className="correction-tabs">
+        {(
+          [
+            ["pending_authorization", "Pending approval"],
+            ["posted", "Posted chain"],
+            ["request", "Request correction"],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            aria-pressed={queue === value}
+            key={value}
+            onClick={() => selectQueue(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      {queue === "request" ? (
+        <RequestWorkspace
+          action={detailState}
+          detail={detail}
+          evidenceIds={evidenceIds}
+          onCreate={() => void create()}
+          onEditEvidence={(value) => {
+            createIdentity.current = null;
+            setEvidenceIds(value);
+          }}
+          onEditProposal={editProposal}
+          onEditReason={(value) => {
+            createIdentity.current = null;
+            setReason(value);
+          }}
+          onLoad={() => void loadOriginal()}
+          original={original}
+          proposed={proposed}
+          reason={reason}
+          receiptId={receiptId}
+          setReceiptId={setReceiptId}
+        />
+      ) : (
+        <ReviewWorkspace
+          acknowledged={acknowledged}
+          action={detailState}
+          detail={detail}
+          loadState={state}
+          onAcknowledge={setAcknowledged}
+          onAuthorize={() => void authorize()}
+          onChoose={(item) => void choose(item)}
+          onRetry={() => void loadQueue(queue)}
+          original={original}
+        />
+      )}
+    </>
   );
 }
 

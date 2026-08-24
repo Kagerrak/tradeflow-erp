@@ -9,7 +9,6 @@ import {
   type PickingContextState,
   type PickListState,
 } from "@tradeflow/warehouse-picking";
-import Link from "next/link";
 import {
   type FormEvent,
   type ReactNode,
@@ -18,6 +17,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { PageHeader } from "./ui/page-header";
 
 type LoadState = PickingContextState | { kind: "idle" } | { kind: "loading" };
 type CommandState = DispatchState | { kind: "idle" } | { kind: "submitting" };
@@ -126,53 +126,48 @@ export function WarehouseDispatchWorkbench({
   };
 
   return (
-    <div className="dispatch-app">
-      <header className="picking-header">
-        <Link className="picking-wordmark" href="/">
-          TradeFlow
-        </Link>
-        <nav aria-label="Fulfillment navigation">
-          <Link href="/picking">Pick</Link>
-          <strong>Dispatch</strong>
-          <span>Deliver</span>
-        </nav>
-        <span>Warehouse handoff / live</span>
-      </header>
-      <main className="picking-main">
-        <section className="picking-intro">
-          <div>
-            <p className="eyebrow">Custody release / 005</p>
-            <h1>Release custody, assign the run.</h1>
-          </div>
-          <p>
-            Select immutable staged Picks, bind one authorized driver, and let
-            the server acknowledge the move into In Transit custody.
-          </p>
-        </section>
-        <form className="picking-order-search" onSubmit={submitSearch}>
-          <label htmlFor="dispatch-order">Fulfillment Order ID</label>
-          <div>
-            <input
-              id="dispatch-order"
-              onChange={(event) => setFulfillmentOrderId(event.target.value)}
-              value={fulfillmentOrderId}
-            />
-            <button type="submit">Open dispatch work</button>
-          </div>
-        </form>
-        <DispatchDesk
-          assignedTo={assignedTo}
-          commandState={commandState}
-          history={history}
-          loadState={loadState}
-          onAssignedTo={setAssignedTo}
-          onDispatch={dispatch}
-          onRetry={() => {
-            if (pending.current !== null) void postDispatch(pending.current);
-          }}
-        />
-      </main>
-    </div>
+    <>
+      <PageHeader
+        description="Select immutable staged Picks, bind one authorized driver, and let the server acknowledge the move into In Transit custody."
+        eyebrow="Warehouse"
+        title="Dispatch"
+      />
+
+      <section className="picking-intro card">
+        <div>
+          <p className="eyebrow">Custody release / 005</p>
+          <h1>Release custody, assign the run.</h1>
+        </div>
+        <p>
+          Select immutable staged Picks, bind one authorized driver, and let the
+          server acknowledge the move into In Transit custody.
+        </p>
+      </section>
+
+      <form className="picking-order-search" onSubmit={submitSearch}>
+        <label htmlFor="dispatch-order">Fulfillment Order ID</label>
+        <div>
+          <input
+            id="dispatch-order"
+            onChange={(event) => setFulfillmentOrderId(event.target.value)}
+            value={fulfillmentOrderId}
+          />
+          <button type="submit">Open dispatch work</button>
+        </div>
+      </form>
+
+      <DispatchDesk
+        assignedTo={assignedTo}
+        commandState={commandState}
+        history={history}
+        loadState={loadState}
+        onAssignedTo={setAssignedTo}
+        onDispatch={dispatch}
+        onRetry={() => {
+          if (pending.current !== null) void postDispatch(pending.current);
+        }}
+      />
+    </>
   );
 }
 
