@@ -195,6 +195,19 @@ async def test_post_invoice_moves_draft_to_ledger_and_updates_exposure(
         postgres_url,
         fake_storage,
     )
+    engine = create_async_engine(postgres_url)
+    async with engine.begin() as connection:
+        await connection.execute(
+            text(
+                "INSERT INTO customer_credit_exposure "
+                "(customer_id, open_balance, approved_uninvoiced) "
+                "VALUES (:customer_id, 0, 100) "
+                "ON CONFLICT (customer_id) DO UPDATE "
+                "SET approved_uninvoiced = EXCLUDED.approved_uninvoiced"
+            ),
+            {"customer_id": fixture["customer_id"]},
+        )
+    await engine.dispose()
     posted = await invoice_client.post(
         f"/v1/finance/invoices/{draft_invoice_id}/post",
         headers=auth(
@@ -246,11 +259,26 @@ async def test_post_invoice_moves_draft_to_ledger_and_updates_exposure(
             .mappings()
             .one()
         )
+        exposure_entry = (
+            (
+                await connection.execute(
+                    text(
+                        "SELECT commercial_approval_id FROM credit_exposure_entries "
+                        "WHERE source_id = :invoice_id "
+                        "AND component = 'approved_uninvoiced'"
+                    ),
+                    {"invoice_id": draft_invoice_id},
+                )
+            )
+            .mappings()
+            .one()
+        )
     await engine.dispose()
     assert exposure["open_balance"] == Decimal("224.00")
     assert exposure["approved_uninvoiced"] == Decimal("0")
     assert ledger["entry_type"] == "invoice"
     assert ledger["amount"] == Decimal("224.00")
+    assert exposure_entry["commercial_approval_id"] is not None
 
 
 @pytest.mark.asyncio
