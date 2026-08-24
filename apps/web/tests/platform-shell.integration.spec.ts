@@ -12,7 +12,7 @@ test("@real-stack renders the authenticated API and PostgreSQL session", async (
     response.url().endsWith("/api/platform-session"),
   );
 
-  await page.goto("/");
+  await page.goto("/demo");
   const response = await sessionResponse;
 
   await expect(

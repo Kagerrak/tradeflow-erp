@@ -18,7 +18,7 @@ test("shows progress while checking the operator session", async ({ page }) => {
     });
   });
 
-  await page.goto("/");
+  await page.goto("/demo");
 
   await expect(
     page.getByRole("status", {
@@ -47,7 +47,7 @@ test("shows the authoritative ready session", async ({ page }) => {
     });
   });
 
-  await page.goto("/");
+  await page.goto("/demo");
 
   await expect(
     page.getByRole("heading", { name: "Platform handoff is ready" }),
@@ -67,7 +67,7 @@ test("gives an unauthenticated operator a specific next action", async ({
     });
   });
 
-  await page.goto("/");
+  await page.goto("/demo");
 
   await expect(
     page.getByRole("heading", { name: "Sign in to continue" }),
@@ -86,7 +86,7 @@ test("explains a capability denial without presenting a retry", async ({
     });
   });
 
-  await page.goto("/");
+  await page.goto("/demo");
 
   await expect(
     page.getByRole("heading", { name: "Platform access is not assigned" }),
@@ -124,7 +124,7 @@ test("lets the operator retry a temporarily unavailable platform", async ({
     });
   });
 
-  await page.goto("/");
+  await page.goto("/demo");
   await expect(
     page.getByRole("heading", { name: "TradeFlow is temporarily unavailable" }),
   ).toBeVisible();
