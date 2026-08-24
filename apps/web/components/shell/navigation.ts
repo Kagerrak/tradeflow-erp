@@ -13,7 +13,7 @@ export const navSections: NavSection[] = [
   {
     label: "Operations",
     items: [
-      { href: "/demo", label: "Control desk", marker: "CD" },
+      { href: "/demo", label: "Operations overview", marker: "OV" },
       { href: "/sales-orders/new", label: "Sales orders", marker: "SO" },
       { href: "/sales-orders/approvals", label: "Approvals", marker: "AP" },
       { href: "/picking", label: "Picking", marker: "PK" },

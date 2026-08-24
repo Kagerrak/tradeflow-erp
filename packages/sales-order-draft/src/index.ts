@@ -70,7 +70,13 @@ export type SalesOrderDraft = {
   priceInclusionMode: "inclusive" | "exclusive";
   priceListCode: string;
   salesOrderId: string;
-  status: "draft" | "approved" | "held" | "partially_cancelled" | "cancelled";
+  status:
+    | "draft"
+    | "awaiting_approval"
+    | "approved"
+    | "held"
+    | "partially_cancelled"
+    | "cancelled";
   subtotal: string;
   taxTotal: string;
   version: number;
@@ -186,7 +192,13 @@ export type CommercialReview = {
   }>;
   salesOrderId: string;
   salesOrderRevisionId: string;
-  status: "draft" | "approved" | "held" | "partially_cancelled" | "cancelled";
+  status:
+    | "draft"
+    | "awaiting_approval"
+    | "approved"
+    | "held"
+    | "partially_cancelled"
+    | "cancelled";
   subtotal: string;
   taxTotal: string;
   version: number;
@@ -212,7 +224,13 @@ export type SalesOrderSearchItem = {
   grandTotal: string;
   paymentTimingPolicy: "prepaid" | "cash_on_delivery" | "on_account";
   salesOrderId: string;
-  status: "draft" | "approved" | "held" | "partially_cancelled" | "cancelled";
+  status:
+    | "draft"
+    | "awaiting_approval"
+    | "approved"
+    | "held"
+    | "partially_cancelled"
+    | "cancelled";
   version: number;
 };
 
@@ -803,6 +821,47 @@ export async function updateSalesOrderDraft(
     }
     if (data === undefined)
       throw new Error("Missing updated Sales Order Draft.");
+    return {
+      correlationId: options.correlationId,
+      draft: mapDraft(data),
+      kind: "saved",
+    };
+  } catch (error: unknown) {
+    if (error instanceof TypeError) {
+      return { correlationId: options.correlationId, kind: "unavailable" };
+    }
+    throw error;
+  }
+}
+
+export async function submitSalesOrderDraft(
+  options: ClientOptions & {
+    expectedVersion: number;
+    idempotencyKey: string;
+    salesOrderId: string;
+  },
+): Promise<SaveDraftState> {
+  if (options.accessToken === undefined || options.accessToken.length === 0) {
+    return { correlationId: options.correlationId, kind: "unauthenticated" };
+  }
+  try {
+    const { data, response } = await clientFor(options).POST(
+      "/v1/sales/orders/{sales_order_id}/submission",
+      {
+        params: {
+          header: {
+            "Idempotency-Key": options.idempotencyKey,
+            "If-Match": options.expectedVersion,
+          },
+          path: { sales_order_id: options.salesOrderId },
+        },
+      },
+    );
+    const failure = failureKind(response.status);
+    if (failure !== undefined) {
+      return { correlationId: options.correlationId, kind: failure };
+    }
+    if (data === undefined) throw new Error("Missing submitted Sales Order.");
     return {
       correlationId: options.correlationId,
       draft: mapDraft(data),

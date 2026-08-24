@@ -140,7 +140,7 @@ class CommercialReviewResponse(BaseModel):
     sales_order_id: UUID
     sales_order_revision_id: UUID
     version: int
-    status: Literal["draft", "approved", "held"]
+    status: Literal["draft", "awaiting_approval", "approved", "held"]
     maker_subject: str
     warehouse_id: UUID
     customer_id: UUID
@@ -173,7 +173,7 @@ class NonMaterialOrderChangeResponse(BaseModel):
     sales_order_id: UUID
     commercial_version: int
     version: int
-    status: Literal["draft", "approved", "held"]
+    status: Literal["draft", "awaiting_approval", "approved", "held"]
     notes: str | None
     delivery_instructions: str | None
     commercial_approval_id: UUID | None
@@ -811,7 +811,7 @@ async def approve_sales_order(
                 "optimistic_version_conflict",
                 "The Sales Order changed and requires explicit review.",
             )
-        if order["status"] != "draft":
+        if order["status"] not in {"draft", "awaiting_approval"}:
             raise AppError(
                 409,
                 "sales_order_not_draft",

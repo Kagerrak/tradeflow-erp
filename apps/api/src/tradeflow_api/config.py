@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     demo_database_name: str | None = None
     demo_seed_version: str | None = None
     demo_state_path: str | None = None
+    demo_reset_token: str | None = Field(default=None, min_length=32, repr=False)
 
     @model_validator(mode="after")
     def validate_rate_limit(self) -> Settings:
@@ -84,6 +85,8 @@ class Settings(BaseSettings):
             raise ValueError("TRADEFLOW_DEMO_SEED_VERSION is required in the demo environment.")
         if self.demo_state_path is None:
             raise ValueError("TRADEFLOW_DEMO_STATE_PATH is required in the demo environment.")
+        if self.demo_reset_token is None:
+            raise ValueError("TRADEFLOW_DEMO_RESET_TOKEN is required in the demo environment.")
         return self
 
 

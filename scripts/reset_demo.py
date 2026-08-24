@@ -7,7 +7,12 @@ from pathlib import Path
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
-from tradeflow_api.demo_reset import DEMO_LOCK_ID, maintenance_state, require_safe_demo_database
+from tradeflow_api.demo_reset import (
+    DEMO_LOCK_ID,
+    maintenance_state,
+    missing_demo_seed_requirements,
+    require_safe_demo_database,
+)
 from tradeflow_api.models import metadata
 
 
@@ -49,6 +54,10 @@ async def reset_demo() -> None:
                     )
                     if await seed.wait() != 0:
                         raise RuntimeError("Demo seed failed.")
+                    async with engine.connect() as validation_connection:
+                        missing = await missing_demo_seed_requirements(validation_connection)
+                    if missing:
+                        raise RuntimeError("Demo seed is incomplete: " + ", ".join(sorted(missing)))
             finally:
                 await lock_connection.execute(
                     text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": DEMO_LOCK_ID}

@@ -22,26 +22,53 @@ ALL_CAPABILITIES = [
     "customer:read",
     "customer:write",
     "finance:cash-reconcile",
+    "finance:check-clear",
+    "finance:credit-note-approve",
+    "finance:credit-note-read",
+    "finance:credit-note-request",
+    "finance:expense-category-create",
+    "finance:expense-category-publish",
+    "finance:expense-category-read",
+    "finance:expense-policy-create",
+    "finance:expense-policy-publish",
+    "finance:expense-policy-read",
     "finance:invoice-post",
     "finance:invoice-read",
+    "finance:invoice-void",
+    "finance:payment-allocate",
     "finance:payment-read",
     "finance:payment-record",
+    "finance:payment-refund",
+    "finance:payment-reverse",
     "finance:payment-verify",
+    "finance:projection-rebuild",
+    "finance:statement-read",
     "fulfillment:delivery-confirm",
+    "fulfillment:delivery-correction-authorize",
+    "fulfillment:delivery-correction-request",
     "fulfillment:delivery-read",
+    "fulfillment:delivery-retry",
     "fulfillment:dispatch",
     "fulfillment:pick",
     "fulfillment:pick-read",
     "fulfillment:pick-release",
+    "fulfillment:pick-reverse",
+    "fulfillment:return-receive",
     "inventory:adjustment-approve",
     "inventory:adjustment-read",
     "inventory:adjustment-request",
     "inventory:post",
     "inventory:read",
     "inventory:rebuild",
+    "inventory:investigation-resolve",
+    "inventory:payment-deadline-process",
+    "inventory:reservation-retry",
     "inventory:transfer-read",
     "inventory:transfer-receive",
     "inventory:transfer-request",
+    "notification:manage",
+    "notification:read",
+    "organization:admin",
     "procurement:purchase-order-approve",
     "procurement:purchase-order-read",
     "procurement:purchase-order-write",
@@ -50,11 +77,20 @@ ALL_CAPABILITIES = [
     "procurement:purchase-request-write",
     "procurement:supplier-read",
     "procurement:supplier-write",
+    "procurement:goods-receipt-approve-over-receipt",
+    "procurement:goods-receipt-post",
+    "procurement:landed-cost-allocate",
+    "sales:cod-convert-on-account",
     "sales:commercial-approve",
     "sales:discount-enter",
     "sales:order-read",
+    "sales:order-cancel",
     "sales:order-write",
     "sales:pricing-write",
+    "sales:projection-rebuild",
+    "sales:quotation-approve",
+    "sales:quotation-convert",
+    "sales:quotation-write",
 ]
 
 
@@ -108,6 +144,7 @@ class Seeder:
         self.tokens = {
             "bootstrap": token("demo-bootstrap", "Demo Bootstrap", ["organization:bootstrap"]),
             "checker": token("demo-checker", "Demo Commercial Checker"),
+            "maker": token("demo-maker", "Demo Order Maker"),
             "operator": token(
                 "demo-operator", "Demo Operator", ["platform:read", "platform:write"]
             ),
@@ -123,7 +160,10 @@ class Seeder:
         key: str | None = None,
         **kwargs: Any,
     ) -> dict[str, Any]:
-        headers = {"Authorization": f"Bearer {self.tokens[actor]}"}
+        headers = {
+            "Authorization": f"Bearer {self.tokens[actor]}",
+            "X-TradeFlow-Demo-Reset": os.environ["TRADEFLOW_DEMO_RESET_TOKEN"],
+        }
         if key is not None:
             headers["Idempotency-Key"] = f"demo-{DEMO_SEED_VERSION}-{key}"
         headers.update(kwargs.pop("headers", {}))
@@ -185,6 +225,15 @@ class Seeder:
                 ],
                 "users": [
                     {
+                        "approval_authorities": [
+                            {
+                                "branch_code": "MNL",
+                                "capability": "sales:commercial-approve",
+                                "maker_checker_required": True,
+                                "maximum_amount": "1000000.00",
+                                "maximum_percentage": None,
+                            }
+                        ],
                         "branch_codes": ["MNL", "CEB"],
                         "display_name": "Demo Operator",
                         "role_template_codes": ["DEMO_OPERATOR"],
@@ -298,6 +347,22 @@ class Seeder:
                 "barcodes": [{"barcode": "4800000000500", "unit_code": "EA"}],
             },
         )
+        low_stock_sku = self.request(
+            "POST",
+            "/v1/catalog/skus",
+            key="sku-thermal-labels",
+            json={
+                "product_code": "TF-LABELS",
+                "product_name": "Warehouse Labels",
+                "sku_code": "LABEL-THERMAL-100",
+                "sku_name": "Thermal pallet labels, roll of 100",
+                "base_stocking_unit": "ROLL",
+                "tracking_policy": "untracked",
+                "expiration_control": False,
+                "conversions": [],
+                "barcodes": [{"barcode": "4800000000609", "unit_code": "ROLL"}],
+            },
+        )
         location = self.request(
             "POST",
             "/v1/inventory/locations",
@@ -338,6 +403,23 @@ class Seeder:
                     "expiration_date": None,
                 },
             )
+        self.request(
+            "POST",
+            "/v1/inventory/opening-stock",
+            key="opening-thermal-labels",
+            json={
+                "sku_id": low_stock_sku["sku_id"],
+                "warehouse_id": warehouse_id,
+                "location_id": location["location_id"],
+                "quantity": "4.000000",
+                "unit_code": "ROLL",
+                "unit_cost": "85.000000",
+                "source_reference": "DEMO-OPEN-LABELS",
+                "lot_code": None,
+                "serial_numbers": [],
+                "expiration_date": None,
+            },
+        )
 
         tax = self.request(
             "POST",
@@ -379,6 +461,7 @@ class Seeder:
             "draft",
             "awaiting_approval",
             "approved",
+            "ready_to_pick",
             "partially_picked",
             "ready_to_dispatch",
             "delivery_awaiting_confirmation",
@@ -393,6 +476,7 @@ class Seeder:
             order = self.request(
                 "POST",
                 "/v1/sales/orders",
+                actor="maker" if stage == "awaiting_approval" else "operator",
                 key=f"order-{stage}",
                 json={
                     "branch_id": branches["MNL"],
@@ -427,8 +511,17 @@ class Seeder:
                 "line_id": line_id,
                 "status": order["status"],
             }
+            if stage == "awaiting_approval":
+                submitted = self.request(
+                    "POST",
+                    f"/v1/sales/orders/{sales_order_id}/submission",
+                    actor="maker",
+                    key="submit-awaiting-approval",
+                    headers={"If-Match": "1"},
+                )
+                orders[stage]["status"] = submitted["status"]
             if stage not in {"draft", "awaiting_approval"}:
-                self.request(
+                approval = self.request(
                     "POST",
                     f"/v1/sales/orders/{sales_order_id}/commercial-approval",
                     actor="checker",
@@ -440,22 +533,33 @@ class Seeder:
                         "credit_override_reason": None,
                     },
                 )
+                orders[stage]["status"] = approval["status"]
                 fulfillment = self.request(
                     "GET", f"/v1/fulfillment/orders?sales_order_id={sales_order_id}"
                 )["items"][0]
                 orders[stage]["fulfillment_order_id"] = fulfillment["fulfillment_order_id"]
+                if stage in {
+                    "ready_to_pick",
+                    "partially_picked",
+                    "ready_to_dispatch",
+                    "delivery_awaiting_confirmation",
+                    "posted_invoice",
+                }:
+                    released = self.request(
+                        "POST",
+                        f"/v1/fulfillment/orders/{fulfillment['fulfillment_order_id']}/pick-release",
+                        key=f"release-{stage}",
+                        json={"reason": "Prepared for the live product demo"},
+                    )
+                    orders[stage]["status"] = (
+                        "pick_released" if stage == "ready_to_pick" else released["status"]
+                    )
                 if stage in {
                     "partially_picked",
                     "ready_to_dispatch",
                     "delivery_awaiting_confirmation",
                     "posted_invoice",
                 }:
-                    self.request(
-                        "POST",
-                        f"/v1/fulfillment/orders/{fulfillment['fulfillment_order_id']}/pick-release",
-                        key=f"release-{stage}",
-                        json={"reason": "Prepared for the portfolio demo"},
-                    )
                     picking_context = self.request(
                         "GET",
                         f"/v1/fulfillment/orders/{fulfillment['fulfillment_order_id']}/picking-context",
@@ -597,18 +701,49 @@ class Seeder:
                 },
             },
         )
+        collected_payment = self.request(
+            "POST",
+            "/v1/finance/payment-receipts",
+            key="payment-collected",
+            json={
+                "payment_receipt_id": stable_id("payment-collected"),
+                "branch_id": branches["MNL"],
+                "customer_id": customers["HARBOR"],
+                "sales_order_id": posted_order["order_id"],
+                "payment_method": "cash",
+                "amount": "600.00",
+                "currency": "PHP",
+                "received_at": "2026-08-24T08:12:00Z",
+                "external_reference": None,
+                "evidence": None,
+            },
+        )
+        allocation = self.request(
+            "POST",
+            f"/v1/finance/payment-receipts/{collected_payment['payment_receipt_id']}/allocations",
+            key="allocate-collected-payment",
+            json={
+                "expected_version": collected_payment["balance_version"],
+                "allocations": [
+                    {
+                        "invoice_id": draft_invoice["draft_invoice_id"],
+                        "amount": "600.00",
+                    }
+                ],
+            },
+        )
         transfer = self.request(
             "POST",
             "/v1/inventory/transfers",
             key="inventory-transfer",
             json={
-                "sku_id": sku["sku_id"],
+                "sku_id": low_stock_sku["sku_id"],
                 "from_warehouse_id": warehouse_id,
                 "to_warehouse_id": ceb_warehouse_id,
                 "from_location_id": location["location_id"],
                 "to_location_id": ceb_location["location_id"],
-                "quantity": "12.000000",
-                "unit_code": "EA",
+                "quantity": "4.000000",
+                "unit_code": "ROLL",
                 "reason": "Seeded inter-branch replenishment",
                 "source_reference": "DEMO-TR-001",
                 "lot_code": None,
@@ -684,10 +819,13 @@ class Seeder:
                 "customers": customers,
                 "orders": orders,
                 "sku": sku["sku_id"],
+                "low_stock_sku": low_stock_sku["sku_id"],
                 "supplier": supplier["supplier_id"],
                 "purchase_request": purchase_request["purchase_request_id"],
                 "purchase_order": purchase_order["purchase_order_id"],
                 "payment": payment["payment_receipt_id"],
+                "collected_payment": collected_payment["payment_receipt_id"],
+                "payment_allocation": allocation[0]["allocation_id"],
                 "inventory_transfer": transfer["transfer_id"],
                 "inventory_adjustment": adjustment["adjustment_id"],
             }

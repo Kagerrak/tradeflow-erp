@@ -1,4 +1,4 @@
-export const DEMO_SEED_VERSION = "2026.08.24.1";
+export const DEMO_SEED_VERSION = "2026.08.24.2";
 export const DEMO_RESET_MINUTES = 45;
 
 export const demoRecords = {

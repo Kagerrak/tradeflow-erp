@@ -1,5 +1,5 @@
-import { TradeFlowShell } from "@/components/tradeflow-shell";
+import { OperationsOverview } from "@/components/operations-overview";
 
 export default function Home() {
-  return <TradeFlowShell />;
+  return <OperationsOverview />;
 }

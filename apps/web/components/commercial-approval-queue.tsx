@@ -215,7 +215,7 @@ export function CommercialApprovalQueue({
 
   const pending =
     orders?.kind === "ready"
-      ? orders.items.filter((order) => order.status === "draft")
+      ? orders.items.filter((order) => order.status === "awaiting_approval")
       : [];
 
   return (
@@ -239,7 +239,7 @@ export function CommercialApprovalQueue({
       <section className="sales-panel">
         <div className="sales-panel-head">
           <h2>Pending approvals</h2>
-          <span>{pending.length} draft revisions</span>
+          <span>{pending.length} orders awaiting approval</span>
         </div>
         {orders === null ? (
           <div className="sales-message" role="status">

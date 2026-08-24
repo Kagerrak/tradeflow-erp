@@ -1,6 +1,150 @@
 {
   "components": {
     "schemas": {
+      "ActionQueueItem": {
+        "properties": {
+          "age_minutes": {
+            "title": "Age Minutes",
+            "type": "integer"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "branch_code": {
+            "title": "Branch Code",
+            "type": "string"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "href": {
+            "title": "Href",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "approval",
+              "pick",
+              "delivery",
+              "payment",
+              "stock"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "next_action": {
+            "title": "Next Action",
+            "type": "string"
+          },
+          "owner": {
+            "title": "Owner",
+            "type": "string"
+          },
+          "record_id": {
+            "format": "uuid",
+            "title": "Record Id",
+            "type": "string"
+          },
+          "reference": {
+            "title": "Reference",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "urgency": {
+            "enum": [
+              "high",
+              "medium",
+              "normal"
+            ],
+            "title": "Urgency",
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_id",
+          "kind",
+          "title",
+          "reference",
+          "branch_code",
+          "owner",
+          "status",
+          "urgency",
+          "age_minutes",
+          "next_action",
+          "href"
+        ],
+        "title": "ActionQueueItem",
+        "type": "object"
+      },
+      "ActivityItem": {
+        "properties": {
+          "activity_id": {
+            "format": "uuid",
+            "title": "Activity Id",
+            "type": "string"
+          },
+          "branch_code": {
+            "title": "Branch Code",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "href": {
+            "title": "Href",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "activity_id",
+          "kind",
+          "title",
+          "detail",
+          "branch_code",
+          "occurred_at",
+          "href"
+        ],
+        "title": "ActivityItem",
+        "type": "object"
+      },
       "AddressInput": {
         "additionalProperties": false,
         "properties": {
@@ -1371,6 +1515,30 @@
         "title": "BranchLifecycleResponse",
         "type": "object"
       },
+      "BranchOption": {
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "branch_id",
+          "code",
+          "name"
+        ],
+        "title": "BranchOption",
+        "type": "object"
+      },
       "BranchResponse": {
         "properties": {
           "branch_id": {
@@ -2535,6 +2703,7 @@
           "status": {
             "enum": [
               "draft",
+              "awaiting_approval",
               "approved",
               "held"
             ],
@@ -7441,6 +7610,59 @@
         "title": "FefoCandidateResponse",
         "type": "object"
       },
+      "FinanceSnapshot": {
+        "properties": {
+          "collected_value": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Collected Value",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "outstanding_receivables": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Outstanding Receivables",
+            "type": "string"
+          },
+          "overdue_balances": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Overdue Balances",
+            "type": "string"
+          },
+          "posted_invoices": {
+            "title": "Posted Invoices",
+            "type": "integer"
+          },
+          "posted_value": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Posted Value",
+            "type": "string"
+          },
+          "receipts_awaiting_value": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Receipts Awaiting Value",
+            "type": "string"
+          },
+          "receipts_awaiting_verification": {
+            "title": "Receipts Awaiting Verification",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "posted_invoices",
+          "posted_value",
+          "receipts_awaiting_verification",
+          "receipts_awaiting_value",
+          "overdue_balances",
+          "outstanding_receivables",
+          "collected_value",
+          "currency"
+        ],
+        "title": "FinanceSnapshot",
+        "type": "object"
+      },
       "FulfillmentOrderListResponse": {
         "properties": {
           "items": {
@@ -7898,6 +8120,51 @@
         "title": "InboxResponse",
         "type": "object"
       },
+      "InventoryHealth": {
+        "properties": {
+          "available": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Available",
+            "type": "string"
+          },
+          "blocked_lots": {
+            "title": "Blocked Lots",
+            "type": "integer"
+          },
+          "low_stock_items": {
+            "title": "Low Stock Items",
+            "type": "integer"
+          },
+          "pending_adjustments": {
+            "title": "Pending Adjustments",
+            "type": "integer"
+          },
+          "pending_transfers": {
+            "title": "Pending Transfers",
+            "type": "integer"
+          },
+          "reserved": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Reserved",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "available",
+          "reserved",
+          "low_stock_items",
+          "blocked_lots",
+          "pending_transfers",
+          "pending_adjustments",
+          "unit"
+        ],
+        "title": "InventoryHealth",
+        "type": "object"
+      },
       "InvestigationResolutionCommand": {
         "additionalProperties": false,
         "properties": {
@@ -8264,6 +8531,58 @@
         "title": "LotSelectionResponse",
         "type": "object"
       },
+      "Metric": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ],
+        "title": "Metric",
+        "type": "object"
+      },
       "NonMaterialOrderChangeCommand": {
         "additionalProperties": false,
         "properties": {
@@ -8343,6 +8662,7 @@
           "status": {
             "enum": [
               "draft",
+              "awaiting_approval",
               "approved",
               "held"
             ],
@@ -8607,6 +8927,93 @@
           "conversion_snapshot"
         ],
         "title": "OpeningStockResponse",
+        "type": "object"
+      },
+      "OperationsOverviewResponse": {
+        "properties": {
+          "action_queue": {
+            "items": {
+              "$ref": "#/components/schemas/ActionQueueItem"
+            },
+            "title": "Action Queue",
+            "type": "array"
+          },
+          "branches": {
+            "items": {
+              "$ref": "#/components/schemas/BranchOption"
+            },
+            "title": "Branches",
+            "type": "array"
+          },
+          "finance": {
+            "$ref": "#/components/schemas/FinanceSnapshot"
+          },
+          "from_date": {
+            "format": "date",
+            "title": "From Date",
+            "type": "string"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "inventory": {
+            "$ref": "#/components/schemas/InventoryHealth"
+          },
+          "metrics": {
+            "items": {
+              "$ref": "#/components/schemas/Metric"
+            },
+            "title": "Metrics",
+            "type": "array"
+          },
+          "pipeline": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineStage"
+            },
+            "title": "Pipeline",
+            "type": "array"
+          },
+          "recent_activity": {
+            "items": {
+              "$ref": "#/components/schemas/ActivityItem"
+            },
+            "title": "Recent Activity",
+            "type": "array"
+          },
+          "selected_branch_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Branch Id"
+          },
+          "to_date": {
+            "format": "date",
+            "title": "To Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "generated_at",
+          "from_date",
+          "to_date",
+          "selected_branch_id",
+          "branches",
+          "metrics",
+          "action_queue",
+          "pipeline",
+          "inventory",
+          "finance",
+          "recent_activity"
+        ],
+        "title": "OperationsOverviewResponse",
         "type": "object"
       },
       "OrderEntryAddressResponse": {
@@ -10098,6 +10505,40 @@
           "message"
         ],
         "title": "PingResponse",
+        "type": "object"
+      },
+      "PipelineStage": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "value": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "count",
+          "value",
+          "currency"
+        ],
+        "title": "PipelineStage",
         "type": "object"
       },
       "PostAdjustmentCommand": {
@@ -11682,6 +12123,24 @@
             "title": "Database",
             "type": "string"
           },
+          "demo_seed_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Demo Seed Version"
+          },
+          "migration_revision": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Migration Revision",
+            "type": "array"
+          },
           "service": {
             "title": "Service",
             "type": "string"
@@ -11694,7 +12153,8 @@
         "required": [
           "service",
           "status",
-          "database"
+          "database",
+          "migration_revision"
         ],
         "title": "ReadyResponse",
         "type": "object"
@@ -12956,6 +13416,7 @@
           "status": {
             "enum": [
               "draft",
+              "awaiting_approval",
               "approved",
               "held",
               "partially_cancelled",
@@ -13349,6 +13810,7 @@
           "status": {
             "enum": [
               "draft",
+              "awaiting_approval",
               "approved",
               "held",
               "partially_cancelled",
@@ -25798,6 +26260,125 @@
         ]
       }
     },
+    "/v1/operations/overview": {
+      "get": {
+        "operationId": "operations_overview_v1_operations_overview_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "branch_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Branch Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From Date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationsOverviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Operations Overview",
+        "tags": [
+          "operations"
+        ]
+      }
+    },
     "/v1/organization/bootstrap": {
       "post": {
         "operationId": "bootstrap_organization_v1_organization_bootstrap_post",
@@ -30864,6 +31445,125 @@
         "tags": [
           "finance",
           "fulfillment"
+        ]
+      }
+    },
+    "/v1/sales/orders/{sales_order_id}/submission": {
+      "post": {
+        "operationId": "submit_sales_order_for_approval_v1_sales_orders__sales_order_id__submission_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sales_order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sales Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "If-Match",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesOrderDraftResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Submit Sales Order For Approval",
+        "tags": [
+          "sales"
         ]
       }
     },
