@@ -829,6 +829,50 @@ async def test_draft_edit_is_optimistic_and_payment_override_is_audited(
 
 
 @pytest.mark.asyncio
+async def test_maker_submits_current_draft_for_authoritative_commercial_approval(
+    sales_client: AsyncClient,
+    sales_settings: Settings,
+) -> None:
+    fixture = await sales_fixture(sales_client, sales_settings)
+    order_id = uuid4()
+    created = await sales_client.post(
+        "/v1/sales/orders",
+        headers=auth(
+            sales_settings,
+            "sales-mnl",
+            **{"Idempotency-Key": "create-submittable-draft"},
+        ),
+        json=draft_command(fixture, sales_order_id=order_id),
+    )
+    assert created.status_code == 201, created.text
+
+    submitted = await sales_client.post(
+        f"/v1/sales/orders/{order_id}/submission",
+        headers=auth(
+            sales_settings,
+            "sales-mnl",
+            **{"Idempotency-Key": "submit-for-commercial-approval", "If-Match": "1"},
+        ),
+    )
+
+    assert submitted.status_code == 201, submitted.text
+    assert submitted.json()["status"] == "awaiting_approval"
+    assert submitted.json()["version"] == 1
+
+    listed = await sales_client.get(
+        "/v1/sales/orders",
+        headers=auth(sales_settings, "commercial-mnl"),
+    )
+    assert listed.status_code == 200, listed.text
+    assert (
+        next(item for item in listed.json()["items"] if item["sales_order_id"] == str(order_id))[
+            "status"
+        ]
+        == "awaiting_approval"
+    )
+
+
+@pytest.mark.asyncio
 async def test_commercial_approval_partially_reserves_replays_and_material_edit_releases(
     sales_client: AsyncClient,
     sales_settings: Settings,

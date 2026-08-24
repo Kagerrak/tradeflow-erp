@@ -53,6 +53,7 @@ def test_demo_configuration_requires_explicit_demo_database() -> None:
             demo_mode=True,
             demo_seed_version="2026.08.24.1",
             demo_state_path="/demo-state/status.json",
+            demo_reset_token="reset-token-with-at-least-thirty-two-characters",
         )
 
 
@@ -65,6 +66,7 @@ def test_demo_configuration_accepts_only_matching_demo_database() -> None:
         demo_database_name="tradeflow_demo",
         demo_seed_version="2026.08.24.1",
         demo_state_path="/demo-state/status.json",
+        demo_reset_token="reset-token-with-at-least-thirty-two-characters",
     )
 
     assert settings.environment == "demo"

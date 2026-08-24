@@ -1,29 +1,38 @@
 import { expect, test } from "@playwright/test";
 
-test("public landing explains the product without an API", async ({ page }) => {
+test("public landing presents TradeFlow as a commercial product without an API", async ({
+  page,
+}) => {
   await page.route("**/api/**", (route) => route.abort());
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "Every handoff",
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Control every order from sale to settlement.",
   );
-  await expect(page.getByText("Order to payment")).toBeVisible();
-  await expect(page.getByText("My role")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open live demo" })).toHaveCount(
+    3,
+  );
   await expect(
-    page.getByRole("link", { name: /Explore the live demo/i }).first(),
-  ).toHaveAttribute("href", "/demo");
+    page.getByRole("heading", { name: "Keep every order moving." }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "One system for every team." }),
+  ).toBeVisible();
+  await expect(page.getByText(/portfolio release|my role/i)).toHaveCount(0);
+  await expect(page.locator(".hero-product-frame img")).toHaveAttribute(
+    "src",
+    /operations-overview/u,
+  );
 });
 
-test("marketing navigation opens the guided demo", async ({ page }) => {
+test("commercial navigation opens the operations overview", async ({
+  page,
+}) => {
   await page.goto("/");
-  await page
-    .getByRole("link", { name: /Explore the live demo/i })
-    .first()
-    .click();
-  await expect(page).toHaveURL(/\/demo$/);
+  await page.getByRole("link", { name: "Open live demo" }).first().click();
+  await expect(page).toHaveURL(/\/demo$/u);
   await expect(
-    page.getByRole("heading", { name: "Follow one accountable handoff." }),
+    page.getByRole("heading", { name: "Operations overview" }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open record" })).toHaveCount(4);
 });
 
 test("public responses contain no bearer credential", async ({ request }) => {
@@ -32,12 +41,12 @@ test("public responses contain no bearer credential", async ({ request }) => {
     const body = await response.text();
     expect(body).not.toContain("Authorization: Bearer");
     expect(body).not.toMatch(
-      /eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+/,
+      /eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+/u,
     );
   }
 });
 
-test("public links resolve on desktop and mobile", async ({ page }) => {
+test("public links resolve", async ({ page }) => {
   await page.goto("/");
   for (const href of [
     "/",
@@ -51,10 +60,20 @@ test("public links resolve on desktop and mobile", async ({ page }) => {
   }
 });
 
+test("commercial homepage has no horizontal overflow", async ({ page }) => {
+  await page.goto("/");
+  const overflow = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth -
+      document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(1);
+});
+
 test("edge protection limits one visitor before the shared API token", async ({
   request,
 }, testInfo) => {
-  const visitor = `portfolio-abuse-${testInfo.project.name}-${crypto.randomUUID()}`;
+  const visitor = `commercial-abuse-${testInfo.project.name}-${crypto.randomUUID()}`;
   let finalStatus = 0;
   for (let index = 0; index < 31; index += 1) {
     finalStatus = (
