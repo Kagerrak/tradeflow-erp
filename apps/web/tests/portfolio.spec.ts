@@ -53,10 +53,15 @@ test("public links resolve on desktop and mobile", async ({ page }) => {
 
 test("edge protection limits one visitor before the shared API token", async ({
   request,
-}) => {
+}, testInfo) => {
+  const visitor = `portfolio-abuse-${testInfo.project.name}-${crypto.randomUUID()}`;
   let finalStatus = 0;
   for (let index = 0; index < 31; index += 1) {
-    finalStatus = (await request.post("/api/platform-session")).status();
+    finalStatus = (
+      await request.post("/api/platform-session", {
+        headers: { Cookie: `tradeflow_demo_visitor=${visitor}` },
+      })
+    ).status();
   }
   expect(finalStatus).toBe(429);
 });
