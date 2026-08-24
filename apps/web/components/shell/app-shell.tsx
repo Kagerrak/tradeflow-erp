@@ -1,9 +1,56 @@
 "use client";
 
+import {
+  ArrowRightLeft,
+  BadgeCheck,
+  Boxes,
+  Building2,
+  CircleCheck,
+  ClipboardList,
+  ClipboardPenLine,
+  History,
+  Landmark,
+  LayoutDashboard,
+  Menu,
+  PackageCheck,
+  ReceiptText,
+  ScanLine,
+  ScrollText,
+  ShoppingCart,
+  Truck,
+  Users,
+  WalletCards,
+  Waypoints,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { navSections } from "./navigation";
+
+const navIcons: Record<string, LucideIcon> = {
+  "/customers": Users,
+  "/deliveries": PackageCheck,
+  "/demo": LayoutDashboard,
+  "/dispatch": Truck,
+  "/finance": Landmark,
+  "/finance/allocations": Waypoints,
+  "/finance/credit-notes": ReceiptText,
+  "/finance/statement": ScrollText,
+  "/finance/timeline": History,
+  "/inventory": Boxes,
+  "/inventory/adjustments": ClipboardPenLine,
+  "/inventory/transfers": ArrowRightLeft,
+  "/payments": WalletCards,
+  "/picking": ScanLine,
+  "/procurement": ShoppingCart,
+  "/procurement/purchase-orders": ClipboardList,
+  "/procurement/purchase-requests": ReceiptText,
+  "/procurement/suppliers": Building2,
+  "/sales-orders/approvals": BadgeCheck,
+  "/sales-orders/new": ShoppingCart,
+};
 
 export function AppShell({
   children,
@@ -30,7 +77,11 @@ export function AppShell({
             onClick={() => setMobileOpen((open) => !open)}
             type="button"
           >
-            <span aria-hidden="true" className="app-menu-icon" />
+            {mobileOpen ? (
+              <X aria-hidden="true" />
+            ) : (
+              <Menu aria-hidden="true" />
+            )}
             <span className="visually-hidden">
               {mobileOpen ? "Close" : "Open"} navigation
             </span>
@@ -73,6 +124,7 @@ export function AppShell({
               <ul className="app-rail-list">
                 {section.items.map((item) => {
                   const active = item.href === pathname;
+                  const NavIcon = navIcons[item.href] ?? ClipboardList;
                   return (
                     <li key={item.href}>
                       <Link
@@ -82,7 +134,7 @@ export function AppShell({
                         onClick={() => setMobileOpen(false)}
                       >
                         <span className="app-rail-marker" aria-hidden="true">
-                          {item.marker ?? item.label.charAt(0)}
+                          <NavIcon />
                         </span>
                         <span className="app-rail-label">{item.label}</span>
                       </Link>
@@ -94,7 +146,7 @@ export function AppShell({
           ))}
         </nav>
         <div className="app-rail-foot">
-          <span className="app-rail-status" aria-hidden="true" />
+          <CircleCheck aria-hidden="true" />
           <span>Server-authoritative</span>
         </div>
       </aside>

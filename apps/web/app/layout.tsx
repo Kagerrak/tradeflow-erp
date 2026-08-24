@@ -10,6 +10,7 @@ import "./operations.css";
 import "./payment-clearance.css";
 import "./picking.css";
 import "./sales-orders.css";
+import "./workspace.css";
 
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
