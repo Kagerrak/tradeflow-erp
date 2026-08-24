@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -8,6 +10,7 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel
+from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from tradeflow_api.auth import (
@@ -71,6 +74,8 @@ class ReadyResponse(BaseModel):
     service: str
     status: str
     database: str
+    demo_seed_version: str | None = None
+    migration_revision: list[str]
 
 
 class SessionUserResponse(BaseModel):
@@ -208,10 +213,36 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     async def ready(request: Request) -> ReadyResponse:
         await check_database(engine, request.state.correlation_id)
+        seed_version = None
+        if resolved_settings.environment == "demo":
+            if resolved_settings.demo_state_path is None:
+                raise AppError(503, "demo_seed_unavailable", "Demo seed state is unavailable.")
+            try:
+                state_text = await asyncio.to_thread(
+                    Path(resolved_settings.demo_state_path).read_text
+                )
+                demo_state = json.loads(state_text)
+            except (OSError, ValueError) as error:
+                raise AppError(
+                    503, "demo_seed_unavailable", "Demo seed state is unavailable."
+                ) from error
+            if (
+                demo_state.get("status") != "ready"
+                or demo_state.get("seed_version") != resolved_settings.demo_seed_version
+            ):
+                raise AppError(503, "demo_seed_unhealthy", "Demo seed state is not ready.")
+            async with engine.connect() as connection:
+                company_count = await connection.scalar(text("SELECT count(*) FROM companies"))
+                order_count = await connection.scalar(text("SELECT count(*) FROM sales_orders"))
+            if company_count != 1 or order_count is None or order_count < 6:
+                raise AppError(503, "demo_seed_unhealthy", "Demo seed contract is incomplete.")
+            seed_version = resolved_settings.demo_seed_version
         return ReadyResponse(
             service="tradeflow-api",
             status="ready",
             database="ready",
+            demo_seed_version=seed_version,
+            migration_revision=sorted(expected_database_heads),
         )
 
     @app.get(
