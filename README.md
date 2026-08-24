@@ -30,6 +30,7 @@ The product has three delivery surfaces:
 - [Delivery roadmap](./docs/delivery/implementation-plan.md)
 - [Testing strategy](./docs/testing-strategy.md)
 - [Local development](./docs/development.md)
+- [Public demo operations](./docs/deployment/demo.md)
 - [ADR-0001: immutable operational ledgers](./docs/adr/0001-immutable-operational-ledgers.md)
 - [ADR-0002: assign tracked stock identities at pick](./docs/adr/0002-assign-tracked-stock-identities-at-pick.md)
 - [ADR-0003: moving-average inventory valuation by warehouse](./docs/adr/0003-moving-average-inventory-valuation-by-warehouse.md)
@@ -48,9 +49,10 @@ The product has three delivery surfaces:
 - [ADR-0016: clear payments by method-specific evidence](./docs/adr/0016-method-specific-payment-clearance.md)
 - [ADR-0017: correct delivery receipts by linked reversal and replacement](./docs/adr/0017-correct-delivery-receipts-by-linked-reversal.md)
 
-## Portfolio-ready outcome
+## Commercial product demo
 
-A reviewer should be able to:
+The seeded product demonstrates a truthful, server-authoritative wholesale
+distribution lifecycle. An operator can:
 
 1. create a customer and sales order;
 2. reserve inventory and partially fulfill the order;
@@ -60,5 +62,10 @@ A reviewer should be able to:
 6. process damaged-item returns and a credit;
 7. receive a local or international purchase order;
 8. inspect expense and sales-commission calculations;
-9. complete delivery/warehouse work on a real Android or iOS device;
+9. complete delivery and warehouse work on desktop or mobile;
 10. trace every stock and financial balance to immutable source movements.
+
+The public homepage presents TradeFlow as a commercial product. The live
+operations overview reads its attention counts, pipeline, inventory position,
+receivables, and activity directly from the API rather than from browser-owned
+fixtures.

@@ -9,9 +9,23 @@ The demo topology keeps PostgreSQL, Redis, object storage, the FastAPI service, 
 3. Run `docker compose --env-file .env.demo -f infra/compose.demo.yaml up -d --build`.
 
 Set `TRADEFLOW_WEB_PORT` when port 3000 is already in use (for example,
-`TRADEFLOW_WEB_PORT=3200` for a parallel local smoke test). 4. The API upgrades migrations before reporting healthy. The reset service takes a PostgreSQL advisory lock, marks the demo refreshing, truncates only the explicitly named `tradeflow_demo` database, seeds through application commands, validates the manifest, and publishes a fresh two-hour Demo Operator credential. 5. Verify `/`, `/demo`, `/health/ready` from inside the private network, and the guided browser smoke test. Configure an external uptime check for `/` and `/api/demo/status`.
+`TRADEFLOW_WEB_PORT=3200` for a parallel local smoke test).
 
-The reset repeats every 45 minutes. A second reset refuses to run while the advisory lock is held. Failures leave `status.json` in `failed` state and preserve logs for alerting.
+4. The API upgrades migrations before reporting healthy. The reset service
+   takes a PostgreSQL advisory lock, marks the demo refreshing, truncates only
+   the explicitly named `tradeflow_demo` database, seeds through application
+   commands, validates every required lifecycle state, and publishes a fresh
+   two-hour Demo Operator credential.
+5. Verify `/`, `/demo`, and `/health/ready` from inside the private network.
+   Run the real-stack browser smoke journey with
+   `PLAYWRIGHT_BASE_URL=https://demo.example.com TRADEFLOW_SEEDED_DEMO=1 pnpm --filter @tradeflow/web test:demo`.
+   Configure an external uptime check for `/` and `/api/demo/status`.
+
+The reset repeats every 45 minutes. While it runs, `/v1/*` rejects traffic with
+HTTP 503 and `Retry-After`, while health endpoints remain available. A second
+reset refuses to run while the advisory lock is held. The reset completes only
+after the required lifecycle, inventory, and finance evidence is present.
+Failures leave `status.json` in `failed` state and preserve logs for alerting.
 
 ## Provider controls
 
