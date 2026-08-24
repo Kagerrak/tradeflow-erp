@@ -1,234 +1,238 @@
+import { ArrowRight, Check, ShieldCheck } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 
-const lifecycle = [
-  ["01", "Approve", "Price, terms, credit exposure"],
-  ["02", "Reserve", "Warehouse-level availability"],
-  ["03", "Pick", "Lot and custody assignment"],
-  ["04", "Deliver", "Evidence and acceptance"],
-  ["05", "Settle", "Invoice, payment, statement"],
+const workflow = [
+  "Approve",
+  "Reserve",
+  "Pick",
+  "Deliver",
+  "Invoice",
+  "Collect",
+];
+const teams = [
+  ["Sales", "Sales controls pricing, terms, and approvals."],
+  ["Warehouse", "Warehouse manages reservations, lots, picks, and transfers."],
+  ["Delivery", "Delivery records dispatch, evidence, and customer acceptance."],
+  [
+    "Finance",
+    "Finance posts invoices, verifies receipts, and reconciles balances.",
+  ],
 ] as const;
 
 export default function MarketingPage() {
   return (
     <>
-      <a className="marketing-skip" href="#story">
-        Skip to product story
+      <a className="marketing-skip" href="#main-content">
+        Skip to main content
       </a>
       <header className="marketing-nav">
         <Link className="marketing-brand" href="/" aria-label="TradeFlow home">
           <span aria-hidden="true">TF</span>
           <b>TradeFlow</b>
         </Link>
-        <nav aria-label="Product navigation">
-          <a href="#workflow">Workflow</a>
-          <a href="#engineering">Engineering</a>
-          <Link href="/case-study">Case study</Link>
+        <nav aria-label="Primary navigation">
+          <a href="#product">Product</a>
+          <a href="#solutions">Solutions</a>
+          <a href="#workflows">Workflows</a>
+          <a href="#security">Security</a>
         </nav>
         <Link className="marketing-nav-cta" href="/demo">
-          Explore the demo <span aria-hidden="true">↗</span>
+          Open live demo <ArrowRight aria-hidden="true" size={16} />
         </Link>
       </header>
 
-      <main id="story">
+      <main id="main-content" tabIndex={-1}>
         <section className="marketing-hero" aria-labelledby="hero-title">
           <div className="marketing-hero-copy">
-            <p className="marketing-kicker">
-              Distribution ERP / portfolio release
+            <p className="marketing-overline">
+              Distribution operations, connected
             </p>
             <h1 id="hero-title">
-              Every handoff.
-              <br />
-              <em>One accountable flow.</em>
+              Control every order from sale to settlement.
             </h1>
             <p className="marketing-lede">
-              TradeFlow connects commercial approval, warehouse custody,
-              delivery evidence, invoicing, and payment—without hiding business
-              state behind a generic dashboard.
+              TradeFlow connects sales, inventory, delivery, invoicing, and
+              payments in one accountable system.
             </p>
             <div className="marketing-actions">
               <Link className="marketing-primary" href="/demo">
-                Explore the live demo <span aria-hidden="true">→</span>
+                Open live demo <ArrowRight aria-hidden="true" size={17} />
               </Link>
-              <a
-                className="marketing-secondary"
-                href="https://github.com/Kagerrak/tradeflow-erp"
-              >
-                View source <span aria-hidden="true">↗</span>
+              <a className="marketing-secondary" href="#workflows">
+                See workflows
               </a>
             </div>
+            <ul className="hero-assurances" aria-label="Product assurances">
+              <li>
+                <Check aria-hidden="true" size={15} /> Server-authoritative
+                controls
+              </li>
+              <li>
+                <Check aria-hidden="true" size={15} /> Complete operational
+                history
+              </li>
+            </ul>
           </div>
-
-          <div
-            className="product-docket"
-            aria-label="Representative TradeFlow order control desk"
-          >
-            <div className="docket-head">
-              <span>COMMERCIAL ORDER</span>
-              <span>SO-2026-0142</span>
+          <div className="hero-product-frame">
+            <div className="product-frame-bar">
+              <span>TradeFlow / Operations overview</span>
+              <span>Live seeded product</span>
             </div>
-            <div className="docket-state">
-              <span className="docket-seal" aria-hidden="true">
-                ✓
-              </span>
-              <div>
-                <small>AUTHORITATIVE STATUS</small>
-                <strong>Approved · ready to pick</strong>
-              </div>
-            </div>
-            <dl className="docket-facts">
-              <div>
-                <dt>Customer</dt>
-                <dd>Harbor &amp; Pine Retail</dd>
-              </div>
-              <div>
-                <dt>Terms</dt>
-                <dd>Net 30 · within limit</dd>
-              </div>
-              <div>
-                <dt>Branch</dt>
-                <dd>Manila / MNL-01</dd>
-              </div>
-              <div>
-                <dt>Order total</dt>
-                <dd>₱ 184,760.00</dd>
-              </div>
-            </dl>
-            <div className="docket-lines">
-              <span>2 lines reserved</span>
-              <span>24 units</span>
-              <span>3 tracked lots</span>
-            </div>
-            <div className="docket-next">
-              <small>NEXT VALID ACTION</small>
-              <b>Prepare picking work</b>
-              <span aria-hidden="true">→</span>
-            </div>
+            <Image
+              alt="TradeFlow operations overview showing live work queues and operational metrics"
+              className="product-image"
+              height={900}
+              loading="eager"
+              priority
+              src="/product/operations-overview.png"
+              width={1440}
+            />
           </div>
-        </section>
-
-        <section className="marketing-proof" aria-label="Product scope">
-          <p>Built for a real operational boundary—not a CRUD showcase.</p>
-          <ul>
-            <li>Web + mobile</li>
-            <li>Immutable ledgers</li>
-            <li>Maker / checker</li>
-            <li>Offline-aware</li>
-          </ul>
         </section>
 
         <section
-          className="marketing-workflow"
-          id="workflow"
+          className="outcome-band"
+          id="product"
+          aria-labelledby="attention-title"
+        >
+          <div>
+            <span className="section-index">01 / Operations</span>
+            <h2 id="attention-title">Know what needs attention.</h2>
+          </div>
+          <p>
+            See approvals, warehouse work, deliveries, invoices, and payments
+            from one operational dashboard.
+          </p>
+        </section>
+
+        <section
+          className="workflow-section"
+          id="workflows"
           aria-labelledby="workflow-title"
         >
-          <div className="marketing-section-intro">
-            <p className="marketing-kicker">Order to payment</p>
-            <h2 id="workflow-title">The business story stays visible.</h2>
+          <div className="section-heading">
+            <span className="section-index">02 / Connected workflow</span>
+            <h2 id="workflow-title">Keep every order moving.</h2>
             <p>
-              Each stage opens only when the server accepts the previous
-              decision. Visitors can inspect records at every lifecycle state in
-              the seeded demo.
+              TradeFlow guides each order through the next valid action while
+              preserving inventory, credit, and authorization controls.
             </p>
           </div>
-          <ol className="lifecycle-track">
-            {lifecycle.map(([number, title, detail]) => (
-              <li key={number}>
-                <span>{number}</span>
-                <div>
-                  <b>{title}</b>
-                  <small>{detail}</small>
-                </div>
+          <ol className="workflow-track">
+            {workflow.map((stage, index) => (
+              <li key={stage}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <strong>{stage}</strong>
+                {index < workflow.length - 1 && (
+                  <ArrowRight aria-hidden="true" size={18} />
+                )}
               </li>
             ))}
           </ol>
         </section>
 
-        <section className="marketing-problem">
-          <div>
-            <p className="marketing-kicker">The problem</p>
-            <h2>Distribution work breaks at the seams.</h2>
+        <section
+          className="teams-section"
+          id="solutions"
+          aria-labelledby="teams-title"
+        >
+          <div className="teams-intro">
+            <span className="section-index">03 / Role-based work</span>
+            <h2 id="teams-title">One system for every team.</h2>
+            <p>
+              Each role gets focused workspaces while every accepted decision
+              updates the same operational record.
+            </p>
           </div>
-          <p>
-            Orders live in spreadsheets. Stock truth arrives late. Delivery
-            evidence sits in chat threads. Finance reconstructs what happened
-            after the fact.
-          </p>
-          <p>
-            TradeFlow makes authorization, custody, payment condition, and
-            posting state explicit—so a handoff is a recorded business decision,
-            not an assumption.
-          </p>
+          <div className="team-ledger">
+            {teams.map(([name, detail], index) => (
+              <article key={name}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <h3>{name}</h3>
+                <p>{detail}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="product-preview" aria-labelledby="preview-title">
+          <div className="section-heading compact">
+            <span className="section-index">04 / Product views</span>
+            <h2 id="preview-title">See the product in action.</h2>
+          </div>
+          <div className="preview-layout">
+            <figure className="preview-main">
+              <Image
+                alt="TradeFlow operations dashboard with action queue"
+                height={900}
+                src="/product/operations-overview.png"
+                width={1440}
+              />
+              <figcaption>
+                <b>Operations dashboard</b>
+                <span>Prioritized work across every team</span>
+              </figcaption>
+            </figure>
+            <div className="preview-stack">
+              <figure>
+                <Image
+                  alt="TradeFlow warehouse picking workflow"
+                  height={900}
+                  src="/product/order-warehouse.png"
+                  width={1440}
+                />
+                <figcaption>
+                  <b>Order and warehouse workflow</b>
+                  <span>Valid actions, custody, and traceability</span>
+                </figcaption>
+              </figure>
+              <figure>
+                <Image
+                  alt="TradeFlow invoice, payment, and statement workspace"
+                  height={900}
+                  src="/product/finance-statement.png"
+                  width={1440}
+                />
+                <figcaption>
+                  <b>Invoice, payment, and statement</b>
+                  <span>
+                    One receivables history from posting to allocation
+                  </span>
+                </figcaption>
+              </figure>
+            </div>
+          </div>
         </section>
 
         <section
-          className="engineering-field"
-          id="engineering"
-          aria-labelledby="engineering-title"
+          className="trust-section"
+          id="security"
+          aria-labelledby="trust-title"
         >
-          <div className="marketing-section-intro">
-            <p className="marketing-kicker">Engineering depth</p>
-            <h2 id="engineering-title">Trust is part of the interface.</h2>
+          <div className="trust-mark" aria-hidden="true">
+            <ShieldCheck size={30} />
           </div>
-          <div className="engineering-map">
-            <article>
-              <span>DOMAIN</span>
-              <h3>Bounded operational contexts</h3>
-              <p>
-                Commercial, warehouse, delivery, finance, and procurement rules
-                remain explicit while sharing authoritative identities.
-              </p>
-            </article>
-            <article>
-              <span>INTEGRITY</span>
-              <h3>Immutable source movements</h3>
-              <p>
-                Stock custody and financial balances are derived from accepted
-                movements, reversals, and linked corrections.
-              </p>
-            </article>
-            <article>
-              <span>AUTHORITY</span>
-              <h3>Capability + scope + limit</h3>
-              <p>
-                Maker/checker decisions are server-authoritative, idempotent,
-                and protected by optimistic concurrency.
-              </p>
-            </article>
-            <article>
-              <span>PLATFORM</span>
-              <h3>One contract, three surfaces</h3>
-              <p>
-                FastAPI and PostgreSQL serve generated TypeScript clients across
-                Next.js, Expo, and background workers.
-              </p>
-            </article>
-          </div>
-        </section>
-
-        <section className="role-ledger" aria-labelledby="role-title">
           <div>
-            <p className="marketing-kicker">My role</p>
-            <h2 id="role-title">
-              Product thinking through production invariants.
-            </h2>
+            <span className="section-index">05 / Trust by design</span>
+            <h2 id="trust-title">Every decision leaves a clear record.</h2>
           </div>
-          <div className="role-copy">
-            <p>
-              I designed and implemented TradeFlow end to end: domain
-              boundaries, authorization rules, API contracts, ledger models, web
-              and mobile workflows, test strategy, and deployment shape.
-            </p>
-            <Link href="/case-study">
-              Read the engineering case study <span aria-hidden="true">→</span>
-            </Link>
-          </div>
+          <p>
+            TradeFlow protects approvals, stock custody, delivery evidence, and
+            financial postings with server-authoritative controls and complete
+            history.
+          </p>
         </section>
 
-        <section className="marketing-final">
-          <p className="marketing-kicker">A guided ten-minute review</p>
-          <h2>Follow an approved order all the way to a customer statement.</h2>
+        <section className="marketing-final" aria-labelledby="final-title">
+          <div>
+            <h2 id="final-title">
+              Run the complete order-to-payment workflow.
+            </h2>
+            <p>Explore TradeFlow using realistic, seeded operational data.</p>
+          </div>
           <Link className="marketing-primary" href="/demo">
-            Open the live demo <span aria-hidden="true">→</span>
+            Open live demo <ArrowRight aria-hidden="true" size={17} />
           </Link>
         </section>
       </main>
@@ -238,10 +242,10 @@ export default function MarketingPage() {
           <span aria-hidden="true">TF</span>
           <b>TradeFlow</b>
         </Link>
-        <p>Auditable distribution operations.</p>
+        <p>Accountable order-to-payment operations.</p>
         <div>
+          <Link href="/case-study">Engineering case study</Link>
           <a href="https://github.com/Kagerrak/tradeflow-erp">Source</a>
-          <Link href="/case-study">Case study</Link>
         </div>
       </footer>
     </>

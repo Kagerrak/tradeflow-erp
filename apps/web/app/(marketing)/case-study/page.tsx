@@ -108,7 +108,7 @@ export default function CaseStudyPage() {
             <div className="case-study-decision">
               <b>Scope</b>
               <p>
-                The portfolio demo uses one shared company and omits tenant
+                The public product demo uses one shared company and omits tenant
                 provisioning, billing, and invitations to focus on operational
                 depth.
               </p>
@@ -125,7 +125,7 @@ export default function CaseStudyPage() {
         <div className="case-study-cta">
           <p>See the decisions as working operational states.</p>
           <Link className="marketing-primary" href="/demo">
-            Open the guided demo <span aria-hidden="true">→</span>
+            Open the live product <span aria-hidden="true">→</span>
           </Link>
         </div>
       </main>

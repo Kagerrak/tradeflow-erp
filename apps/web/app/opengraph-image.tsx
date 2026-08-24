@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "TradeFlow ERP — every handoff, one accountable flow";
+export const alt = "TradeFlow ERP: run distribution as one accountable flow";
 export const size = { height: 630, width: 1200 };
 export const contentType = "image/png";
 
@@ -8,8 +8,8 @@ export default function OpenGraphImage() {
   return new ImageResponse(
     <div
       style={{
-        background: "#f4f0e8",
-        color: "#172332",
+        background: "#f7f9fc",
+        color: "#10233f",
         display: "flex",
         height: "100%",
         padding: "72px",
@@ -18,7 +18,7 @@ export default function OpenGraphImage() {
     >
       <div
         style={{
-          borderLeft: "12px solid #e05a32",
+          borderLeft: "12px solid #175cd3",
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
@@ -46,8 +46,8 @@ export default function OpenGraphImage() {
             lineHeight: 0.95,
           }}
         >
-          <span>Every handoff.</span>
-          <span style={{ color: "#b64727" }}>One accountable flow.</span>
+          <span>Run distribution.</span>
+          <span style={{ color: "#175cd3" }}>As one accountable flow.</span>
         </div>
         <div style={{ display: "flex", fontSize: 25 }}>
           Approve → reserve → pick → deliver → settle

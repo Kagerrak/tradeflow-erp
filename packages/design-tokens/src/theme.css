@@ -1,15 +1,15 @@
 :root {
-  /* Warm paper-tinted neutrals */
-  --warm-50: #faf7ef;
-  --warm-100: #f5f0e3;
-  --warm-200: #e9e2d4;
-  --warm-300: #d8cfbd;
-  --warm-400: #b8b09e;
-  --warm-500: #918b7d;
-  --warm-600: #6d675e;
-  --warm-700: #504b45;
-  --warm-800: #36332f;
-  --warm-900: #211f1d;
+  /* Cool operational neutrals. Legacy names remain API-compatible. */
+  --warm-50: #f7f9fc;
+  --warm-100: #f1f5f9;
+  --warm-200: #e7edf5;
+  --warm-300: #d3deea;
+  --warm-400: #b7c5d5;
+  --warm-500: #8999ad;
+  --warm-600: #64758b;
+  --warm-700: #4b5b70;
+  --warm-800: #303d50;
+  --warm-900: #1c293c;
 
   /* Deep ink / navy */
   --ink-950: #10182b;
@@ -21,19 +21,20 @@
   --ink-500: #74839a;
   --ink-400: #9ba6b5;
 
-  /* Safety-orange accent */
-  --orange-600: #b5450a;
-  --orange-500: #c64e0b;
-  --orange-400: #e06318;
-  --orange-300: #f5a66b;
-  --orange-100: #ffe8d6;
-  --orange-50: #fff6ee;
+  /* Restrained cobalt brand accent. Legacy names remain API-compatible. */
+  --orange-600: #1648c7;
+  --orange-500: #245bd4;
+  --orange-400: #4a75dd;
+  --orange-300: #87a4eb;
+  --orange-100: #dce7ff;
+  --orange-50: #edf3ff;
 
   /* Semantic status colors */
   --green-700: #166534;
   --green-100: #dcfce7;
   --green-50: #f0fdf4;
   --amber-700: #92400e;
+  --amber-800: #78350f;
   --amber-100: #fef3c7;
   --amber-50: #fffbeb;
   --red-700: #9d332c;
@@ -65,7 +66,7 @@
 
   /* Typography */
   --font-body: "IBM Plex Sans Variable", "IBM Plex Sans", sans-serif;
-  --font-display: "Newsreader Variable", "Newsreader", serif;
+  --font-display: "IBM Plex Sans Variable", "IBM Plex Sans", sans-serif;
 
   /* Spacing (kept for compatibility) */
   --space-xs: 0.25rem;
