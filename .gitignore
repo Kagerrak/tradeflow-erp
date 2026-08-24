@@ -2,6 +2,9 @@
 .env
 .env.*
 !.env.example
+!.env.demo.example
+
+.claude/
 
 node_modules/
 .next/
