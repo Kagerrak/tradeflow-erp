@@ -1,6 +1,13 @@
 "use client";
 
 import type { components } from "@tradeflow/api-client";
+import {
+  ArrowUpRight,
+  Building2,
+  ClipboardList,
+  PackageCheck,
+  ReceiptText,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { EmptyState } from "./ui/empty-state";
@@ -17,21 +24,25 @@ const procurementModules = [
   {
     description: "Manage vendor accounts.",
     href: "/procurement/suppliers",
+    icon: Building2,
     title: "Suppliers",
   },
   {
     description: "Create and approve purchase orders.",
     href: "/procurement/purchase-orders",
+    icon: ClipboardList,
     title: "Purchase orders",
   },
   {
     description: "Raise and convert purchase requests.",
     href: "/procurement/purchase-requests",
+    icon: ReceiptText,
     title: "Purchase requests",
   },
   {
     description: "Record incoming goods and landed costs.",
     href: "/procurement/goods-receipts",
+    icon: PackageCheck,
     title: "Goods receipts",
   },
 ];
@@ -87,8 +98,14 @@ export function ProcurementWorkspace() {
       <section className="dashboard-grid" aria-label="Procurement modules">
         {procurementModules.map((module) => (
           <Link className="dashboard-tile" href={module.href} key={module.href}>
-            <span className="dashboard-tile-title">{module.title}</span>
-            <span className="dashboard-tile-desc">{module.description}</span>
+            <span className="dashboard-tile-icon" aria-hidden="true">
+              <module.icon />
+            </span>
+            <span className="dashboard-tile-copy">
+              <span className="dashboard-tile-title">{module.title}</span>
+              <span className="dashboard-tile-desc">{module.description}</span>
+            </span>
+            <ArrowUpRight className="dashboard-tile-arrow" aria-hidden="true" />
           </Link>
         ))}
       </section>

@@ -4,6 +4,16 @@ import type { components } from "@tradeflow/api-client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "./ui/button";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "./ui/field";
+import { Input } from "./ui/input";
 import { PageHeader } from "./ui/page-header";
 
 type TransferList = components["schemas"]["TransferListResponse"];
@@ -249,85 +259,150 @@ export function InventoryTransferWorkspace() {
         )}
 
         <form
-          className="inventory-search"
+          className="operational-form"
           onSubmit={(event) => {
             event.preventDefault();
             void request();
           }}
         >
-          <label htmlFor="transfer-sku-id">SKU ID</label>
-          <input
-            data-testid="transfer-sku-id"
-            id="transfer-sku-id"
-            onChange={(event) => setSkuId(event.target.value)}
-            value={skuId}
-          />
-          <label htmlFor="transfer-from-warehouse">From warehouse ID</label>
-          <input
-            data-testid="transfer-from-warehouse"
-            id="transfer-from-warehouse"
-            onChange={(event) => setFromWarehouseId(event.target.value)}
-            value={fromWarehouseId}
-          />
-          <label htmlFor="transfer-to-warehouse">To warehouse ID</label>
-          <input
-            data-testid="transfer-to-warehouse"
-            id="transfer-to-warehouse"
-            onChange={(event) => setToWarehouseId(event.target.value)}
-            value={toWarehouseId}
-          />
-          <label htmlFor="transfer-from-location">From location ID</label>
-          <input
-            data-testid="transfer-from-location"
-            id="transfer-from-location"
-            onChange={(event) => setFromLocationId(event.target.value)}
-            value={fromLocationId}
-          />
-          <label htmlFor="transfer-to-location">To location ID</label>
-          <input
-            data-testid="transfer-to-location"
-            id="transfer-to-location"
-            onChange={(event) => setToLocationId(event.target.value)}
-            value={toLocationId}
-          />
-          <label htmlFor="transfer-quantity">Quantity</label>
-          <input
-            data-testid="transfer-quantity"
-            id="transfer-quantity"
-            onChange={(event) => setQuantity(event.target.value)}
-            value={quantity}
-          />
-          <label htmlFor="transfer-unit">Unit code</label>
-          <input
-            data-testid="transfer-unit"
-            id="transfer-unit"
-            onChange={(event) => setUnitCode(event.target.value)}
-            value={unitCode}
-          />
-          <label htmlFor="transfer-reason">Reason</label>
-          <input
-            data-testid="transfer-reason"
-            id="transfer-reason"
-            onChange={(event) => setReason(event.target.value)}
-            value={reason}
-          />
-          <label htmlFor="transfer-source-reference">Source reference</label>
-          <input
-            data-testid="transfer-source-reference"
-            id="transfer-source-reference"
-            onChange={(event) => setSourceReference(event.target.value)}
-            value={sourceReference}
-          />
-          <label htmlFor="transfer-lot-code">Lot code (optional)</label>
-          <input
-            data-testid="transfer-lot-code"
-            id="transfer-lot-code"
-            onChange={(event) => setLotCode(event.target.value)}
-            value={lotCode}
-          />
-          <button data-testid="transfer-request" disabled={busy} type="submit">
-            Request transfer
-          </button>
+          <FieldSet>
+            <FieldLegend>Movement</FieldLegend>
+            <FieldDescription>
+              Identify the stock and quantity entering warehouse custody.
+            </FieldDescription>
+            <FieldGroup className="operational-form-grid operational-form-grid-3">
+              <Field>
+                <FieldLabel htmlFor="transfer-sku-id">SKU ID</FieldLabel>
+                <Input
+                  data-testid="transfer-sku-id"
+                  id="transfer-sku-id"
+                  onChange={(event) => setSkuId(event.target.value)}
+                  value={skuId}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="transfer-quantity">Quantity</FieldLabel>
+                <Input
+                  data-testid="transfer-quantity"
+                  id="transfer-quantity"
+                  inputMode="decimal"
+                  onChange={(event) => setQuantity(event.target.value)}
+                  value={quantity}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="transfer-unit">Unit code</FieldLabel>
+                <Input
+                  data-testid="transfer-unit"
+                  id="transfer-unit"
+                  onChange={(event) => setUnitCode(event.target.value)}
+                  value={unitCode}
+                />
+              </Field>
+            </FieldGroup>
+          </FieldSet>
+          <FieldSet>
+            <FieldLegend>Route</FieldLegend>
+            <FieldDescription>
+              Define the release point and receiving custody location.
+            </FieldDescription>
+            <FieldGroup className="operational-form-grid">
+              <Field>
+                <FieldLabel htmlFor="transfer-from-warehouse">
+                  From warehouse ID
+                </FieldLabel>
+                <Input
+                  data-testid="transfer-from-warehouse"
+                  id="transfer-from-warehouse"
+                  onChange={(event) => setFromWarehouseId(event.target.value)}
+                  value={fromWarehouseId}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="transfer-from-location">
+                  From location ID
+                </FieldLabel>
+                <Input
+                  data-testid="transfer-from-location"
+                  id="transfer-from-location"
+                  onChange={(event) => setFromLocationId(event.target.value)}
+                  value={fromLocationId}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="transfer-to-warehouse">
+                  To warehouse ID
+                </FieldLabel>
+                <Input
+                  data-testid="transfer-to-warehouse"
+                  id="transfer-to-warehouse"
+                  onChange={(event) => setToWarehouseId(event.target.value)}
+                  value={toWarehouseId}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="transfer-to-location">
+                  To location ID
+                </FieldLabel>
+                <Input
+                  data-testid="transfer-to-location"
+                  id="transfer-to-location"
+                  onChange={(event) => setToLocationId(event.target.value)}
+                  value={toLocationId}
+                />
+              </Field>
+            </FieldGroup>
+          </FieldSet>
+          <FieldSet>
+            <FieldLegend>Audit evidence</FieldLegend>
+            <FieldDescription>
+              Explain the movement and attach the source document operators can
+              verify.
+            </FieldDescription>
+            <FieldGroup className="operational-form-grid operational-form-grid-3">
+              <Field>
+                <FieldLabel htmlFor="transfer-reason">Reason</FieldLabel>
+                <Input
+                  data-testid="transfer-reason"
+                  id="transfer-reason"
+                  onChange={(event) => setReason(event.target.value)}
+                  value={reason}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="transfer-source-reference">
+                  Source reference
+                </FieldLabel>
+                <Input
+                  data-testid="transfer-source-reference"
+                  id="transfer-source-reference"
+                  onChange={(event) => setSourceReference(event.target.value)}
+                  value={sourceReference}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="transfer-lot-code">
+                  Lot code (optional)
+                </FieldLabel>
+                <Input
+                  data-testid="transfer-lot-code"
+                  id="transfer-lot-code"
+                  onChange={(event) => setLotCode(event.target.value)}
+                  value={lotCode}
+                />
+              </Field>
+            </FieldGroup>
+          </FieldSet>
+          <div className="operational-form-action">
+            <p>Available stock becomes in-transit custody until receipt.</p>
+            <Button
+              data-testid="transfer-request"
+              disabled={busy}
+              type="submit"
+            >
+              {busy ? "Requesting…" : "Request transfer"}
+            </Button>
+          </div>
         </form>
       </section>
 
@@ -375,9 +450,9 @@ function TransferListState({
         <p className="support-reference">
           Support reference <code>{state.correlationId}</code>
         </p>
-        <button onClick={() => void retry()} type="button">
+        <Button onClick={() => void retry()} type="button" variant="outline">
           Retry transfers
-        </button>
+        </Button>
       </div>
     );
   }
@@ -423,13 +498,14 @@ function TransferListState({
             </div>
           </dl>
           {transfer.status === "released" && (
-            <button
+            <Button
               data-testid={`transfer-receive-${transfer.transfer_id}`}
               onClick={() => onReceive(transfer)}
+              size="sm"
               type="button"
             >
               Receive
-            </button>
+            </Button>
           )}
         </article>
       ))}

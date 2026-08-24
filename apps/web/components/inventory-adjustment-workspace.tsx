@@ -4,6 +4,16 @@ import type { components } from "@tradeflow/api-client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "./ui/button";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "./ui/field";
+import { Input } from "./ui/input";
 import { PageHeader } from "./ui/page-header";
 
 type AdjustmentList = components["schemas"]["AdjustmentListResponseWrapper"];
@@ -288,87 +298,147 @@ export function InventoryAdjustmentWorkspace() {
         )}
 
         <form
-          className="inventory-search"
+          className="operational-form"
           onSubmit={(event) => {
             event.preventDefault();
             void request();
           }}
         >
-          <label htmlFor="adjustment-sku-id">SKU ID</label>
-          <input
-            data-testid="adjustment-sku-id"
-            id="adjustment-sku-id"
-            onChange={(event) => setSkuId(event.target.value)}
-            value={skuId}
-          />
-          <label htmlFor="adjustment-warehouse">Warehouse ID</label>
-          <input
-            data-testid="adjustment-warehouse"
-            id="adjustment-warehouse"
-            onChange={(event) => setWarehouseId(event.target.value)}
-            value={warehouseId}
-          />
-          <label htmlFor="adjustment-location">Location ID</label>
-          <input
-            data-testid="adjustment-location"
-            id="adjustment-location"
-            onChange={(event) => setLocationId(event.target.value)}
-            value={locationId}
-          />
-          <label htmlFor="adjustment-kind">Kind</label>
-          <select
-            data-testid="adjustment-kind"
-            id="adjustment-kind"
-            onChange={(event) =>
-              setKind(event.target.value as "surplus" | "shortage")
-            }
-            value={kind}
-          >
-            <option value="surplus">Surplus</option>
-            <option value="shortage">Shortage</option>
-          </select>
-          <label htmlFor="adjustment-quantity">Quantity</label>
-          <input
-            data-testid="adjustment-quantity"
-            id="adjustment-quantity"
-            onChange={(event) => setQuantity(event.target.value)}
-            value={quantity}
-          />
-          <label htmlFor="adjustment-unit">Unit code</label>
-          <input
-            data-testid="adjustment-unit"
-            id="adjustment-unit"
-            onChange={(event) => setUnitCode(event.target.value)}
-            value={unitCode}
-          />
-          <label htmlFor="adjustment-reason">Reason</label>
-          <input
-            data-testid="adjustment-reason"
-            id="adjustment-reason"
-            onChange={(event) => setReason(event.target.value)}
-            value={reason}
-          />
-          <label htmlFor="adjustment-source-reference">Source reference</label>
-          <input
-            data-testid="adjustment-source-reference"
-            id="adjustment-source-reference"
-            onChange={(event) => setSourceReference(event.target.value)}
-            value={sourceReference}
-          />
-          <label htmlFor="adjustment-lot-code">Lot code (optional)</label>
-          <input
-            data-testid="adjustment-lot-code"
-            id="adjustment-lot-code"
-            onChange={(event) => setLotCode(event.target.value)}
-            value={lotCode}
-          />
-          <button
-            data-testid="adjustment-request"
-            disabled={busy}
-            type="submit"
-          >
-            Request adjustment
-          </button>
+          <FieldSet>
+            <FieldLegend>Stock identity</FieldLegend>
+            <FieldDescription>
+              Locate the exact warehouse stock record being corrected.
+            </FieldDescription>
+            <FieldGroup className="operational-form-grid">
+              <Field>
+                <FieldLabel htmlFor="adjustment-sku-id">SKU ID</FieldLabel>
+                <Input
+                  data-testid="adjustment-sku-id"
+                  id="adjustment-sku-id"
+                  onChange={(event) => setSkuId(event.target.value)}
+                  value={skuId}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="adjustment-warehouse">
+                  Warehouse ID
+                </FieldLabel>
+                <Input
+                  data-testid="adjustment-warehouse"
+                  id="adjustment-warehouse"
+                  onChange={(event) => setWarehouseId(event.target.value)}
+                  value={warehouseId}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="adjustment-location">
+                  Location ID
+                </FieldLabel>
+                <Input
+                  data-testid="adjustment-location"
+                  id="adjustment-location"
+                  onChange={(event) => setLocationId(event.target.value)}
+                  value={locationId}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="adjustment-lot-code">
+                  Lot code (optional)
+                </FieldLabel>
+                <Input
+                  data-testid="adjustment-lot-code"
+                  id="adjustment-lot-code"
+                  onChange={(event) => setLotCode(event.target.value)}
+                  value={lotCode}
+                />
+              </Field>
+            </FieldGroup>
+          </FieldSet>
+          <FieldSet>
+            <FieldLegend>Counted variance</FieldLegend>
+            <FieldDescription>
+              Record whether the physical count increases or reduces available
+              stock.
+            </FieldDescription>
+            <FieldGroup className="operational-form-grid operational-form-grid-3">
+              <Field>
+                <FieldLabel htmlFor="adjustment-kind">Kind</FieldLabel>
+                <select
+                  className="operational-select"
+                  data-testid="adjustment-kind"
+                  id="adjustment-kind"
+                  onChange={(event) =>
+                    setKind(event.target.value as "surplus" | "shortage")
+                  }
+                  value={kind}
+                >
+                  <option value="surplus">Surplus</option>
+                  <option value="shortage">Shortage</option>
+                </select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="adjustment-quantity">Quantity</FieldLabel>
+                <Input
+                  data-testid="adjustment-quantity"
+                  id="adjustment-quantity"
+                  inputMode="decimal"
+                  onChange={(event) => setQuantity(event.target.value)}
+                  value={quantity}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="adjustment-unit">Unit code</FieldLabel>
+                <Input
+                  data-testid="adjustment-unit"
+                  id="adjustment-unit"
+                  onChange={(event) => setUnitCode(event.target.value)}
+                  value={unitCode}
+                />
+              </Field>
+            </FieldGroup>
+          </FieldSet>
+          <FieldSet>
+            <FieldLegend>Audit evidence</FieldLegend>
+            <FieldDescription>
+              Explain the variance and identify the count sheet or source
+              record.
+            </FieldDescription>
+            <FieldGroup className="operational-form-grid">
+              <Field>
+                <FieldLabel htmlFor="adjustment-reason">Reason</FieldLabel>
+                <Input
+                  data-testid="adjustment-reason"
+                  id="adjustment-reason"
+                  onChange={(event) => setReason(event.target.value)}
+                  value={reason}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="adjustment-source-reference">
+                  Source reference
+                </FieldLabel>
+                <Input
+                  data-testid="adjustment-source-reference"
+                  id="adjustment-source-reference"
+                  onChange={(event) => setSourceReference(event.target.value)}
+                  value={sourceReference}
+                />
+              </Field>
+            </FieldGroup>
+          </FieldSet>
+          <div className="operational-form-action">
+            <p>
+              Posting requires authorization and creates an immutable stock
+              movement.
+            </p>
+            <Button
+              data-testid="adjustment-request"
+              disabled={busy}
+              type="submit"
+            >
+              {busy ? "Requesting…" : "Request adjustment"}
+            </Button>
+          </div>
         </form>
       </section>
 
@@ -423,9 +493,9 @@ function AdjustmentListState({
         <p className="support-reference">
           Support reference <code>{state.correlationId}</code>
         </p>
-        <button onClick={() => void retry()} type="button">
+        <Button onClick={() => void retry()} type="button" variant="outline">
           Retry adjustments
-        </button>
+        </Button>
       </div>
     );
   }
@@ -469,22 +539,25 @@ function AdjustmentListState({
             </div>
           </dl>
           {adjustment.status === "pending_authorization" && (
-            <button
+            <Button
               data-testid={`adjustment-post-${adjustment.adjustment_id}`}
               onClick={() => onPost(adjustment)}
+              size="sm"
               type="button"
             >
               Post
-            </button>
+            </Button>
           )}
           {adjustment.status === "posted" && (
-            <button
+            <Button
               data-testid={`adjustment-reverse-${adjustment.adjustment_id}`}
               onClick={() => onReverse(adjustment)}
+              size="sm"
               type="button"
+              variant="outline"
             >
               Reverse
-            </button>
+            </Button>
           )}
         </article>
       ))}

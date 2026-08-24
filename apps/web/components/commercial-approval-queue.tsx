@@ -7,6 +7,8 @@ import {
   type SalesOrderSearchState,
 } from "@tradeflow/sales-order-draft";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 import { PageHeader } from "./ui/page-header";
 
 type Scope = {
@@ -257,10 +259,11 @@ export function CommercialApprovalQueue({
         ) : (
           <div className="sales-approval-list">
             {pending.map((order) => (
-              <button
+              <Button
                 key={order.salesOrderId}
                 onClick={() => void openOrder(order.salesOrderId)}
                 type="button"
+                variant="ghost"
               >
                 <span>{order.customerName}</span>{" "}
                 <strong>
@@ -270,7 +273,7 @@ export function CommercialApprovalQueue({
                   v{order.version} ·{" "}
                   {order.paymentTimingPolicy.replaceAll("_", " ")}
                 </small>
-              </button>
+              </Button>
             ))}
           </div>
         )}
@@ -291,6 +294,7 @@ export function CommercialApprovalQueue({
                 Fulfillment warehouse
                 <select
                   aria-label="Fulfillment warehouse"
+                  className="operational-select"
                   onChange={(event) => {
                     setReview(null);
                     setWarehouseId(event.target.value);
@@ -318,7 +322,7 @@ export function CommercialApprovalQueue({
               </label>
               <label>
                 Discount / floor exception reason
-                <input
+                <Input
                   aria-label="Commercial exception reason"
                   onChange={(event) => setExceptionReason(event.target.value)}
                   value={exceptionReason}
@@ -327,14 +331,14 @@ export function CommercialApprovalQueue({
               {selected.draft.paymentTimingPolicy === "on_account" && (
                 <label>
                   Credit Override reason
-                  <input
+                  <Input
                     aria-label="Credit Override reason"
                     onChange={(event) => setCreditReason(event.target.value)}
                     value={creditReason}
                   />
                 </label>
               )}
-              <button
+              <Button
                 disabled={
                   approving ||
                   warehouseId.length === 0 ||
@@ -348,7 +352,7 @@ export function CommercialApprovalQueue({
                 type="button"
               >
                 {approving ? "Checking controls…" : "Approve exact revision"}
-              </button>
+              </Button>
             </div>
           </section>
         )}
