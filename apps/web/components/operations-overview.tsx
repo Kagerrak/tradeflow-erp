@@ -1,18 +1,42 @@
 "use client";
 
+import { format, subDays } from "date-fns";
 import Link from "next/link";
 import {
   AlertTriangle,
   ArrowRight,
   Bell,
+  CalendarDays,
+  ChevronDown,
   Clock3,
   RefreshCw,
   Search,
   UserRound,
 } from "lucide-react";
+import type { DateRange } from "react-day-picker";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
+import { ButtonGroup } from "./ui/button-group";
+import { Calendar } from "./ui/calendar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "./ui/input-group";
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "./ui/popover";
 import {
   Select,
   SelectContent,
@@ -20,6 +44,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import { Spinner } from "./ui/spinner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 type Metric = {
   key: string;
@@ -102,7 +128,7 @@ const rangeOptions = [
 ] as const;
 
 function dateValue(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  return format(date, "yyyy-MM-dd");
 }
 
 function formatMoney(value: string, currency = "PHP"): string {
@@ -128,20 +154,23 @@ function formatAge(minutes: number): string {
 export function OperationsOverview() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [branchId, setBranchId] = useState("all");
-  const [rangeDays, setRangeDays] = useState("30");
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    const to = new Date();
+    return { from: subDays(to, 30), to };
+  });
   const [query, setQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const fromDate = dateRange.from ? dateValue(dateRange.from) : "";
+  const toDate = dateRange.to ? dateValue(dateRange.to) : "";
 
   const load = useCallback(
     async (preserve = false) => {
+      if (fromDate.length === 0 || toDate.length === 0) return;
       if (preserve) setRefreshing(true);
       else setState({ kind: "loading" });
-      const to = new Date();
-      const from = new Date(to);
-      from.setUTCDate(from.getUTCDate() - Number(rangeDays));
       const params = new URLSearchParams({
-        from_date: dateValue(from),
-        to_date: dateValue(to),
+        from_date: fromDate,
+        to_date: toDate,
       });
       if (branchId !== "all") params.set("branch_id", branchId);
       try {
@@ -168,7 +197,7 @@ export function OperationsOverview() {
         setRefreshing(false);
       }
     },
-    [branchId, rangeDays],
+    [branchId, fromDate, toDate],
   );
 
   useEffect(() => {
@@ -220,6 +249,15 @@ export function OperationsOverview() {
   }
 
   const data = state.data;
+  const selectedBranch = data.branches.find(
+    (branch) => branch.branch_id === branchId,
+  );
+  const selectedBranchLabel =
+    branchId === "all"
+      ? "All branches"
+      : selectedBranch
+        ? `${selectedBranch.code} / ${selectedBranch.name}`
+        : "Select branch";
   return (
     <div className="operations-overview" aria-busy={refreshing}>
       <header className="operations-heading">
@@ -240,15 +278,17 @@ export function OperationsOverview() {
       <section className="operations-controls" aria-label="Overview controls">
         <label className="operations-control operations-search">
           <span>Search work</span>
-          <span className="operations-input-wrap">
-            <Search aria-hidden="true" />
-            <Input
+          <InputGroup className="operations-input-group">
+            <InputGroupAddon>
+              <Search aria-hidden="true" />
+            </InputGroupAddon>
+            <InputGroupInput
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Customer, reference, owner, or status"
               type="search"
               value={query}
             />
-          </span>
+          </InputGroup>
         </label>
         <div className="operations-control">
           <span>Branch</span>
@@ -257,7 +297,7 @@ export function OperationsOverview() {
             value={branchId}
           >
             <SelectTrigger aria-label="Branch" className="operations-select">
-              <SelectValue />
+              <SelectValue>{selectedBranchLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent align="start">
               <SelectItem value="all">All branches</SelectItem>
@@ -269,61 +309,168 @@ export function OperationsOverview() {
             </SelectContent>
           </Select>
         </div>
-        <div className="operations-control">
+        <div className="operations-control operations-date-control">
           <span>Date range</span>
-          <Select
-            onValueChange={(value) => setRangeDays(value ?? "30")}
-            value={rangeDays}
-          >
-            <SelectTrigger
-              aria-label="Date range"
-              className="operations-select"
+          <Popover>
+            <PopoverTrigger
+              render={
+                <Button
+                  aria-label={`Date range, ${dateRange.from ? format(dateRange.from, "MMM d, yyyy") : "start date"} to ${dateRange.to ? format(dateRange.to, "MMM d, yyyy") : "end date"}`}
+                  className="operations-range-trigger"
+                  type="button"
+                  variant="outline"
+                />
+              }
             >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent align="start">
-              {rangeOptions.map((option) => (
-                <SelectItem key={option.days} value={String(option.days)}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+              <CalendarDays aria-hidden="true" />
+              <span>
+                {dateRange.from && dateRange.to
+                  ? `${format(dateRange.from, "MMM d")} – ${format(dateRange.to, "MMM d, yyyy")}`
+                  : "Select range"}
+              </span>
+              <ChevronDown aria-hidden="true" />
+            </PopoverTrigger>
+            <PopoverContent align="start" className="operations-date-popover">
+              <PopoverHeader>
+                <PopoverTitle>Reporting window</PopoverTitle>
+                <PopoverDescription>
+                  Select the dates used for activity and collected value.
+                </PopoverDescription>
+              </PopoverHeader>
+              <ButtonGroup
+                className="operations-range-presets"
+                aria-label="Date range presets"
+              >
+                {rangeOptions.map((option) => (
+                  <Button
+                    key={option.days}
+                    onClick={() => {
+                      const to = new Date();
+                      setDateRange({ from: subDays(to, option.days), to });
+                    }}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </ButtonGroup>
+              <Calendar
+                defaultMonth={dateRange.from ?? new Date()}
+                disabled={{ after: new Date() }}
+                mode="range"
+                onSelect={(next) => {
+                  if (next !== undefined) setDateRange(next);
+                }}
+                selected={dateRange}
+              />
+            </PopoverContent>
+          </Popover>
         </div>
         <div className="operations-toolbar">
-          <Button
-            aria-label="Refresh operational data"
-            disabled={refreshing}
-            onClick={() => void load(true)}
-            size="icon-lg"
-            type="button"
-            variant="outline"
-          >
-            <RefreshCw
-              aria-hidden="true"
-              className={refreshing ? "is-spinning" : ""}
-            />
-          </Button>
-          <Button
-            aria-label={`${data.recent_activity.length} recent notifications`}
-            nativeButton={false}
-            render={<a href="#recent-activity" />}
-            size="icon-lg"
-            variant="outline"
-          >
-            <Bell aria-hidden="true" />
-          </Button>
-          <details className="operations-user-menu">
-            <summary aria-label="Open user menu">
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  aria-label="Refresh operational data"
+                  disabled={refreshing}
+                  onClick={() => void load(true)}
+                  size="icon"
+                  type="button"
+                  variant="outline"
+                />
+              }
+            >
+              {refreshing ? (
+                <Spinner aria-hidden="true" />
+              ) : (
+                <RefreshCw aria-hidden="true" />
+              )}
+            </TooltipTrigger>
+            <TooltipContent>Refresh authoritative data</TooltipContent>
+          </Tooltip>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  aria-label={`${data.recent_activity.length} recent notifications`}
+                  className="operations-notification-trigger"
+                  size="icon"
+                  type="button"
+                  variant="outline"
+                />
+              }
+            >
+              <Bell aria-hidden="true" />
+              <Badge className="operations-notification-count" variant="danger">
+                {data.recent_activity.length}
+              </Badge>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="operations-notifications-menu"
+            >
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>
+                  <span>Recent activity</span>
+                  <small>{data.recent_activity.length} accepted events</small>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {data.recent_activity.slice(0, 5).map((activity) => (
+                  <DropdownMenuItem
+                    key={activity.activity_id}
+                    render={<Link href={activity.href} />}
+                  >
+                    <span className="operations-notification-copy">
+                      <strong>{activity.title}</strong>
+                      <small>
+                        {activity.branch_code} ·{" "}
+                        {format(
+                          new Date(activity.occurred_at),
+                          "MMM d, h:mm a",
+                        )}
+                      </small>
+                    </span>
+                    <ArrowRight aria-hidden="true" />
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem render={<a href="#recent-activity" />}>
+                View activity ledger
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  className="operations-user-trigger"
+                  type="button"
+                  variant="outline"
+                />
+              }
+            >
               <UserRound aria-hidden="true" />
               <span>Demo Operator</span>
-            </summary>
-            <div>
-              <strong>Demo Operator</strong>
-              <span>All demo branches</span>
-              <Link href="/">Return to product site</Link>
-            </div>
-          </details>
+              <ChevronDown aria-hidden="true" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="operations-user-menu">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>
+                  <strong>Demo Operator</strong>
+                  <small>All demo branches</small>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem render={<Link href="/" />}>
+                  Return to product site
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </section>
 
@@ -384,11 +531,18 @@ export function OperationsOverview() {
                   role="listitem"
                 >
                   <div className="queue-record">
-                    <span
-                      className={`queue-urgency queue-urgency-${item.urgency}`}
+                    <Badge
+                      className="queue-urgency"
+                      variant={
+                        item.urgency === "high"
+                          ? "danger"
+                          : item.urgency === "medium"
+                            ? "warning"
+                            : "default"
+                      }
                     >
                       {item.urgency} priority
-                    </span>
+                    </Badge>
                     <strong>{item.title}</strong>
                     <span>
                       {item.kind.replaceAll("_", " ")} /{" "}
