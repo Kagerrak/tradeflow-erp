@@ -12,6 +12,7 @@ import "./picking.css";
 import "./sales-orders.css";
 import "./workspace.css";
 
+import { TooltipProvider } from "@/components/ui/tooltip";
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
@@ -50,7 +51,9 @@ export default function RootLayout({
 }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en" className="font-sans" data-scroll-behavior="smooth">
-      <body>{children}</body>
+      <body>
+        <TooltipProvider>{children}</TooltipProvider>
+      </body>
     </html>
   );
 }

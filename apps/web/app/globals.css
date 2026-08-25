@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@source "../components";
+@source "../lib";
 @import "./tw-animate.css";
 @import "./shadcn-base.css";
 @import "@tradeflow/design-tokens/theme.css";

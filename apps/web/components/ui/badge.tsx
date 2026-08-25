@@ -1,3 +1,7 @@
+import type { ReactNode } from "react";
+
+import { cn } from "@/lib/utils";
+
 const statusMap: Record<
   string,
   { label?: string; variant: "default" | "success" | "warning" | "danger" }
@@ -18,12 +22,24 @@ const statusMap: Record<
 };
 
 type BadgeProps = {
-  children: string;
+  children: ReactNode;
+  className?: string;
   variant?: "default" | "success" | "warning" | "danger";
 };
 
-export function Badge({ children, variant = "default" }: BadgeProps) {
-  const mapped = statusMap[children.toLowerCase()] ?? { variant };
+export function Badge({
+  children,
+  className,
+  variant = "default",
+}: BadgeProps) {
+  const mapped =
+    typeof children === "string"
+      ? (statusMap[children.toLowerCase()] ?? { variant })
+      : { variant };
   const label = mapped.label ?? children;
-  return <span className={`badge badge-${mapped.variant}`}>{label}</span>;
+  return (
+    <span className={cn(`badge badge-${mapped.variant}`, className)}>
+      {label}
+    </span>
+  );
 }
