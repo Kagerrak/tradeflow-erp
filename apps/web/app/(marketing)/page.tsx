@@ -85,7 +85,7 @@ export default function MarketingPage() {
               height={900}
               loading="eager"
               priority
-              src="/product/operations-overview.png"
+              src="/product/operations-overview-shadcn.png"
               width={1440}
             />
           </div>
@@ -166,7 +166,7 @@ export default function MarketingPage() {
               <Image
                 alt="TradeFlow operations dashboard with action queue"
                 height={900}
-                src="/product/operations-overview.png"
+                src="/product/operations-overview-shadcn.png"
                 width={1440}
               />
               <figcaption>
