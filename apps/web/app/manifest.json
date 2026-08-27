@@ -1,0 +1,16 @@
+{
+  "name": "TradeFlow ERP",
+  "short_name": "TradeFlow",
+  "description": "Accountable distribution operations from order to settlement.",
+  "start_url": "/operations",
+  "display": "standalone",
+  "background_color": "#f7f9fc",
+  "theme_color": "#175cd3",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
