@@ -1,3 +1,4 @@
+import { getServerApiConfig } from "@/lib/server-api";
 import {
   createSalesOrderDraft,
   searchSalesOrders,
@@ -8,8 +9,8 @@ export async function GET(request: Request): Promise<Response> {
   const correlationId = crypto.randomUUID();
   const query = new URL(request.url).searchParams.get("query") ?? "";
   const state = await searchSalesOrders({
-    accessToken: process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN,
-    baseUrl: process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000",
+    accessToken: getServerApiConfig().accessToken,
+    baseUrl: getServerApiConfig().baseUrl,
     correlationId,
     query,
   });
@@ -40,8 +41,8 @@ export async function POST(request: Request): Promise<Response> {
   const correlationId = crypto.randomUUID();
   const body = (await request.json()) as RequestBody;
   const state = await createSalesOrderDraft({
-    accessToken: process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN,
-    baseUrl: process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000",
+    accessToken: getServerApiConfig().accessToken,
+    baseUrl: getServerApiConfig().baseUrl,
     command: body.command,
     correlationId,
     idempotencyKey: body.idempotencyKey,

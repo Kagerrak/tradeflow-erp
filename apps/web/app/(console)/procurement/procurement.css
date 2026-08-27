@@ -1,0 +1,193 @@
+.procurement-title {
+  display: grid;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+}
+
+.procurement-title .eyebrow {
+  color: var(--primary);
+}
+
+.procurement-title h1 {
+  margin: 0;
+  font-family: var(--font-display), serif;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.procurement-title > p {
+  margin: 0;
+  color: var(--ink-650);
+  line-height: 1.6;
+}
+
+.procurement-panel {
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.625rem;
+  background: var(--card);
+  box-shadow: 0 1px 2px rgb(16 24 43 / 4%);
+}
+
+.procurement-section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-end;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.procurement-section-head span {
+  color: var(--ink-600);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.procurement-section-head h2 {
+  margin: 0.25rem 0 0;
+  font-family: var(--font-display), serif;
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+
+.procurement-message {
+  margin: 0;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--amber-100);
+  color: var(--amber-700);
+}
+
+.procurement-success {
+  margin: 0;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--green-100);
+  color: var(--green-700);
+}
+
+.procurement-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  padding: 1.5rem;
+}
+
+.procurement-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  color: var(--ink-650);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.procurement-fields input {
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  background: var(--background);
+  color: var(--ink-950);
+  font-size: 0.95rem;
+}
+
+.procurement-fields input:focus {
+  border-color: var(--primary);
+  outline: 2px solid var(--orange-100);
+}
+
+.procurement-wide {
+  grid-column: 1 / -1;
+}
+
+.procurement-fields button {
+  grid-column: 1 / -1;
+  justify-self: start;
+  padding: 0.75rem 1.5rem;
+  border: 1px solid var(--ink-950);
+  border-radius: 0.5rem;
+  background: var(--primary);
+  color: var(--card);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.procurement-fields button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.procurement-search {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.procurement-search input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  background: var(--background);
+  color: var(--ink-950);
+  font-size: 0.9rem;
+  min-width: 16rem;
+}
+
+.procurement-search button {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--ink-950);
+  border-radius: 0.5rem;
+  background: var(--ink-950);
+  color: var(--card);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.procurement-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.procurement-table th,
+.procurement-table td {
+  padding: 0.85rem 1.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--muted);
+}
+
+.procurement-table th {
+  font-weight: 600;
+  color: var(--ink-600);
+  background: var(--background);
+}
+
+.procurement-empty {
+  padding: 2rem 1.5rem;
+  margin: 0;
+  color: var(--ink-650);
+}
+
+.procurement-total {
+  padding: 1rem 1.5rem;
+  margin: 0;
+  text-align: right;
+  font-size: 0.85rem;
+  color: var(--ink-600);
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 900px) {
+  .procurement-title {
+    grid-template-columns: 1fr;
+  }
+}

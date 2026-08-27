@@ -1,3 +1,4 @@
+import { getServerApiConfig } from "@/lib/server-api";
 import {
   loadSalesOrderDraft,
   type UpdateSalesOrderDraftInput,
@@ -18,8 +19,8 @@ export async function GET(
   const correlationId = crypto.randomUUID();
   const { orderId } = await context.params;
   const state = await loadSalesOrderDraft({
-    accessToken: process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN,
-    baseUrl: process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000",
+    accessToken: getServerApiConfig().accessToken,
+    baseUrl: getServerApiConfig().baseUrl,
     correlationId,
     salesOrderId: orderId,
   });
@@ -49,8 +50,8 @@ export async function PUT(
   const body = (await request.json()) as RequestBody;
   const { orderId } = await context.params;
   const state = await updateSalesOrderDraft({
-    accessToken: process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN,
-    baseUrl: process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000",
+    accessToken: getServerApiConfig().accessToken,
+    baseUrl: getServerApiConfig().baseUrl,
     command: body.command,
     correlationId,
     expectedVersion: body.expectedVersion,

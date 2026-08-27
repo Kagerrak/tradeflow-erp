@@ -2,15 +2,15 @@
 
 import type { CustomerDirectoryState } from "@tradeflow/customer-directory";
 import {
-  type CommercialApprovalState,
   type CreateSalesOrderDraftInput,
   type ReferenceState,
   type SalesOrderDraft,
   type SaveDraftState,
   type UpdateSalesOrderDraftInput,
 } from "@tradeflow/sales-order-draft";
-import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { ErrorState } from "./ui/error-state";
+import { PageHeader } from "./ui/page-header";
 
 type Branch = {
   branch_id: string;
@@ -90,25 +90,16 @@ export function SalesOrderEditor() {
   const [save, setSave] = useState<SaveDraftState | null>(null);
   const [lastSaved, setLastSaved] = useState<SalesOrderDraft | null>(null);
   const [saving, setSaving] = useState(false);
-  const [approval, setApproval] = useState<CommercialApprovalState | null>(
-    null,
-  );
   const [approving, setApproving] = useState(false);
-  const [warehouseId, setWarehouseId] = useState("");
-  const [exceptionReason, setExceptionReason] = useState("");
-  const [creditOverrideReason, setCreditOverrideReason] = useState("");
   const orderId = useRef(crypto.randomUUID());
   const idempotencyKey = useRef<string | null>(null);
   const approvalIdempotencyKey = useRef<string | null>(null);
-  const approvalFingerprint = useRef<string | null>(null);
   const lineIds = useRef(new Map<string, string>());
 
   const markChanged = useCallback(() => {
     idempotencyKey.current = null;
     setSave(null);
-    setApproval(null);
     approvalIdempotencyKey.current = null;
-    approvalFingerprint.current = null;
   }, []);
 
   useEffect(() => {
@@ -134,10 +125,6 @@ export function SalesOrderEditor() {
           return;
         }
         setWorkspace({ customers: customers.items, kind: "ready", scope });
-        setWarehouseId(
-          scope.warehouses.find((warehouse) => warehouse.is_active)
-            ?.warehouse_id ?? "",
-        );
       })
       .catch(() => {
         if (active) {
@@ -171,13 +158,6 @@ export function SalesOrderEditor() {
         setReference(next);
         if (next.kind === "ready") {
           setPaymentPolicy(next.reference.paymentTimingDefault);
-          setWarehouseId(
-            workspace.scope.warehouses.find(
-              (warehouse) =>
-                warehouse.is_active &&
-                warehouse.branch_id === next.reference.branchId,
-            )?.warehouse_id ?? "",
-          );
         }
       } catch {
         setReference({
@@ -191,28 +171,37 @@ export function SalesOrderEditor() {
 
   if (workspace.kind === "loading") {
     return (
-      <main className="sales-message" role="status">
-        <h1>Loading order-entry scope…</h1>
-      </main>
+      <div className="workspace-loading" role="status">
+        <span className="workspace-loader" aria-hidden="true" />
+        <p>Loading order-entry scope…</p>
+      </div>
     );
   }
+
   if (workspace.kind === "denied") {
+    const title =
+      workspace.reason === "unauthenticated"
+        ? "Sign in to draft an order"
+        : workspace.reason === "forbidden"
+          ? "Sales access is not assigned"
+          : "Sales order entry is unavailable";
+    const message =
+      workspace.reason === "unauthenticated"
+        ? "Open your identity provider, then return here to continue drafting."
+        : workspace.reason === "forbidden"
+          ? "Ask an operations administrator to assign sales order access."
+          : "Confirm the service connection and try again.";
     return (
-      <main className="sales-message" role="alert">
-        <Link className="sales-wordmark" href="/">
-          TradeFlow / Sales
-        </Link>
-        <h1>
-          {workspace.reason === "unauthenticated"
-            ? "Sign in to draft an order"
-            : workspace.reason === "forbidden"
-              ? "Sales access is not assigned"
-              : "Sales order entry is unavailable"}
-        </h1>
-        <p>
-          Support reference <code>{workspace.correlationId}</code>
-        </p>
-      </main>
+      <>
+        <PageHeader
+          description="Draft a priced order, then submit it for commercial approval."
+          eyebrow="Sales"
+          title="New sales order"
+        />
+        <ErrorState correlationId={workspace.correlationId} title={title}>
+          <p>{message}</p>
+        </ErrorState>
+      </>
     );
   }
 
@@ -308,33 +297,16 @@ export function SalesOrderEditor() {
   };
 
   const approve = async () => {
-    if (saved === undefined || warehouseId.length === 0) return;
-    const fingerprint = JSON.stringify({
-      creditOverrideReason: creditOverrideReason.trim(),
-      exceptionReason: exceptionReason.trim(),
-      salesOrderId: saved.salesOrderId,
-      version: saved.version,
-      warehouseId,
-    });
-    if (approvalFingerprint.current !== fingerprint) {
-      approvalFingerprint.current = fingerprint;
+    if (saved === undefined) return;
+    if (approvalIdempotencyKey.current === null) {
       approvalIdempotencyKey.current = crypto.randomUUID();
     }
     setApproving(true);
     try {
       const response = await fetch(
-        `/api/sales-orders/${saved.salesOrderId}/commercial-approval`,
+        `/api/sales-orders/${saved.salesOrderId}/submission`,
         {
           body: JSON.stringify({
-            command: {
-              credit_override_reason:
-                creditOverrideReason.trim().length === 0
-                  ? null
-                  : creditOverrideReason,
-              exception_reason:
-                exceptionReason.trim().length === 0 ? null : exceptionReason,
-              warehouse_id: warehouseId,
-            },
             expectedVersion: saved.version,
             idempotencyKey:
               approvalIdempotencyKey.current ?? crypto.randomUUID(),
@@ -343,15 +315,11 @@ export function SalesOrderEditor() {
           method: "POST",
         },
       );
-      const next = (await response.json()) as CommercialApprovalState;
-      setApproval(next);
-      if (next.kind === "approved") {
-        setLastSaved((current) =>
-          current === null ? current : { ...current, status: "approved" },
-        );
-      }
+      const next = (await response.json()) as SaveDraftState;
+      setSave(next);
+      if (next.kind === "saved") setLastSaved(next.draft);
     } catch {
-      setApproval({
+      setSave({
         correlationId: crypto.randomUUID(),
         kind: "unavailable",
       });
@@ -361,310 +329,201 @@ export function SalesOrderEditor() {
   };
 
   return (
-    <div className="sales-app">
-      <header className="sales-header">
-        <Link className="sales-wordmark" href="/">
-          TradeFlow
-        </Link>
-        <span>Sales order drafts</span>
-        <span>{workspace.scope.user.display_name}</span>
-      </header>
-      <main className="sales-main">
-        <section className="sales-title">
-          <div>
-            <p className="eyebrow">Commercial capture / 005</p>
-            <h1>Price the promise before committing it.</h1>
+    <>
+      <PageHeader
+        description="Draft a priced order, then submit it for commercial approval."
+        eyebrow="Sales"
+        title="New sales order"
+      />
+
+      <section className="sales-title card">
+        <div>
+          <p className="eyebrow">Order entry / 001</p>
+          <h2>Price the promise before committing it.</h2>
+        </div>
+        <p>Draft a priced order, then submit it for commercial approval.</p>
+      </section>
+
+      <section className="sales-panel card" aria-labelledby="sales-order-title">
+        <div className="sales-panel-head">
+          <h2 id="sales-order-title">Order details</h2>
+          <span className="section-number">Server-authoritative pricing</span>
+        </div>
+        <form className="sales-form" onSubmit={submit}>
+          <div className="sales-form-section sales-form-grid">
+            <label>
+              Customer Account
+              <select
+                aria-label="Customer Account"
+                onChange={(event) => void selectCustomer(event.target.value)}
+                value={customerId}
+              >
+                <option value="">Choose an active account</option>
+                {workspace.customers
+                  .filter((customer) => customer.status === "active")
+                  .map((customer) => (
+                    <option
+                      key={customer.customerId}
+                      value={customer.customerId}
+                    >
+                      {customer.accountNumber} / {customer.legalName}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label>
+              Payment Timing Policy
+              <select
+                aria-label="Payment Timing Policy"
+                disabled={readyReference === undefined}
+                onChange={(event) => {
+                  setPaymentPolicy(event.target.value as typeof paymentPolicy);
+                  markChanged();
+                }}
+                value={paymentPolicy}
+              >
+                <option value="prepaid">Prepaid</option>
+                <option value="cash_on_delivery">Cash on delivery</option>
+                <option value="on_account">On account</option>
+              </select>
+            </label>
+            {readyReference !== undefined &&
+              paymentPolicy !== readyReference.paymentTimingDefault && (
+                <label>
+                  Override reason
+                  <input
+                    aria-label="Payment Timing Override reason"
+                    onChange={(event) => {
+                      setOverrideReason(event.target.value);
+                      markChanged();
+                    }}
+                    required
+                    value={overrideReason}
+                  />
+                </label>
+              )}
+            <label>
+              Order discount ({readyReference?.currency ?? "Base Currency"})
+              <input
+                aria-label="Order discount"
+                inputMode="decimal"
+                min="0"
+                onChange={(event) => {
+                  setDiscount(event.target.value);
+                  markChanged();
+                }}
+                step="0.01"
+                value={discount}
+              />
+            </label>
           </div>
-          <p>
-            Drafts snapshot customer pricing, unit conversion, tax, discount,
-            address, and payment timing. Credit and inventory remain untouched
-            until Commercial Approval.
-          </p>
-        </section>
-        <section className="sales-panel" aria-labelledby="sales-order-title">
-          <div className="sales-panel-head">
-            <h2 id="sales-order-title">New Sales Order Draft</h2>
-            <span>Server-authoritative pricing</span>
-          </div>
-          <form className="sales-form" onSubmit={submit}>
-            <div className="sales-form-section sales-form-grid">
-              <label>
-                Customer Account
-                <select
-                  aria-label="Customer Account"
-                  onChange={(event) => void selectCustomer(event.target.value)}
-                  value={customerId}
-                >
-                  <option value="">Choose an active account</option>
-                  {workspace.customers
-                    .filter((customer) => customer.status === "active")
-                    .map((customer) => (
-                      <option
-                        key={customer.customerId}
-                        value={customer.customerId}
-                      >
-                        {customer.accountNumber} / {customer.legalName}
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <label>
-                Payment Timing Policy
-                <select
-                  aria-label="Payment Timing Policy"
-                  disabled={readyReference === undefined}
-                  onChange={(event) => {
-                    setPaymentPolicy(
-                      event.target.value as typeof paymentPolicy,
-                    );
-                    markChanged();
-                  }}
-                  value={paymentPolicy}
-                >
-                  <option value="prepaid">Prepaid</option>
-                  <option value="cash_on_delivery">Cash on delivery</option>
-                  <option value="on_account">On account</option>
-                </select>
-              </label>
-              {readyReference !== undefined &&
-                paymentPolicy !== readyReference.paymentTimingDefault && (
+          {reference.kind === "loading" && (
+            <div className="sales-message" role="status">
+              <span className="workspace-loader" aria-hidden="true" />
+              <p>Loading effective price and tax references…</p>
+            </div>
+          )}
+          {referenceFailure !== undefined && (
+            <SalesFailure state={referenceFailure} />
+          )}
+          {readyReference !== undefined && (
+            <div className="sales-form-section">
+              <p className="section-number">
+                Price List {readyReference.priceListCode} / version{" "}
+                {readyReference.priceListVersion} /{" "}
+                {readyReference.priceInclusionMode}
+              </p>
+              {readyReference.items.map((item) => (
+                <div className="sales-line" key={item.priceListLineId}>
+                  <div>
+                    <strong>{item.skuCode}</strong>
+                    <small>
+                      {item.skuName} · {item.taxCode} · list{" "}
+                      {readyReference.currency} {item.listUnitPrice}
+                    </small>
+                  </div>
                   <label>
-                    Override reason
+                    Quantity
                     <input
-                      aria-label="Payment Timing Override reason"
+                      aria-label={`${item.skuCode} quantity`}
+                      inputMode="decimal"
+                      min="0"
                       onChange={(event) => {
-                        setOverrideReason(event.target.value);
+                        setQuantities((current) => ({
+                          ...current,
+                          [item.priceListLineId]: event.target.value,
+                        }));
                         markChanged();
                       }}
-                      required
-                      value={overrideReason}
+                      step="0.000001"
+                      value={quantities[item.priceListLineId] ?? ""}
                     />
                   </label>
-                )}
-              <label>
-                Order discount ({readyReference?.currency ?? "Base Currency"})
-                <input
-                  aria-label="Order discount"
-                  inputMode="decimal"
-                  min="0"
-                  onChange={(event) => {
-                    setDiscount(event.target.value);
-                    markChanged();
-                  }}
-                  step="0.01"
-                  value={discount}
-                />
-              </label>
-            </div>
-            {reference.kind === "loading" && (
-              <div className="sales-message" role="status">
-                Loading effective price and tax references…
-              </div>
-            )}
-            {referenceFailure !== undefined && (
-              <SalesFailure state={referenceFailure} />
-            )}
-            {readyReference !== undefined && (
-              <div className="sales-form-section">
-                <p className="section-number">
-                  Price List {readyReference.priceListCode} / version{" "}
-                  {readyReference.priceListVersion} /{" "}
-                  {readyReference.priceInclusionMode}
-                </p>
-                {readyReference.items.map((item) => (
-                  <div className="sales-line" key={item.priceListLineId}>
-                    <div>
-                      <strong>{item.skuCode}</strong>
-                      <small>
-                        {item.skuName} · {item.taxCode} · list{" "}
-                        {readyReference.currency} {item.listUnitPrice}
-                      </small>
-                    </div>
-                    <label>
-                      Quantity
-                      <input
-                        aria-label={`${item.skuCode} quantity`}
-                        inputMode="decimal"
-                        min="0"
-                        onChange={(event) => {
-                          setQuantities((current) => ({
-                            ...current,
-                            [item.priceListLineId]: event.target.value,
-                          }));
-                          markChanged();
-                        }}
-                        step="0.000001"
-                        value={quantities[item.priceListLineId] ?? ""}
-                      />
-                    </label>
-                    <div>
-                      <small>Entered unit</small>
-                      <strong>{item.unitCode}</strong>
-                    </div>
-                    <div>
-                      <small>Base conversion</small>
-                      <strong>
-                        {item.baseQuantityPerUnit} {item.baseStockingUnit}
-                      </strong>
-                    </div>
+                  <div>
+                    <small>Entered unit</small>
+                    <strong>{item.unitCode}</strong>
                   </div>
-                ))}
-              </div>
-            )}
-            {saved !== undefined && <SavedDraft draft={saved} />}
-            {save !== null && save.kind !== "saved" && (
-              <SalesFailure state={save} />
-            )}
-            {saved !== undefined && saved.status === "draft" && (
-              <section
-                className="sales-approval"
-                aria-labelledby="approval-title"
-              >
-                <div>
-                  <p className="section-number">Commercial control / 006</p>
-                  <h3 id="approval-title">
-                    Approve, reserve, and expose exceptions
-                  </h3>
-                  <p>
-                    Approval binds this exact priced revision. Inventory may be
-                    partially reserved; On Account exposure consumes the full
-                    approved value.
-                  </p>
+                  <div>
+                    <small>Base conversion</small>
+                    <strong>
+                      {item.baseQuantityPerUnit} {item.baseStockingUnit}
+                    </strong>
+                  </div>
                 </div>
-                <div className="sales-approval-fields">
-                  <label>
-                    Fulfillment warehouse
-                    <select
-                      aria-label="Fulfillment warehouse"
-                      onChange={(event) => setWarehouseId(event.target.value)}
-                      value={warehouseId}
-                    >
-                      {workspace.scope.warehouses
-                        .filter(
-                          (warehouse) =>
-                            warehouse.is_active &&
-                            warehouse.branch_id === saved.branchId,
-                        )
-                        .map((warehouse) => (
-                          <option
-                            key={warehouse.warehouse_id}
-                            value={warehouse.warehouse_id}
-                          >
-                            {warehouse.code} / {warehouse.name}
-                          </option>
-                        ))}
-                    </select>
-                  </label>
-                  <label>
-                    Discount / floor exception reason
-                    <input
-                      aria-label="Commercial exception reason"
-                      onChange={(event) =>
-                        setExceptionReason(event.target.value)
-                      }
-                      value={exceptionReason}
-                    />
-                  </label>
-                  {saved.paymentTimingPolicy === "on_account" && (
-                    <label>
-                      Credit Override reason
-                      <input
-                        aria-label="Credit Override reason"
-                        onChange={(event) =>
-                          setCreditOverrideReason(event.target.value)
-                        }
-                        value={creditOverrideReason}
-                      />
-                    </label>
-                  )}
-                  <button
-                    disabled={
-                      approving ||
-                      warehouseId.length === 0 ||
-                      !workspace.scope.capabilities.includes(
-                        "sales:commercial-approve",
-                      )
-                    }
-                    onClick={() => void approve()}
-                    type="button"
-                  >
-                    {approving ? "Checking controls…" : "Commercially approve"}
-                  </button>
-                </div>
-              </section>
-            )}
-            {approval !== null && <ApprovalResult state={approval} />}
-            <div className="sales-actions">
-              <span>
-                {saved === undefined
-                  ? "No stock or credit commitment"
-                  : `Draft version ${saved.version}`}
-              </span>
-              <button
-                disabled={readyReference === undefined || saving}
-                type="submit"
-              >
-                {saving
-                  ? "Saving authoritative draft…"
-                  : saved === undefined
-                    ? "Save Sales Order Draft"
-                    : "Save new draft revision"}
-              </button>
+              ))}
             </div>
-          </form>
-        </section>
-      </main>
-    </div>
-  );
-}
-
-function ApprovalResult({ state }: { state: CommercialApprovalState }) {
-  if (state.kind !== "approved") {
-    const title =
-      state.kind === "exception_required"
-        ? "A different eligible approver is required"
-        : state.kind === "held"
-          ? "Customer Credit Hold blocks approval"
-          : state.kind === "forbidden"
-            ? "Commercial Approval is not assigned"
-            : state.kind === "conflict"
-              ? "The commercial revision changed"
-              : state.kind === "validation"
-                ? "Approval evidence needs correction"
-                : state.kind === "unauthenticated"
-                  ? "Sign in to approve"
-                  : "Commercial controls are unavailable";
-    return (
-      <div className="sales-message" role="alert">
-        <h3>{title}</h3>
-        <p>
-          No credit or inventory commitment was created. Support reference{" "}
-          <code>{state.correlationId}</code>
-        </p>
-      </div>
-    );
-  }
-  const partial = Number(state.approval.backorderQuantityBase) > 0;
-  return (
-    <div className="sales-approval-result" role="status">
-      <div>
-        <p className="section-number">Approved revision</p>
-        <h3>{partial ? "Partially reserved" : "Fully reserved"}</h3>
-        <p>
-          {state.approval.reservedQuantityBase} base units reserved ·{" "}
-          {state.approval.backorderQuantityBase} on backorder
-        </p>
-      </div>
-      <div>
-        <span>Credit exposure after approval</span>
-        <strong>{state.approval.credit.projectedExposure}</strong>
-        <small>
-          {state.approval.credit.overrideRequired
-            ? `Order-specific override ${state.approval.credit.approvedExcess}`
-            : "Within terms and limit"}
-        </small>
-      </div>
-    </div>
+          )}
+          {saved !== undefined && <SavedDraft draft={saved} />}
+          {save !== null && save.kind !== "saved" && (
+            <SalesFailure state={save} />
+          )}
+          {saved !== undefined && saved.status === "draft" && (
+            <section
+              className="sales-form-section sales-approval"
+              aria-labelledby="approval-title"
+            >
+              <div>
+                <p className="section-number">Commercial review</p>
+                <h3 id="approval-title">Submit this revision for approval</h3>
+                <p>
+                  Submission freezes this priced revision for the approval
+                  queue. Inventory and credit remain uncommitted until an
+                  eligible checker approves it.
+                </p>
+              </div>
+              <div className="sales-approval-fields">
+                <button
+                  className="btn-primary"
+                  disabled={approving}
+                  onClick={() => void approve()}
+                  type="button"
+                >
+                  {approving ? "Submitting revision…" : "Submit for approval"}
+                </button>
+              </div>
+            </section>
+          )}
+          <div className="sales-actions">
+            <span>
+              {saved === undefined
+                ? "No stock or credit commitment"
+                : `Draft version ${saved.version}`}
+            </span>
+            <button
+              className="btn-primary"
+              disabled={readyReference === undefined || saving}
+              type="submit"
+            >
+              {saving
+                ? "Saving authoritative draft…"
+                : saved === undefined
+                  ? "Save Sales Order Draft"
+                  : "Save new draft revision"}
+            </button>
+          </div>
+        </form>
+      </section>
+    </>
   );
 }
 
@@ -672,7 +531,11 @@ function SavedDraft({ draft }: { draft: SalesOrderDraft }) {
   return (
     <>
       <div className="sales-result" role="status">
-        <h3>Draft acknowledged by TradeFlow</h3>
+        <h3>
+          {draft.status === "awaiting_approval"
+            ? "Submitted for commercial approval"
+            : "Draft acknowledged by TradeFlow"}
+        </h3>
         <p>
           {draft.priceListCode} · {draft.priceInclusionMode} ·{" "}
           {draft.paymentTimingPolicy.replaceAll("_", " ")}
@@ -694,7 +557,7 @@ function SavedDraft({ draft }: { draft: SalesOrderDraft }) {
           <strong>{draft.taxTotal}</strong>
         </div>
         <div>
-          <span>Draft total</span>
+          <span>Order total</span>
           <strong>
             {draft.currency} {draft.grandTotal}
           </strong>
@@ -720,16 +583,12 @@ function SalesFailure({
             ? "Sign in to continue"
             : "Draft synchronization is unavailable";
   return (
-    <div className="sales-message" role="alert">
-      <h3>{title}</h3>
+    <ErrorState correlationId={state.correlationId} title={title}>
       <p>
         {state.kind === "conflict"
           ? "TradeFlow did not merge the local edits. Reload the authoritative draft and compare it explicitly."
           : "Your entered work remains on screen. Correct it or retry with the same command identity."}
       </p>
-      <p>
-        Support reference <code>{state.correlationId}</code>
-      </p>
-    </div>
+    </ErrorState>
   );
 }

@@ -1507,7 +1507,8 @@ sales_orders = Table(
         onupdate=func.now(),
     ),
     CheckConstraint(
-        "status IN ('draft', 'approved', 'held', 'partially_cancelled', 'cancelled')",
+        "status IN ('draft', 'awaiting_approval', 'approved', 'held', "
+        "'partially_cancelled', 'cancelled')",
         name="ck_sales_orders_status",
     ),
     CheckConstraint("version > 0", name="ck_sales_orders_version_positive"),

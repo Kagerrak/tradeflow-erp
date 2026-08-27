@@ -1,3 +1,4 @@
+import { getServerApiConfig } from "@/lib/server-api";
 function failureKind(status: number) {
   if (status === 401) return "unauthenticated";
   if (status === 403) return "forbidden";
@@ -8,14 +9,14 @@ function failureKind(status: number) {
 
 export async function GET(request: Request): Promise<Response> {
   const correlationId = crypto.randomUUID();
-  const token = process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN;
+  const token = getServerApiConfig().accessToken;
   if (token === undefined || token === "")
     return normalized(null, 401, correlationId);
   const queue =
     new URL(request.url).searchParams.get("queue") ?? "return_pending";
   try {
     const response = await fetch(
-      `${process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000"}/v1/delivery-exceptions?queue=${encodeURIComponent(queue)}`,
+      `${getServerApiConfig().baseUrl}/v1/delivery-exceptions?queue=${encodeURIComponent(queue)}`,
       {
         cache: "no-store",
         headers: {

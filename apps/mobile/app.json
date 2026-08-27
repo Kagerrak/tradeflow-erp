@@ -6,6 +6,12 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./assets/images/icon.png",
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f7f9fc"
+    },
     "ios": {
       "bundleIdentifier": "com.tradeflow.erp",
       "supportsTablet": true

@@ -1,7 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { PageHeader } from "./ui/page-header";
+
+const deliveryTabs = [
+  { href: "/deliveries", label: "Deliveries" },
+  { href: "/delivery-exceptions", label: "Exceptions" },
+  { href: "/delivery-corrections", label: "Corrections" },
+];
 
 type QueueName = "investigation" | "resolved" | "retry" | "return_pending";
 type ExceptionItem = {
@@ -52,6 +60,21 @@ export function DeliveryExceptionWorkspace() {
     "carrier_claim" | "inventory_adjustment" | "recovery"
   >("recovery");
   const [action, setAction] = useState<ActionState>({ kind: "idle" });
+  const pathname = usePathname();
+
+  const tabs = (
+    <>
+      {deliveryTabs.map((tab) => (
+        <Link
+          key={tab.href}
+          href={tab.href}
+          aria-current={pathname === tab.href ? "page" : undefined}
+        >
+          {tab.label}
+        </Link>
+      ))}
+    </>
+  );
 
   const load = useCallback(async () => {
     setState({ kind: "loading" });
@@ -174,110 +197,103 @@ export function DeliveryExceptionWorkspace() {
   };
 
   return (
-    <div className="exception-app">
-      <header className="exception-header">
-        <Link href="/">TradeFlow</Link>
-        <nav aria-label="Exception navigation">
-          <Link href="/deliveries">Deliver</Link>
-          <strong>Exception custody</strong>
-          <Link href="/delivery-corrections">Corrections</Link>
-        </nav>
-        <span>Inventory control / live</span>
-      </header>
-      <main className="exception-main">
-        <section className="exception-intro">
-          <p className="eyebrow">Custody ledger / 007</p>
-          <h1>Nothing disappears between stops.</h1>
-          <p>
-            Receive physical returns into Quarantine, resolve Investigation with
-            evidence, and keep retry quantity visible.
-          </p>
-        </section>
-        <nav aria-label="Delivery exception queues" className="exception-tabs">
-          {queues.map(([value, label]) => (
-            <button
-              aria-pressed={queue === value}
-              key={value}
-              onClick={() => setQueue(value)}
-            >
-              {label}
-            </button>
-          ))}
-        </nav>
-        {state.kind === "loading" && (
-          <QueueState title="Reading custody ledger" />
-        )}
-        {state.kind === "forbidden" && (
-          <QueueState
-            detail={`${state.message} · ${state.correlationId}`}
-            title="Exception queue forbidden"
+    <>
+      <PageHeader
+        description="Receive physical returns into Quarantine, resolve Investigation with evidence, and keep retry quantity visible."
+        eyebrow="Delivery"
+        tabs={tabs}
+        title="Exception custody"
+      />
+
+      <section className="exception-intro card">
+        <p className="eyebrow">Custody ledger / 007</p>
+        <h1>Nothing disappears between stops.</h1>
+        <p>
+          Receive physical returns into Quarantine, resolve Investigation with
+          evidence, and keep retry quantity visible.
+        </p>
+      </section>
+      <nav aria-label="Delivery exception queues" className="exception-tabs">
+        {queues.map(([value, label]) => (
+          <button
+            aria-pressed={queue === value}
+            key={value}
+            onClick={() => setQueue(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+      {state.kind === "loading" && (
+        <QueueState title="Reading custody ledger" />
+      )}
+      {state.kind === "forbidden" && (
+        <QueueState
+          detail={`${state.message} · ${state.correlationId}`}
+          title="Exception queue forbidden"
+        />
+      )}
+      {state.kind === "unauthenticated" && (
+        <QueueState
+          detail={`${state.message} · ${state.correlationId}`}
+          title="Sign in required for exception custody"
+        />
+      )}
+      {(state.kind === "unavailable" ||
+        state.kind === "validation" ||
+        state.kind === "conflict") && (
+        <QueueState
+          action="Retry queue"
+          detail={`${state.message} · ${state.correlationId}`}
+          onAction={() => void load()}
+          title="Exception custody unavailable"
+        />
+      )}
+      {state.kind === "ready" && state.items.length === 0 && (
+        <QueueState title={emptyTitle(queue)} detail={emptyDetail(queue)} />
+      )}
+      {state.kind === "ready" && state.items.length > 0 && (
+        <div className="exception-workspace">
+          <section aria-label="Exception queue" className="exception-ledger">
+            <div className="exception-ledger-head">
+              <span>Age</span>
+              <span>Custody / outcome</span>
+              <span>Quantity</span>
+            </div>
+            {state.items.map((item) => (
+              <button key={item.exception_case_id} onClick={() => choose(item)}>
+                <strong>{item.age_days}d</strong>
+                <span>
+                  <b>Delivery line</b>
+                  <small>{item.delivery_line_id}</small>
+                  <small>
+                    {item.exception_kind.replaceAll("_", " ")} ·{" "}
+                    {item.custody.replaceAll("_", " ")}
+                  </small>
+                </span>
+                <em>{item.open_quantity_base}</em>
+              </button>
+            ))}
+          </section>
+          <ExceptionDetail
+            action={action}
+            actionEvidenceIds={actionEvidenceIds}
+            assignedTo={assignedTo}
+            item={selected}
+            onSubmit={() => void submit()}
+            quantity={quantity}
+            queue={queue}
+            reason={reason}
+            resolutionType={resolutionType}
+            setQuantity={setQuantity}
+            setReason={setReason}
+            setActionEvidenceIds={setActionEvidenceIds}
+            setAssignedTo={setAssignedTo}
+            setResolutionType={setResolutionType}
           />
-        )}
-        {state.kind === "unauthenticated" && (
-          <QueueState
-            detail={`${state.message} · ${state.correlationId}`}
-            title="Sign in required for exception custody"
-          />
-        )}
-        {(state.kind === "unavailable" ||
-          state.kind === "validation" ||
-          state.kind === "conflict") && (
-          <QueueState
-            action="Retry queue"
-            detail={`${state.message} · ${state.correlationId}`}
-            onAction={() => void load()}
-            title="Exception custody unavailable"
-          />
-        )}
-        {state.kind === "ready" && state.items.length === 0 && (
-          <QueueState title={emptyTitle(queue)} detail={emptyDetail(queue)} />
-        )}
-        {state.kind === "ready" && state.items.length > 0 && (
-          <div className="exception-workspace">
-            <section aria-label="Exception queue" className="exception-ledger">
-              <div className="exception-ledger-head">
-                <span>Age</span>
-                <span>Custody / outcome</span>
-                <span>Quantity</span>
-              </div>
-              {state.items.map((item) => (
-                <button
-                  key={item.exception_case_id}
-                  onClick={() => choose(item)}
-                >
-                  <strong>{item.age_days}d</strong>
-                  <span>
-                    <b>Delivery line</b>
-                    <small>{item.delivery_line_id}</small>
-                    <small>
-                      {item.exception_kind.replaceAll("_", " ")} ·{" "}
-                      {item.custody.replaceAll("_", " ")}
-                    </small>
-                  </span>
-                  <em>{item.open_quantity_base}</em>
-                </button>
-              ))}
-            </section>
-            <ExceptionDetail
-              action={action}
-              actionEvidenceIds={actionEvidenceIds}
-              assignedTo={assignedTo}
-              item={selected}
-              onSubmit={() => void submit()}
-              quantity={quantity}
-              queue={queue}
-              reason={reason}
-              resolutionType={resolutionType}
-              setQuantity={setQuantity}
-              setReason={setReason}
-              setActionEvidenceIds={setActionEvidenceIds}
-              setAssignedTo={setAssignedTo}
-              setResolutionType={setResolutionType}
-            />
-          </div>
-        )}
-      </main>
-    </div>
+        </div>
+      )}
+    </>
   );
 }
 

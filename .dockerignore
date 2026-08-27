@@ -1,9 +1,22 @@
 .DS_Store
+.claude
 .env
+.env.*
+!.env.demo.example
 .git
 .next
 .venv
 coverage
 node_modules
+
+**/.next
+**/coverage
+**/node_modules
+**/playwright-report
+**/test-results
+*.egg-info
+.mypy_cache
+.pytest_cache
+.ruff_cache
 
 *.log

@@ -1,3 +1,4 @@
+import { getServerApiConfig } from "@/lib/server-api";
 import {
   createCustomerAccount,
   searchCustomerDirectory,
@@ -18,8 +19,8 @@ const statusByKind = {
 } as const;
 
 const serviceOptions = () => ({
-  accessToken: process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN,
-  baseUrl: process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000",
+  accessToken: getServerApiConfig().accessToken,
+  baseUrl: getServerApiConfig().baseUrl,
   correlationId: crypto.randomUUID(),
 });
 

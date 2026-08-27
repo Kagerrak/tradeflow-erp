@@ -1,9 +1,10 @@
+import { getServerApiConfig } from "@/lib/server-api";
 export async function POST(
   request: Request,
   context: { params: Promise<{ deliveryId: string }> },
 ): Promise<Response> {
   const correlationId = crypto.randomUUID();
-  const token = process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN;
+  const token = getServerApiConfig().accessToken;
   if (token === undefined || token === "")
     return state(401, correlationId, null);
   const { deliveryId } = await context.params;
@@ -13,7 +14,7 @@ export async function POST(
   };
   try {
     const response = await fetch(
-      `${process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000"}/v1/deliveries/${deliveryId}/return-to-warehouse-receipts`,
+      `${getServerApiConfig().baseUrl}/v1/deliveries/${deliveryId}/return-to-warehouse-receipts`,
       {
         body: JSON.stringify(input.command),
         headers: {

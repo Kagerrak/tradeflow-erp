@@ -1,5 +1,8 @@
 # TradeFlow ERP
 
+[![CI](https://github.com/Kagerrak/tradeflow-erp/actions/workflows/ci.yml/badge.svg)](https://github.com/Kagerrak/tradeflow-erp/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
+
 TradeFlow ERP is a cross-platform business operations system for wholesale and
 distribution companies. It replaces fragmented customer, inventory, sales,
 delivery, purchasing, receivables, expense, return, and commission workflows
@@ -11,7 +14,7 @@ The product has three delivery surfaces:
 - an Expo mobile application for Android and iOS;
 - a shared Python API and background-worker platform.
 
-## Proposed stack
+## Stack
 
 - Next.js, React, and TypeScript for the web console
 - Expo, React Native, Expo Router, and TypeScript for Android/iOS
@@ -30,6 +33,9 @@ The product has three delivery surfaces:
 - [Delivery roadmap](./docs/delivery/implementation-plan.md)
 - [Testing strategy](./docs/testing-strategy.md)
 - [Local development](./docs/development.md)
+- [Public demo operations](./docs/deployment/demo.md)
+- [License](./LICENSE)
+- [Contributing](./CONTRIBUTING.md)
 - [ADR-0001: immutable operational ledgers](./docs/adr/0001-immutable-operational-ledgers.md)
 - [ADR-0002: assign tracked stock identities at pick](./docs/adr/0002-assign-tracked-stock-identities-at-pick.md)
 - [ADR-0003: moving-average inventory valuation by warehouse](./docs/adr/0003-moving-average-inventory-valuation-by-warehouse.md)
@@ -48,9 +54,10 @@ The product has three delivery surfaces:
 - [ADR-0016: clear payments by method-specific evidence](./docs/adr/0016-method-specific-payment-clearance.md)
 - [ADR-0017: correct delivery receipts by linked reversal and replacement](./docs/adr/0017-correct-delivery-receipts-by-linked-reversal.md)
 
-## Portfolio-ready outcome
+## Live product demo
 
-A reviewer should be able to:
+The operations overview demonstrates a truthful, server-authoritative wholesale
+distribution lifecycle. An operator can:
 
 1. create a customer and sales order;
 2. reserve inventory and partially fulfill the order;
@@ -60,5 +67,33 @@ A reviewer should be able to:
 6. process damaged-item returns and a credit;
 7. receive a local or international purchase order;
 8. inspect expense and sales-commission calculations;
-9. complete delivery/warehouse work on a real Android or iOS device;
+9. complete delivery and warehouse work on desktop or mobile;
 10. trace every stock and financial balance to immutable source movements.
+
+The public homepage presents TradeFlow as a commercial product. The operations
+overview reads its attention counts, pipeline, inventory position, receivables,
+and activity directly from the API rather than from browser-owned fixtures.
+
+## Getting started
+
+See [Local development](./docs/development.md) for the full setup. The fastest
+path is:
+
+```bash
+cp .env.example .env
+cp .env.demo.example .env.demo
+docker compose -f infra/compose.yaml up -d
+pnpm install
+uv sync --all-packages --dev
+pnpm migrate
+pnpm dev
+```
+
+## Contributing
+
+Please read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening an issue or pull
+request.
+
+## License
+
+TradeFlow ERP is licensed under the [Apache License 2.0](./LICENSE).

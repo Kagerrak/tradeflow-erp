@@ -207,7 +207,7 @@ async def test_inventory_adjustment_migration_round_trip(
     async with engine.connect() as connection:
         version = await connection.scalar(text("SELECT version_num FROM alembic_version"))
     await engine.dispose()
-    assert version == "0022"
+    assert version == "0023"
 
 
 async def _insert_minimum_adjustment(

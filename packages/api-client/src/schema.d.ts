@@ -1407,6 +1407,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/operations/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Operations Overview */
+        get: operations["operations_overview_v1_operations_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organization/bootstrap": {
         parameters: {
             query?: never;
@@ -1993,6 +2010,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sales/orders/{sales_order_id}/submission": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit Sales Order For Approval */
+        post: operations["submit_sales_order_for_approval_v1_sales_orders__sales_order_id__submission_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sales/price-list-versions": {
         parameters: {
             query?: never;
@@ -2135,6 +2169,67 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ActionQueueItem */
+        ActionQueueItem: {
+            /** Age Minutes */
+            age_minutes: number;
+            /** Amount */
+            amount?: string | null;
+            /** Branch Code */
+            branch_code: string;
+            /** Currency */
+            currency?: string | null;
+            /** Href */
+            href: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "approval" | "pick" | "delivery" | "payment" | "stock";
+            /** Next Action */
+            next_action: string;
+            /** Owner */
+            owner: string;
+            /**
+             * Record Id
+             * Format: uuid
+             */
+            record_id: string;
+            /** Reference */
+            reference: string;
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
+            /**
+             * Urgency
+             * @enum {string}
+             */
+            urgency: "high" | "medium" | "normal";
+        };
+        /** ActivityItem */
+        ActivityItem: {
+            /**
+             * Activity Id
+             * Format: uuid
+             */
+            activity_id: string;
+            /** Branch Code */
+            branch_code: string;
+            /** Detail */
+            detail: string;
+            /** Href */
+            href: string;
+            /** Kind */
+            kind: string;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Title */
+            title: string;
+        };
         /** AddressInput */
         AddressInput: {
             /** Address Key */
@@ -2658,6 +2753,18 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** BranchOption */
+        BranchOption: {
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+        };
         /** BranchResponse */
         BranchResponse: {
             /**
@@ -3154,7 +3261,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "draft" | "approved" | "held";
+            status: "draft" | "awaiting_approval" | "approved" | "held";
             /** Subtotal */
             subtotal: string;
             /** Tax Total */
@@ -5055,6 +5162,25 @@ export interface components {
             /** Recommended */
             recommended: boolean;
         };
+        /** FinanceSnapshot */
+        FinanceSnapshot: {
+            /** Collected Value */
+            collected_value: string;
+            /** Currency */
+            currency: string;
+            /** Outstanding Receivables */
+            outstanding_receivables: string;
+            /** Overdue Balances */
+            overdue_balances: string;
+            /** Posted Invoices */
+            posted_invoices: number;
+            /** Posted Value */
+            posted_value: string;
+            /** Receipts Awaiting Value */
+            receipts_awaiting_value: string;
+            /** Receipts Awaiting Verification */
+            receipts_awaiting_verification: number;
+        };
         /** FulfillmentOrderListResponse */
         FulfillmentOrderListResponse: {
             /** Items */
@@ -5242,6 +5368,23 @@ export interface components {
             /** Items */
             items: components["schemas"]["InboxItemResponse"][];
         };
+        /** InventoryHealth */
+        InventoryHealth: {
+            /** Available */
+            available: string;
+            /** Blocked Lots */
+            blocked_lots: number;
+            /** Low Stock Items */
+            low_stock_items: number;
+            /** Pending Adjustments */
+            pending_adjustments: number;
+            /** Pending Transfers */
+            pending_transfers: number;
+            /** Reserved */
+            reserved: string;
+            /** Unit */
+            unit: string;
+        };
         /** InvestigationResolutionCommand */
         InvestigationResolutionCommand: {
             /** Evidence Ids */
@@ -5414,6 +5557,19 @@ export interface components {
             /** Quantity Base */
             quantity_base: string;
         };
+        /** Metric */
+        Metric: {
+            /** Amount */
+            amount?: string | null;
+            /** Count */
+            count?: number | null;
+            /** Currency */
+            currency?: string | null;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+        };
         /** NonMaterialOrderChangeCommand */
         NonMaterialOrderChangeCommand: {
             /** Delivery Instructions */
@@ -5440,7 +5596,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "draft" | "approved" | "held";
+            status: "draft" | "awaiting_approval" | "approved" | "held";
             /** Version */
             version: number;
         };
@@ -5541,6 +5697,38 @@ export interface components {
              * Format: uuid
              */
             warehouse_id: string;
+        };
+        /** OperationsOverviewResponse */
+        OperationsOverviewResponse: {
+            /** Action Queue */
+            action_queue: components["schemas"]["ActionQueueItem"][];
+            /** Branches */
+            branches: components["schemas"]["BranchOption"][];
+            finance: components["schemas"]["FinanceSnapshot"];
+            /**
+             * From Date
+             * Format: date
+             */
+            from_date: string;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            inventory: components["schemas"]["InventoryHealth"];
+            /** Metrics */
+            metrics: components["schemas"]["Metric"][];
+            /** Pipeline */
+            pipeline: components["schemas"]["PipelineStage"][];
+            /** Recent Activity */
+            recent_activity: components["schemas"]["ActivityItem"][];
+            /** Selected Branch Id */
+            selected_branch_id: string | null;
+            /**
+             * To Date
+             * Format: date
+             */
+            to_date: string;
         };
         /** OrderEntryAddressResponse */
         OrderEntryAddressResponse: {
@@ -6145,6 +6333,19 @@ export interface components {
             command_id: string;
             /** Message */
             message: string;
+        };
+        /** PipelineStage */
+        PipelineStage: {
+            /** Count */
+            count: number;
+            /** Currency */
+            currency: string;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
         };
         /** PostAdjustmentCommand */
         PostAdjustmentCommand: {
@@ -6831,6 +7032,10 @@ export interface components {
         ReadyResponse: {
             /** Database */
             database: string;
+            /** Demo Seed Version */
+            demo_seed_version?: string | null;
+            /** Migration Revision */
+            migration_revision: string[];
             /** Service */
             service: string;
             /** Status */
@@ -7348,7 +7553,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "draft" | "approved" | "held" | "partially_cancelled" | "cancelled";
+            status: "draft" | "awaiting_approval" | "approved" | "held" | "partially_cancelled" | "cancelled";
             /** Subtotal */
             subtotal: string;
             /** Tax Total */
@@ -7498,7 +7703,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "draft" | "approved" | "held" | "partially_cancelled" | "cancelled";
+            status: "draft" | "awaiting_approval" | "approved" | "held" | "partially_cancelled" | "cancelled";
             /** Version */
             version: number;
         };
@@ -15406,6 +15611,66 @@ export interface operations {
             };
         };
     };
+    operations_overview_v1_operations_overview_get: {
+        parameters: {
+            query?: {
+                branch_id?: string | null;
+                from_date?: string | null;
+                to_date?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationsOverviewResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     bootstrap_organization_v1_organization_bootstrap_post: {
         parameters: {
             query?: never;
@@ -18876,6 +19141,85 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    submit_sales_order_for_approval_v1_sales_orders__sales_order_id__submission_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": number;
+                "Idempotency-Key": string;
+            };
+            path: {
+                sales_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalesOrderDraftResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description Stable TradeFlow error envelope. */

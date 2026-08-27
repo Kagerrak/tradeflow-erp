@@ -76,6 +76,8 @@ async def test_ready_health_checks_real_database_and_is_correlated(
     assert response.status_code == 200
     assert response.json() == {
         "database": "ready",
+        "demo_seed_version": None,
+        "migration_revision": sorted(response.json()["migration_revision"]),
         "service": "tradeflow-api",
         "status": "ready",
     }

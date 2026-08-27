@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -32,6 +34,7 @@ from tradeflow_api.database import (
 from tradeflow_api.delivery_confirmation import router as delivery_confirmation_router
 from tradeflow_api.delivery_corrections import router as delivery_corrections_router
 from tradeflow_api.delivery_exceptions import router as delivery_exceptions_router
+from tradeflow_api.demo_reset import DemoMaintenanceMiddleware, missing_demo_seed_requirements
 from tradeflow_api.dispatch import router as dispatch_router
 from tradeflow_api.errors import AppError, error_response, error_responses
 from tradeflow_api.expenses import router as expenses_router
@@ -48,6 +51,7 @@ from tradeflow_api.observability import (
     instrument_app,
 )
 from tradeflow_api.operational_policies import router as operational_policies_router
+from tradeflow_api.operations import router as operations_router
 from tradeflow_api.order_cancellation import router as order_cancellation_router
 from tradeflow_api.organization import router as organization_router
 from tradeflow_api.payment_allocation import router as payment_allocation_router
@@ -71,6 +75,8 @@ class ReadyResponse(BaseModel):
     service: str
     status: str
     database: str
+    demo_seed_version: str | None = None
+    migration_revision: list[str]
 
 
 class SessionUserResponse(BaseModel):
@@ -110,6 +116,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.token_verifier = verifier
     app.state.session_factory = create_session_factory(engine)
     app.state.object_storage = S3ObjectStorage(resolved_settings)
+    if resolved_settings.environment == "demo" and resolved_settings.demo_state_path:
+        app.add_middleware(
+            DemoMaintenanceMiddleware,
+            state_path=Path(resolved_settings.demo_state_path),
+            reset_token=resolved_settings.demo_reset_token or "",
+        )
     app.add_middleware(RateLimitMiddleware, settings=resolved_settings)
     app.add_middleware(CorrelationMiddleware)
     app.include_router(catalog_inventory_router)
@@ -135,6 +147,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(customers_router)
     app.include_router(organization_router)
     app.include_router(operational_policies_router)
+    app.include_router(operations_router)
     app.include_router(platform_router)
     app.include_router(purchase_orders_router)
     app.include_router(purchase_requests_router)
@@ -208,10 +221,35 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     async def ready(request: Request) -> ReadyResponse:
         await check_database(engine, request.state.correlation_id)
+        seed_version = None
+        if resolved_settings.environment == "demo":
+            if resolved_settings.demo_state_path is None:
+                raise AppError(503, "demo_seed_unavailable", "Demo seed state is unavailable.")
+            try:
+                state_text = await asyncio.to_thread(
+                    Path(resolved_settings.demo_state_path).read_text
+                )
+                demo_state = json.loads(state_text)
+            except (OSError, ValueError) as error:
+                raise AppError(
+                    503, "demo_seed_unavailable", "Demo seed state is unavailable."
+                ) from error
+            if (
+                demo_state.get("status") != "ready"
+                or demo_state.get("seed_version") != resolved_settings.demo_seed_version
+            ):
+                raise AppError(503, "demo_seed_unhealthy", "Demo seed state is not ready.")
+            async with engine.connect() as connection:
+                missing_requirements = await missing_demo_seed_requirements(connection)
+            if missing_requirements:
+                raise AppError(503, "demo_seed_unhealthy", "Demo seed contract is incomplete.")
+            seed_version = resolved_settings.demo_seed_version
         return ReadyResponse(
             service="tradeflow-api",
             status="ready",
             database="ready",
+            demo_seed_version=seed_version,
+            migration_revision=sorted(expected_database_heads),
         )
 
     @app.get(

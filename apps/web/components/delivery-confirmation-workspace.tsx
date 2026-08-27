@@ -6,7 +6,15 @@ import type {
   FailureState,
 } from "@tradeflow/delivery-dispatch";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { PageHeader } from "./ui/page-header";
+
+const deliveryTabs = [
+  { href: "/deliveries", label: "Deliveries" },
+  { href: "/delivery-exceptions", label: "Exceptions" },
+  { href: "/delivery-corrections", label: "Corrections" },
+];
 
 type ConfirmationResponse = {
   collection?: {
@@ -40,7 +48,11 @@ type PendingWebConfirmation = {
   paymentReceiptId: string | null;
 };
 
-export function DeliveryConfirmationWorkspace() {
+export function DeliveryConfirmationWorkspace({
+  initialDeliveryId,
+}: {
+  initialDeliveryId: string | undefined;
+}) {
   const [list, setList] = useState<AssignedDeliveryListState | null>(null);
   const [selected, setSelected] = useState<AssignedDelivery | null>(null);
   const [recipient, setRecipient] = useState("");
@@ -59,6 +71,22 @@ export function DeliveryConfirmationWorkspace() {
   const [operation, setOperation] = useState<OperationState>({ kind: "empty" });
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const pending = useRef<PendingWebConfirmation | null>(null);
+  const pathname = usePathname();
+  const selectedInitialDelivery = useRef(false);
+
+  const tabs = (
+    <>
+      {deliveryTabs.map((tab) => (
+        <Link
+          key={tab.href}
+          href={tab.href}
+          aria-current={pathname === tab.href ? "page" : undefined}
+        >
+          {tab.label}
+        </Link>
+      ))}
+    </>
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(async () => {
@@ -88,6 +116,24 @@ export function DeliveryConfirmationWorkspace() {
     setReceiptUrl(null);
     pending.current = null;
   };
+
+  useEffect(() => {
+    if (
+      selectedInitialDelivery.current ||
+      list?.kind !== "ready" ||
+      !initialDeliveryId
+    )
+      return;
+    const delivery = list.items.find(
+      (item) => item.deliveryId === initialDeliveryId,
+    );
+    if (delivery) {
+      selectedInitialDelivery.current = true;
+      const timer = window.setTimeout(() => choose(delivery), 0);
+      return () => window.clearTimeout(timer);
+    }
+    return undefined;
+  }, [initialDeliveryId, list]);
 
   const edit = (change: () => void) => {
     pending.current = null;
@@ -269,223 +315,211 @@ export function DeliveryConfirmationWorkspace() {
   };
 
   return (
-    <div className="delivery-app">
-      <header className="delivery-header">
-        <Link href="/">TradeFlow</Link>
-        <nav aria-label="Delivery navigation">
-          <Link href="/dispatch">Dispatch</Link>
-          <strong>Deliver</strong>
-          <Link href="/delivery-corrections">Corrections</Link>
-        </nav>
-        <span>Proof of delivery / live</span>
-      </header>
-      <main className="delivery-main">
-        <section className="delivery-intro">
-          <p className="eyebrow">Accepted delivery / 006</p>
-          <h1>Prove the handoff. Preserve the truth.</h1>
-          <p>Capture recipient evidence and commit accepted quantity once.</p>
-        </section>
-        {list === null && <State title="Loading assigned Deliveries" />}
-        {list !== null && list.kind !== "ready" && (
-          <State title={stateTitle(list.kind)} detail={list.message} />
-        )}
-        {list?.kind === "ready" && list.items.length === 0 && (
-          <State
-            title="No assigned Deliveries"
-            detail="The authorized delivery queue is empty."
-          />
-        )}
-        {list?.kind === "ready" && list.items.length > 0 && (
-          <div className="delivery-grid">
-            <section
-              aria-label="Assigned Deliveries"
-              className="delivery-queue"
-            >
-              {list.items.map((delivery) => (
-                <button
-                  key={delivery.deliveryId}
-                  onClick={() => choose(delivery)}
-                >
-                  <strong>{delivery.recipientName}</strong>
-                  <span>{delivery.deliveryId}</span>
-                  <small>{delivery.status.toUpperCase()}</small>
-                </button>
-              ))}
-            </section>
-            {selected !== null && (
-              <section className="delivery-capture">
-                <p className="eyebrow">PROOF OF DELIVERY</p>
-                <h2>{selected.recipientName}</h2>
-                <>
-                  {selected.collectionRequired && (
-                    <div className="delivery-cod">
-                      <p>
-                        COD due: PHP{" "}
-                        {selected.collectionAmountDue ?? "Unavailable"}
-                      </p>
-                      <div aria-label="COD settlement method">
-                        {(["cash", "noncash", "on_account"] as const).map(
-                          (value) => (
-                            <button
-                              aria-pressed={settlementMode === value}
-                              key={value}
-                              onClick={() =>
-                                edit(() => setSettlementMode(value))
-                              }
-                              type="button"
-                            >
-                              {value.replaceAll("_", " ")}
-                            </button>
-                          ),
-                        )}
-                      </div>
-                      {settlementMode !== "on_account" && (
-                        <label>
-                          COD amount collected
-                          <input
-                            aria-label="COD amount collected"
-                            inputMode="decimal"
-                            value={cashCollected}
-                            onChange={(event) =>
-                              edit(() => setCashCollected(event.target.value))
-                            }
-                          />
-                        </label>
-                      )}
-                      {settlementMode === "noncash" && (
-                        <>
-                          <label>
-                            Non-cash method
-                            <select
-                              aria-label="Non-cash method"
-                              value={noncashMethod}
-                              onChange={(event) =>
-                                edit(() =>
-                                  setNoncashMethod(
-                                    event.target.value as typeof noncashMethod,
-                                  ),
-                                )
-                              }
-                            >
-                              <option value="bank_transfer">
-                                Bank transfer
-                              </option>
-                              <option value="check">Check</option>
-                              <option value="electronic">Electronic</option>
-                            </select>
-                          </label>
-                          <label>
-                            Cleared Payment Receipt ID
-                            <input
-                              aria-label="Cleared Payment Receipt ID"
-                              value={paymentReceiptId}
-                              onChange={(event) =>
-                                edit(() =>
-                                  setPaymentReceiptId(event.target.value),
-                                )
-                              }
-                            />
-                          </label>
-                        </>
-                      )}
-                      {settlementMode === "on_account" && (
-                        <label>
-                          Approved On Account conversion ID
-                          <input
-                            aria-label="Approved On Account conversion ID"
-                            value={conversionId}
-                            onChange={(event) =>
-                              edit(() => setConversionId(event.target.value))
-                            }
-                          />
-                        </label>
-                      )}
-                      <small>
-                        Settlement and proof post together only after server
-                        acknowledgement.
-                      </small>
-                    </div>
-                  )}
-                  <label>
-                    Recipient name
-                    <input
-                      aria-label="Recipient name"
-                      value={recipient}
-                      onChange={(event) =>
-                        edit(() => setRecipient(event.target.value))
-                      }
-                    />
-                  </label>
-                  <label>
-                    Signature evidence
-                    <input
-                      aria-label="Signature evidence"
-                      accept="image/jpeg,image/png,image/webp"
-                      type="file"
-                      onChange={(event) =>
-                        edit(() =>
-                          setSignature(event.target.files?.[0] ?? null),
-                        )
-                      }
-                    />
-                  </label>
-                  <label>
-                    Delivery photos
-                    <input
-                      aria-label="Delivery photos"
-                      accept="image/jpeg,image/png,image/webp"
-                      multiple
-                      type="file"
-                      onChange={(event) =>
-                        edit(() =>
-                          setPhotos(Array.from(event.target.files ?? [])),
-                        )
-                      }
-                    />
-                  </label>
-                  <label>
-                    Notes
-                    <textarea
-                      aria-label="Delivery notes"
-                      value={notes}
-                      onChange={(event) =>
-                        edit(() => setNotes(event.target.value))
-                      }
-                    />
-                  </label>
-                  <button
-                    disabled={
-                      signature === null ||
-                      operation.kind === "pending" ||
-                      (selected.collectionRequired &&
-                        (selected.collectionAmountDue === null ||
-                          (settlementMode !== "on_account" &&
-                            (!isCanonicalPositiveDecimal(cashCollected) ||
-                              Number(cashCollected) <
-                                Number(selected.collectionAmountDue))) ||
-                          (settlementMode === "noncash" &&
-                            paymentReceiptId.trim() === "") ||
-                          (settlementMode === "on_account" &&
-                            conversionId.trim() === "")))
-                    }
-                    onClick={() => void confirm()}
-                  >
-                    {selected.collectionRequired
-                      ? "Confirm COD collection and delivery"
-                      : "Confirm accepted quantity"}
-                  </button>
-                </>
-              </section>
-            )}
-          </div>
-        )}
-        <OperationStateView
-          onRefreshReceipt={() => void refreshReceipt()}
-          receiptUrl={receiptUrl}
-          state={operation}
+    <>
+      <PageHeader
+        description="Capture recipient evidence and commit accepted quantity once."
+        eyebrow="Delivery"
+        tabs={tabs}
+        title="Proof of delivery"
+      />
+
+      <section className="delivery-intro card">
+        <p className="eyebrow">Accepted delivery / 006</p>
+        <h1>Prove the handoff. Preserve the truth.</h1>
+        <p>Capture recipient evidence and commit accepted quantity once.</p>
+      </section>
+
+      {list === null && <State title="Loading assigned Deliveries" />}
+      {list !== null && list.kind !== "ready" && (
+        <State title={stateTitle(list.kind)} detail={list.message} />
+      )}
+      {list?.kind === "ready" && list.items.length === 0 && (
+        <State
+          title="No assigned Deliveries"
+          detail="The authorized delivery queue is empty."
         />
-      </main>
-    </div>
+      )}
+      {list?.kind === "ready" && list.items.length > 0 && (
+        <div className="delivery-grid">
+          <section aria-label="Assigned Deliveries" className="delivery-queue">
+            {list.items.map((delivery) => (
+              <button
+                key={delivery.deliveryId}
+                onClick={() => choose(delivery)}
+              >
+                <strong>{delivery.recipientName}</strong>
+                <span>{delivery.deliveryId}</span>
+                <small>{delivery.status.toUpperCase()}</small>
+              </button>
+            ))}
+          </section>
+          {selected !== null && (
+            <section className="delivery-capture">
+              <p className="eyebrow">PROOF OF DELIVERY</p>
+              <h2>{selected.recipientName}</h2>
+              <>
+                {selected.collectionRequired && (
+                  <div className="delivery-cod">
+                    <p>
+                      COD due: PHP{" "}
+                      {selected.collectionAmountDue ?? "Unavailable"}
+                    </p>
+                    <div aria-label="COD settlement method">
+                      {(["cash", "noncash", "on_account"] as const).map(
+                        (value) => (
+                          <button
+                            aria-pressed={settlementMode === value}
+                            key={value}
+                            onClick={() => edit(() => setSettlementMode(value))}
+                            type="button"
+                          >
+                            {value.replaceAll("_", " ")}
+                          </button>
+                        ),
+                      )}
+                    </div>
+                    {settlementMode !== "on_account" && (
+                      <label>
+                        COD amount collected
+                        <input
+                          aria-label="COD amount collected"
+                          inputMode="decimal"
+                          value={cashCollected}
+                          onChange={(event) =>
+                            edit(() => setCashCollected(event.target.value))
+                          }
+                        />
+                      </label>
+                    )}
+                    {settlementMode === "noncash" && (
+                      <>
+                        <label>
+                          Non-cash method
+                          <select
+                            aria-label="Non-cash method"
+                            value={noncashMethod}
+                            onChange={(event) =>
+                              edit(() =>
+                                setNoncashMethod(
+                                  event.target.value as typeof noncashMethod,
+                                ),
+                              )
+                            }
+                          >
+                            <option value="bank_transfer">Bank transfer</option>
+                            <option value="check">Check</option>
+                            <option value="electronic">Electronic</option>
+                          </select>
+                        </label>
+                        <label>
+                          Cleared Payment Receipt ID
+                          <input
+                            aria-label="Cleared Payment Receipt ID"
+                            value={paymentReceiptId}
+                            onChange={(event) =>
+                              edit(() =>
+                                setPaymentReceiptId(event.target.value),
+                              )
+                            }
+                          />
+                        </label>
+                      </>
+                    )}
+                    {settlementMode === "on_account" && (
+                      <label>
+                        Approved On Account conversion ID
+                        <input
+                          aria-label="Approved On Account conversion ID"
+                          value={conversionId}
+                          onChange={(event) =>
+                            edit(() => setConversionId(event.target.value))
+                          }
+                        />
+                      </label>
+                    )}
+                    <small>
+                      Settlement and proof post together only after server
+                      acknowledgement.
+                    </small>
+                  </div>
+                )}
+                <label>
+                  Recipient name
+                  <input
+                    aria-label="Recipient name"
+                    value={recipient}
+                    onChange={(event) =>
+                      edit(() => setRecipient(event.target.value))
+                    }
+                  />
+                </label>
+                <label>
+                  Signature evidence
+                  <input
+                    aria-label="Signature evidence"
+                    accept="image/jpeg,image/png,image/webp"
+                    type="file"
+                    onChange={(event) =>
+                      edit(() => setSignature(event.target.files?.[0] ?? null))
+                    }
+                  />
+                </label>
+                <label>
+                  Delivery photos
+                  <input
+                    aria-label="Delivery photos"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    type="file"
+                    onChange={(event) =>
+                      edit(() =>
+                        setPhotos(Array.from(event.target.files ?? [])),
+                      )
+                    }
+                  />
+                </label>
+                <label>
+                  Notes
+                  <textarea
+                    aria-label="Delivery notes"
+                    value={notes}
+                    onChange={(event) =>
+                      edit(() => setNotes(event.target.value))
+                    }
+                  />
+                </label>
+                <button
+                  disabled={
+                    signature === null ||
+                    operation.kind === "pending" ||
+                    (selected.collectionRequired &&
+                      (selected.collectionAmountDue === null ||
+                        (settlementMode !== "on_account" &&
+                          (!isCanonicalPositiveDecimal(cashCollected) ||
+                            Number(cashCollected) <
+                              Number(selected.collectionAmountDue))) ||
+                        (settlementMode === "noncash" &&
+                          paymentReceiptId.trim() === "") ||
+                        (settlementMode === "on_account" &&
+                          conversionId.trim() === "")))
+                  }
+                  onClick={() => void confirm()}
+                >
+                  {selected.collectionRequired
+                    ? "Confirm COD collection and delivery"
+                    : "Confirm accepted quantity"}
+                </button>
+              </>
+            </section>
+          )}
+        </div>
+      )}
+      <OperationStateView
+        onRefreshReceipt={() => void refreshReceipt()}
+        receiptUrl={receiptUrl}
+        state={operation}
+      />
+    </>
   );
 }
 

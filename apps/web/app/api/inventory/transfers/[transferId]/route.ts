@@ -1,8 +1,9 @@
+import { getServerApiConfig } from "@/lib/server-api";
 import { createTradeFlowClient } from "@tradeflow/api-client";
 
 import { transferFailureKind } from "../response";
 
-const baseUrl = process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000";
+const baseUrl = getServerApiConfig().baseUrl;
 
 export async function GET(
   _request: Request,
@@ -10,7 +11,7 @@ export async function GET(
 ): Promise<Response> {
   const correlationId = crypto.randomUUID();
   const { transferId } = await context.params;
-  const accessToken = process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN;
+  const accessToken = getServerApiConfig().accessToken;
   if (accessToken === undefined || accessToken.length === 0) {
     return Response.json(
       {

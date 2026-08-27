@@ -3,6 +3,7 @@
 import type { components } from "@tradeflow/api-client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { PageHeader } from "./ui/page-header";
 
 type PurchaseOrderSummary = components["schemas"]["PurchaseOrderSummary"];
 type PurchaseOrderResponse = components["schemas"]["PurchaseOrderResponse"];
@@ -120,274 +121,273 @@ export function ProcurementPurchaseOrdersWorkspace() {
   };
 
   return (
-    <div className="procurement-app">
-      <header className="procurement-header">
-        <Link href="/">TradeFlow</Link>
-        <span>Procurement / Purchase orders</span>
-        <span>Purchase order workspace</span>
-      </header>
-      <main className="procurement-main">
-        <section className="procurement-title">
+    <>
+      <PageHeader
+        description="Raise and approve purchase orders against suppliers. Approved orders unlock goods receipts and landed cost allocation."
+        eyebrow="Procurement"
+        title="Purchase orders"
+      />
+
+      <section className="procurement-title card">
+        <div>
+          <p className="eyebrow">Supplier commitments</p>
+          <h1>Purchase orders.</h1>
+        </div>
+        <p>
+          Raise and approve purchase orders against suppliers. Approved orders
+          unlock goods receipts and landed cost allocation.
+        </p>
+      </section>
+
+      <section className="procurement-panel">
+        <div className="procurement-section-head">
           <div>
-            <p className="eyebrow">Supplier commitments</p>
-            <h1>Purchase orders.</h1>
+            <span>Procurement / write</span>
+            <h2>Create purchase order</h2>
           </div>
-          <p>
-            Raise and approve purchase orders against suppliers. Approved orders
-            unlock goods receipts and landed cost allocation.
+        </div>
+
+        {message !== null && (
+          <p className="procurement-message" role="status">
+            {message}
           </p>
-        </section>
-
-        <section className="procurement-panel">
-          <div className="procurement-section-head">
-            <div>
-              <span>Procurement / write</span>
-              <h2>Create purchase order</h2>
-            </div>
-          </div>
-
-          {message !== null && (
-            <p className="procurement-message" role="status">
-              {message}
-            </p>
-          )}
-
-          <div className="procurement-fields">
-            <label>
-              Supplier ID
-              <input
-                onChange={(event) =>
-                  setForm((current: CreatePurchaseOrderCommand) => ({
-                    ...current,
-                    supplier_id: event.target.value,
-                  }))
-                }
-                value={form.supplier_id}
-              />
-            </label>
-            <label>
-              Branch ID
-              <input
-                onChange={(event) =>
-                  setForm((current: CreatePurchaseOrderCommand) => ({
-                    ...current,
-                    branch_id: event.target.value,
-                  }))
-                }
-                value={form.branch_id}
-              />
-            </label>
-            <label>
-              Code
-              <input
-                onChange={(event) =>
-                  setForm((current: CreatePurchaseOrderCommand) => ({
-                    ...current,
-                    code: event.target.value,
-                  }))
-                }
-                value={form.code}
-              />
-            </label>
-            <label>
-              Currency
-              <input
-                maxLength={3}
-                onChange={(event) =>
-                  setForm((current: CreatePurchaseOrderCommand) => ({
-                    ...current,
-                    currency: event.target.value.toUpperCase(),
-                  }))
-                }
-                value={form.currency}
-              />
-            </label>
-            <label>
-              Exchange rate
-              <input
-                onChange={(event) =>
-                  setForm((current: CreatePurchaseOrderCommand) => ({
-                    ...current,
-                    exchange_rate: event.target.value,
-                  }))
-                }
-                value={form.exchange_rate}
-              />
-            </label>
-            <label className="procurement-wide">
-              Line 1 — SKU ID
-              <input
-                onChange={(event) =>
-                  setForm((current: CreatePurchaseOrderCommand) => {
-                    const line = current.lines[0]!;
-                    return {
-                      ...current,
-                      lines: [
-                        {
-                          requested_quantity: line.requested_quantity,
-                          sku_id: event.target.value,
-                          unit_code: line.unit_code,
-                          unit_cost: line.unit_cost,
-                        },
-                      ],
-                    };
-                  })
-                }
-                value={form.lines[0]!.sku_id}
-              />
-            </label>
-            <label>
-              Quantity
-              <input
-                onChange={(event) =>
-                  setForm((current: CreatePurchaseOrderCommand) => {
-                    const line = current.lines[0]!;
-                    return {
-                      ...current,
-                      lines: [
-                        {
-                          requested_quantity: event.target.value,
-                          sku_id: line.sku_id,
-                          unit_code: line.unit_code,
-                          unit_cost: line.unit_cost,
-                        },
-                      ],
-                    };
-                  })
-                }
-                value={form.lines[0]!.requested_quantity}
-              />
-            </label>
-            <label>
-              Unit
-              <input
-                onChange={(event) =>
-                  setForm((current: CreatePurchaseOrderCommand) => {
-                    const line = current.lines[0]!;
-                    return {
-                      ...current,
-                      lines: [
-                        {
-                          requested_quantity: line.requested_quantity,
-                          sku_id: line.sku_id,
-                          unit_code: event.target.value,
-                          unit_cost: line.unit_cost,
-                        },
-                      ],
-                    };
-                  })
-                }
-                value={form.lines[0]!.unit_code}
-              />
-            </label>
-            <label>
-              Unit cost
-              <input
-                onChange={(event) =>
-                  setForm((current: CreatePurchaseOrderCommand) => {
-                    const line = current.lines[0]!;
-                    return {
-                      ...current,
-                      lines: [
-                        {
-                          requested_quantity: line.requested_quantity,
-                          sku_id: line.sku_id,
-                          unit_code: line.unit_code,
-                          unit_cost: event.target.value,
-                        },
-                      ],
-                    };
-                  })
-                }
-                value={form.lines[0]!.unit_cost}
-              />
-            </label>
-            <button onClick={create} type="button">
-              Create purchase order
-            </button>
-          </div>
-        </section>
-
-        <section className="procurement-panel">
-          <div className="procurement-section-head">
-            <div>
-              <span>Procurement / read</span>
-              <h2>Purchase orders</h2>
-            </div>
-          </div>
-
-          {list.kind === "loading" && (
-            <p className="procurement-message">Loading purchase orders…</p>
-          )}
-          {list.kind === "unavailable" && (
-            <p className="procurement-message">Purchase orders unavailable.</p>
-          )}
-
-          {list.kind === "ready" && (
-            <>
-              {list.items.length === 0 ? (
-                <p className="procurement-empty">No purchase orders found.</p>
-              ) : (
-                <table className="procurement-table">
-                  <thead>
-                    <tr>
-                      <th>Code</th>
-                      <th>Status</th>
-                      <th>Currency</th>
-                      <th>Version</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {list.items.map((po) => (
-                      <tr key={po.purchase_order_id}>
-                        <td>{po.code}</td>
-                        <td>{po.status}</td>
-                        <td>{po.currency}</td>
-                        <td>{po.version}</td>
-                        <td>
-                          {po.status === "draft" ? (
-                            <button
-                              onClick={() => void approve(po.purchase_order_id)}
-                              type="button"
-                            >
-                              Approve
-                            </button>
-                          ) : po.status === "approved" ||
-                            po.status === "partially_received" ? (
-                            <Link
-                              href={`/procurement/purchase-orders/${po.purchase_order_id}/receipts`}
-                            >
-                              Receive
-                            </Link>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-              <p className="procurement-total">Total: {list.total}</p>
-            </>
-          )}
-        </section>
-
-        {selected !== null && (
-          <section className="procurement-panel">
-            <div className="procurement-section-head">
-              <div>
-                <span>Procurement / detail</span>
-                <h2>{selected.code}</h2>
-              </div>
-            </div>
-            <pre className="procurement-empty">
-              {JSON.stringify(selected, null, 2)}
-            </pre>
-          </section>
         )}
-      </main>
-    </div>
+
+        <div className="procurement-fields">
+          <label>
+            Supplier ID
+            <input
+              onChange={(event) =>
+                setForm((current: CreatePurchaseOrderCommand) => ({
+                  ...current,
+                  supplier_id: event.target.value,
+                }))
+              }
+              value={form.supplier_id}
+            />
+          </label>
+          <label>
+            Branch ID
+            <input
+              onChange={(event) =>
+                setForm((current: CreatePurchaseOrderCommand) => ({
+                  ...current,
+                  branch_id: event.target.value,
+                }))
+              }
+              value={form.branch_id}
+            />
+          </label>
+          <label>
+            Code
+            <input
+              onChange={(event) =>
+                setForm((current: CreatePurchaseOrderCommand) => ({
+                  ...current,
+                  code: event.target.value,
+                }))
+              }
+              value={form.code}
+            />
+          </label>
+          <label>
+            Currency
+            <input
+              maxLength={3}
+              onChange={(event) =>
+                setForm((current: CreatePurchaseOrderCommand) => ({
+                  ...current,
+                  currency: event.target.value.toUpperCase(),
+                }))
+              }
+              value={form.currency}
+            />
+          </label>
+          <label>
+            Exchange rate
+            <input
+              onChange={(event) =>
+                setForm((current: CreatePurchaseOrderCommand) => ({
+                  ...current,
+                  exchange_rate: event.target.value,
+                }))
+              }
+              value={form.exchange_rate}
+            />
+          </label>
+          <label className="procurement-wide">
+            Line 1 — SKU ID
+            <input
+              onChange={(event) =>
+                setForm((current: CreatePurchaseOrderCommand) => {
+                  const line = current.lines[0]!;
+                  return {
+                    ...current,
+                    lines: [
+                      {
+                        requested_quantity: line.requested_quantity,
+                        sku_id: event.target.value,
+                        unit_code: line.unit_code,
+                        unit_cost: line.unit_cost,
+                      },
+                    ],
+                  };
+                })
+              }
+              value={form.lines[0]!.sku_id}
+            />
+          </label>
+          <label>
+            Quantity
+            <input
+              onChange={(event) =>
+                setForm((current: CreatePurchaseOrderCommand) => {
+                  const line = current.lines[0]!;
+                  return {
+                    ...current,
+                    lines: [
+                      {
+                        requested_quantity: event.target.value,
+                        sku_id: line.sku_id,
+                        unit_code: line.unit_code,
+                        unit_cost: line.unit_cost,
+                      },
+                    ],
+                  };
+                })
+              }
+              value={form.lines[0]!.requested_quantity}
+            />
+          </label>
+          <label>
+            Unit
+            <input
+              onChange={(event) =>
+                setForm((current: CreatePurchaseOrderCommand) => {
+                  const line = current.lines[0]!;
+                  return {
+                    ...current,
+                    lines: [
+                      {
+                        requested_quantity: line.requested_quantity,
+                        sku_id: line.sku_id,
+                        unit_code: event.target.value,
+                        unit_cost: line.unit_cost,
+                      },
+                    ],
+                  };
+                })
+              }
+              value={form.lines[0]!.unit_code}
+            />
+          </label>
+          <label>
+            Unit cost
+            <input
+              onChange={(event) =>
+                setForm((current: CreatePurchaseOrderCommand) => {
+                  const line = current.lines[0]!;
+                  return {
+                    ...current,
+                    lines: [
+                      {
+                        requested_quantity: line.requested_quantity,
+                        sku_id: line.sku_id,
+                        unit_code: line.unit_code,
+                        unit_cost: event.target.value,
+                      },
+                    ],
+                  };
+                })
+              }
+              value={form.lines[0]!.unit_cost}
+            />
+          </label>
+          <button onClick={create} type="button">
+            Create purchase order
+          </button>
+        </div>
+      </section>
+
+      <section className="procurement-panel">
+        <div className="procurement-section-head">
+          <div>
+            <span>Procurement / read</span>
+            <h2>Purchase orders</h2>
+          </div>
+        </div>
+
+        {list.kind === "loading" && (
+          <p className="procurement-message">Loading purchase orders…</p>
+        )}
+        {list.kind === "unavailable" && (
+          <p className="procurement-message">Purchase orders unavailable.</p>
+        )}
+
+        {list.kind === "ready" && (
+          <>
+            {list.items.length === 0 ? (
+              <p className="procurement-empty">No purchase orders found.</p>
+            ) : (
+              <table className="procurement-table">
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Status</th>
+                    <th>Currency</th>
+                    <th>Version</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {list.items.map((po) => (
+                    <tr key={po.purchase_order_id}>
+                      <td>{po.code}</td>
+                      <td>{po.status}</td>
+                      <td>{po.currency}</td>
+                      <td>{po.version}</td>
+                      <td>
+                        {po.status === "draft" ? (
+                          <button
+                            onClick={() => void approve(po.purchase_order_id)}
+                            type="button"
+                          >
+                            Approve
+                          </button>
+                        ) : po.status === "approved" ||
+                          po.status === "partially_received" ? (
+                          <Link
+                            href={`/procurement/purchase-orders/${po.purchase_order_id}/receipts`}
+                          >
+                            Receive
+                          </Link>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <p className="procurement-total">Total: {list.total}</p>
+          </>
+        )}
+      </section>
+
+      {selected !== null && (
+        <section className="procurement-panel">
+          <div className="procurement-section-head">
+            <div>
+              <span>Procurement / detail</span>
+              <h2>{selected.code}</h2>
+            </div>
+          </div>
+          <pre className="procurement-empty">
+            {JSON.stringify(selected, null, 2)}
+          </pre>
+        </section>
+      )}
+    </>
   );
 }

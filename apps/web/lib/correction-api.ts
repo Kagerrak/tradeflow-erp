@@ -1,3 +1,4 @@
+import { getServerApiConfig } from "@/lib/server-api";
 import { createTradeFlowClient, type components } from "@tradeflow/api-client";
 
 export type CorrectionList = components["schemas"]["DeliveryCorrectionList"];
@@ -5,13 +6,13 @@ export type CorrectionResponse =
   components["schemas"]["DeliveryCorrectionResponse"];
 
 export function createCorrectionClient(correlationId: string) {
-  const accessToken = process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN;
+  const accessToken = getServerApiConfig().accessToken;
   if (accessToken === undefined || accessToken.length === 0) {
     return null;
   }
   return createTradeFlowClient({
     accessToken,
-    baseUrl: process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000",
+    baseUrl: getServerApiConfig().baseUrl,
     correlationId,
   });
 }

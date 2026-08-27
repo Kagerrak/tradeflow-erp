@@ -209,7 +209,9 @@ class SalesOrderLineResponse(BaseModel):
 
 class SalesOrderDraftResponse(BaseModel):
     sales_order_id: UUID
-    status: Literal["draft", "approved", "held", "partially_cancelled", "cancelled"]
+    status: Literal[
+        "draft", "awaiting_approval", "approved", "held", "partially_cancelled", "cancelled"
+    ]
     version: int
     metadata_version: int
     branch_id: UUID
@@ -239,7 +241,9 @@ class SalesOrderDraftResponse(BaseModel):
 
 class SalesOrderSearchItem(BaseModel):
     sales_order_id: UUID
-    status: Literal["draft", "approved", "held", "partially_cancelled", "cancelled"]
+    status: Literal[
+        "draft", "awaiting_approval", "approved", "held", "partially_cancelled", "cancelled"
+    ]
     version: int
     metadata_version: int
     branch_id: UUID
@@ -1540,6 +1544,85 @@ async def update_sales_order_draft(
         ) from error
 
 
+@router.post(
+    "/orders/{sales_order_id}/submission",
+    response_model=SalesOrderDraftResponse,
+    status_code=201,
+    responses=error_responses(401, 403, 404, 409, 500),
+)
+async def submit_sales_order_for_approval(
+    sales_order_id: UUID,
+    response: Response,
+    actor: Annotated[AuthorizedUser, Depends(require_sales_order_writer)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    if_match: Annotated[int, Header(alias="If-Match", ge=1)],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=1, max_length=200)],
+) -> SalesOrderDraftResponse:
+    request_hash = sha256(f"submit_sales_order:{sales_order_id}:{if_match}".encode()).hexdigest()
+    replay = await get_command_replay(
+        session,
+        actor_subject=actor.subject,
+        idempotency_key=idempotency_key,
+        request_hash=request_hash,
+    )
+    if replay is not None:
+        response.status_code = 200
+        response.headers["X-Idempotency-Replayed"] = "true"
+        return SalesOrderDraftResponse.model_validate(replay)
+
+    order = (
+        (
+            await session.execute(
+                select(sales_orders)
+                .where(sales_orders.c.sales_order_id == sales_order_id)
+                .with_for_update()
+            )
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if order is None:
+        raise AppError(404, "sales_order_not_found", "The Sales Order does not exist.")
+    if order["branch_id"] not in actor.branch_ids:
+        raise AppError(403, "operational_scope_required", "Branch scope is required.")
+    if order["version"] != if_match:
+        raise AppError(
+            409,
+            "optimistic_version_conflict",
+            "The Sales Order changed and requires explicit review.",
+        )
+    if order["status"] != "draft":
+        raise AppError(
+            409,
+            "sales_order_not_draft",
+            "Only a current Sales Order Draft can be submitted for approval.",
+        )
+
+    await session.execute(
+        update(sales_orders)
+        .where(
+            sales_orders.c.sales_order_id == sales_order_id,
+            sales_orders.c.version == if_match,
+            sales_orders.c.status == "draft",
+        )
+        .values(
+            status="awaiting_approval",
+            updated_by=actor.subject,
+            updated_at=func.now(),
+        )
+    )
+    result = await load_sales_order_response(session, sales_order_id, actor)
+    await store_command_result(
+        session,
+        actor_subject=actor.subject,
+        idempotency_key=idempotency_key,
+        request_hash=request_hash,
+        result=result,
+    )
+    await session.commit()
+    return result
+
+
 async def load_sales_order_response(
     session: AsyncSession,
     sales_order_id: UUID,
@@ -1714,8 +1797,10 @@ async def search_sales_order_drafts(
     return SalesOrderSearchResponse(
         items=[
             SalesOrderSearchItem(
-                **row,
-                grand_total=money(row["grand_total"], row["currency"]),
+                **{
+                    **dict(row),
+                    "grand_total": money(row["grand_total"], row["currency"]),
+                },
             )
             for row in rows
         ],

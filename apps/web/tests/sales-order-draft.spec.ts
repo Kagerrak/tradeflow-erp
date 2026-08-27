@@ -232,7 +232,7 @@ test("shows forbidden and unavailable order-entry boundaries", async ({
   await expect(page.getByText("sales-forbidden")).toBeVisible();
 });
 
-test("shows partial reservation and exception-required Commercial Approval states", async ({
+test("submits the authoritative priced revision for Commercial Approval", async ({
   page,
 }) => {
   await routeWorkspace(page);
@@ -246,57 +246,23 @@ test("shows partial reservation and exception-required Commercial Approval state
       },
     }),
   );
-  let attempts = 0;
-  const approvalKeys: string[] = [];
+  const submissionKeys: string[] = [];
   await page.route(
-    `**/api/sales-orders/${savedDraft.salesOrderId}/commercial-approval`,
+    `**/api/sales-orders/${savedDraft.salesOrderId}/submission`,
     (route) => {
-      attempts += 1;
-      approvalKeys.push(
+      submissionKeys.push(
         (
           route.request().postDataJSON() as {
             idempotencyKey: string;
           }
         ).idempotencyKey,
       );
-      if (attempts === 1) {
-        return route.fulfill({
-          contentType: "application/json",
-          json: {
-            correlationId: "exception-required",
-            kind: "exception_required",
-          },
-          status: 409,
-        });
-      }
-      if (attempts === 2) return route.abort("failed");
       return route.fulfill({
         contentType: "application/json",
         json: {
-          approval: {
-            approvalId: "9ee0c3c0-d673-452f-bdef-eeec91a4773f",
-            approvedBy: "commercial-mnl",
-            backorderQuantityBase: "1.000000",
-            credit: {
-              approvedExcess: "0.00",
-              approvedUninvoicedBefore: "0.00",
-              creditLimit: null,
-              openBalance: "0.00",
-              orderValue: "0.00",
-              overrideRequired: false,
-              projectedExposure: "0.00",
-            },
-            makerSubject: "sales-mnl",
-            requiredExceptions: ["discount"],
-            reservations: [],
-            reservedQuantityBase: "2.000000",
-            salesOrderId: savedDraft.salesOrderId,
-            salesOrderRevisionId: "be85cc1b-699f-4567-b833-a66944b2d8a6",
-            status: "approved",
-            warehouseId,
-          },
-          correlationId: "approved",
-          kind: "approved",
+          correlationId: "submitted-order",
+          draft: { ...savedDraft, status: "awaiting_approval", version: 2 },
+          kind: "saved",
         },
       });
     },
@@ -305,23 +271,11 @@ test("shows partial reservation and exception-required Commercial Approval state
   await page.getByLabel("Customer Account").selectOption(customerId);
   await page.getByLabel("COLA-330 quantity").fill("3.000000");
   await page.getByRole("button", { name: "Save Sales Order Draft" }).click();
-  await page.getByRole("button", { name: "Commercially approve" }).click();
+  await page.getByRole("button", { name: "Submit for approval" }).click();
   await expect(
-    page.getByRole("heading", {
-      name: "A different eligible approver is required",
-    }),
+    page.getByText("Submitted for commercial approval"),
   ).toBeVisible();
-  await page.getByLabel("Commercial exception reason").fill("Reviewed");
-  await page.getByRole("button", { name: "Commercially approve" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Commercial controls are unavailable" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Commercially approve" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Partially reserved" }),
-  ).toBeVisible();
-  await expect(page.getByText("1.000000 on backorder")).toBeVisible();
-  expect(approvalKeys[2]).toBe(approvalKeys[1]);
+  expect(submissionKeys).toHaveLength(1);
 });
 
 test("guides a checker through approval failures before approving a pending revision", async ({
@@ -366,7 +320,7 @@ test("guides a checker through approval failures before approving a pending revi
             grandTotal: "31.89",
             paymentTimingPolicy: "prepaid",
             salesOrderId: savedDraft.salesOrderId,
-            status: "draft",
+            status: "awaiting_approval",
             version: 1,
           },
         ],

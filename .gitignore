@@ -2,6 +2,9 @@
 .env
 .env.*
 !.env.example
+!.env.demo.example
+
+.claude/
 
 node_modules/
 .next/
@@ -21,3 +24,6 @@ __pycache__/
 
 *.log
 *.tsbuildinfo
+
+checkpoint/
+scrollcraft/

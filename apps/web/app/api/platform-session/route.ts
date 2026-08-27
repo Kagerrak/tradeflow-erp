@@ -1,3 +1,4 @@
+import { getServerApiConfig } from "@/lib/server-api";
 import { loadPlatformSession } from "@tradeflow/platform-session";
 
 export const dynamic = "force-dynamic";
@@ -14,8 +15,8 @@ export async function GET(): Promise<Response> {
 
   try {
     const state = await loadPlatformSession({
-      accessToken: process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN,
-      baseUrl: process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000",
+      accessToken: getServerApiConfig().accessToken,
+      baseUrl: getServerApiConfig().baseUrl,
       correlationId,
     });
 

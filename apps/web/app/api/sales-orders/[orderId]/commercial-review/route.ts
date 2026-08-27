@@ -1,3 +1,4 @@
+import { getServerApiConfig } from "@/lib/server-api";
 import { loadCommercialReview } from "@tradeflow/sales-order-draft";
 import { NextRequest } from "next/server";
 
@@ -12,8 +13,8 @@ export async function GET(
     warehouseId.length === 0
       ? ({ correlationId, kind: "validation" } as const)
       : await loadCommercialReview({
-          accessToken: process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN,
-          baseUrl: process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000",
+          accessToken: getServerApiConfig().accessToken,
+          baseUrl: getServerApiConfig().baseUrl,
           correlationId,
           salesOrderId: orderId,
           warehouseId,

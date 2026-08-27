@@ -1,3 +1,4 @@
+import { getServerApiConfig } from "@/lib/server-api";
 import {
   listPaymentReceipts,
   type PaymentReceiptStatus,
@@ -5,7 +6,7 @@ import {
   type RecordPaymentReceiptInput,
 } from "@tradeflow/payment-clearance";
 
-const baseUrl = process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000";
+const baseUrl = getServerApiConfig().baseUrl;
 
 function statusFor(kind: string): number {
   if (kind === "unauthenticated") return 401;
@@ -21,7 +22,7 @@ export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const status = url.searchParams.get("status") as PaymentReceiptStatus | null;
   const state = await listPaymentReceipts({
-    accessToken: process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN,
+    accessToken: getServerApiConfig().accessToken,
     baseUrl,
     correlationId,
     ...(url.searchParams.get("branch_id") === null
@@ -44,7 +45,7 @@ export async function POST(request: Request): Promise<Response> {
   const correlationId = crypto.randomUUID();
   const body = (await request.json()) as RecordBody;
   const state = await recordPaymentReceipt({
-    accessToken: process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN,
+    accessToken: getServerApiConfig().accessToken,
     baseUrl,
     command: body.command,
     correlationId,

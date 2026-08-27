@@ -6,8 +6,12 @@ import {
   type CustomerCreationState,
   type CustomerDirectoryState,
 } from "@tradeflow/customer-directory";
-import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { Badge } from "./ui/badge";
+import { DataTable } from "./ui/data-table";
+import { EmptyState } from "./ui/empty-state";
+import { ErrorState } from "./ui/error-state";
+import { PageHeader } from "./ui/page-header";
 
 type Branch = {
   branch_id: string;
@@ -127,67 +131,87 @@ export function CustomerWorkspace() {
 
   if (workspace.kind === "loading") {
     return (
-      <main
-        className="customer-loading"
+      <div
+        className="workspace-loading"
         role="status"
         aria-label="Loading customer workspace"
       >
-        <span className="customer-loader" aria-hidden="true" />
-        <p>Verifying operational scope</p>
-        <h1>Loading customer workspace…</h1>
-      </main>
+        <span className="workspace-loader" aria-hidden="true" />
+        <p>Loading customer workspace…</p>
+      </div>
     );
   }
 
   if (workspace.kind === "denied") {
     const unauthenticated = workspace.reason === "unauthenticated";
     const unavailable = workspace.reason === "unavailable";
+    const title = unavailable
+      ? "Customer service is unavailable"
+      : unauthenticated
+        ? "Sign in to continue"
+        : "Customer access is not assigned";
+    const message = unavailable
+      ? "The workspace could not confirm your assignment. Try again when service is restored."
+      : unauthenticated
+        ? "Open your identity provider, then return to this workspace."
+        : "Ask an operations administrator to assign customer read access and an operational branch.";
     return (
-      <main className="customer-denied">
-        <Link className="customer-wordmark" href="/">
-          TradeFlow / Customers
-        </Link>
-        <p className="eyebrow">Access boundary</p>
-        <h1>
-          {unavailable
-            ? "Customer service is unavailable"
-            : unauthenticated
-              ? "Sign in to continue"
-              : "Customer access is not assigned"}
-        </h1>
-        <p>
-          {unavailable
-            ? "The workspace could not confirm your assignment. Try again when service is restored."
-            : unauthenticated
-              ? "Open your identity provider, then return to this workspace."
-              : "Ask an operations administrator to assign customer read access and an operational Branch."}
-        </p>
-        <p className="support-reference">
-          Support reference <code>{workspace.correlationId}</code>
-        </p>
-        <a className="text-link" href="/customers">
-          Retry workspace →
-        </a>
-      </main>
+      <>
+        <PageHeader
+          description="Search active accounts, check credit standing, and manage commercial terms."
+          eyebrow="Commercial"
+          title="Customer accounts"
+        />
+        <ErrorState
+          action={
+            unavailable ? (
+              <button
+                className="btn-primary"
+                onClick={() => window.location.reload()}
+                type="button"
+              >
+                Retry
+              </button>
+            ) : undefined
+          }
+          correlationId={workspace.correlationId}
+          title={title}
+        >
+          <p>{message}</p>
+        </ErrorState>
+      </>
     );
   }
 
   const canWrite = workspace.scope.capabilities.includes("customer:write");
   return (
-    <div className="customer-app">
-      <header className="customer-header">
-        <Link className="customer-wordmark" href="/">
-          TradeFlow
-        </Link>
-        <span>Customer accounts</span>
-        <span className="operator">{workspace.scope.user.display_name}</span>
-      </header>
+    <>
+      <PageHeader
+        actions={
+          canWrite ? (
+            <button
+              className="btn-primary"
+              type="button"
+              aria-label="Open new-account docket"
+              onClick={() => setDocketOpen(true)}
+            >
+              New customer
+            </button>
+          ) : undefined
+        }
+        description="Search active accounts, check credit standing, and manage commercial terms."
+        eyebrow="Commercial"
+        title="Customer accounts"
+      />
 
-      <main className="customer-main">
-        <section className="customer-title">
+      <section
+        className="directory-panel card"
+        aria-labelledby="directory-title"
+      >
+        <div className="directory-tools">
           <div>
-            <p className="eyebrow">Commercial directory / 003</p>
-            <h1>Know the account before the order.</h1>
+            <span className="section-number">Directory</span>
+            <h2 id="directory-title">Accounts</h2>
           </div>
           <div className="scope-stamp">
             <span>Authorized scope</span>
@@ -197,49 +221,33 @@ export function CustomerWorkspace() {
               </strong>
             ))}
           </div>
-        </section>
+        </div>
 
-        <section className="directory-panel" aria-labelledby="directory-title">
-          <div className="directory-tools">
-            <div>
-              <p className="section-number">01 / Directory</p>
-              <h2 id="directory-title">Customer accounts</h2>
-            </div>
-            {canWrite && (
-              <button
-                className="primary-action"
-                type="button"
-                onClick={() => setDocketOpen(true)}
-              >
-                Open new-account docket
-              </button>
-            )}
+        <form
+          className="search-strip"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void refresh();
+          }}
+        >
+          <label htmlFor="customer-query">
+            Search account number or legal name
+          </label>
+          <div>
+            <input
+              id="customer-query"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search by account number or legal name"
+            />
+            <button className="btn-primary" type="submit">
+              Search
+            </button>
           </div>
+        </form>
 
-          <form
-            className="search-strip"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void refresh();
-            }}
-          >
-            <label htmlFor="customer-query">
-              Search account number or legal name
-            </label>
-            <div>
-              <input
-                id="customer-query"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="e.g. MNL-0042 or Northstar"
-              />
-              <button type="submit">Search</button>
-            </div>
-          </form>
-
-          <Directory state={directory} retry={() => void refresh()} />
-        </section>
-      </main>
+        <Directory state={directory} retry={() => void refresh()} />
+      </section>
 
       {docketOpen && (
         <CustomerDocket
@@ -256,7 +264,7 @@ export function CustomerWorkspace() {
           }}
         />
       )}
-    </div>
+    </>
   );
 }
 
@@ -269,13 +277,14 @@ function Directory({
 }) {
   if (state.kind === "loading") {
     return (
-      <p className="directory-message" aria-live="polite">
-        Loading scoped accounts…
-      </p>
+      <div className="directory-message" aria-live="polite">
+        <span className="workspace-loader" aria-hidden="true" />
+        <p>Loading scoped accounts…</p>
+      </div>
     );
   }
   if (state.kind !== "ready") {
-    const heading =
+    const title =
       state.kind === "forbidden"
         ? "Customer access is not assigned"
         : state.kind === "validation"
@@ -285,72 +294,71 @@ function Directory({
             : "Directory temporarily unavailable";
     const message =
       state.kind === "forbidden"
-        ? "Ask an operations administrator for customer read access and a Branch assignment."
+        ? "Ask an operations administrator for customer read access and a branch assignment."
         : state.kind === "validation"
           ? "Enter at least two characters in account number or legal name, then search again."
           : state.kind === "unauthenticated"
             ? "Your session expired. Sign in again, then reload this workspace."
             : "Check service status and retry this customer search.";
     return (
-      <div className="directory-message">
-        <h3>{heading}</h3>
+      <ErrorState
+        action={
+          state.kind === "unavailable" ? (
+            <button className="btn-primary" onClick={retry} type="button">
+              Retry search
+            </button>
+          ) : state.kind === "unauthenticated" ? (
+            <button
+              className="btn-primary"
+              onClick={() => window.location.reload()}
+              type="button"
+            >
+              Reload after sign-in
+            </button>
+          ) : undefined
+        }
+        correlationId={state.correlationId}
+        title={title}
+      >
         <p>{message}</p>
-        <p>
-          Support reference <code>{state.correlationId}</code>
-        </p>
-        {state.kind === "unavailable" && (
-          <button onClick={retry}>Retry search</button>
-        )}
-        {state.kind === "unauthenticated" && (
-          <button onClick={() => window.location.reload()}>
-            Reload after sign-in
-          </button>
-        )}
-      </div>
+      </ErrorState>
     );
   }
   if (state.total === 0) {
     return (
-      <div className="directory-message directory-empty">
-        <span aria-hidden="true">∅</span>
-        <h3>No accounts in this scope</h3>
-        <p>Create the first account or revise the search terms.</p>
-      </div>
+      <EmptyState
+        description="Create the first account or revise the search terms."
+        title="No accounts in this scope"
+      />
     );
   }
   return (
-    <div className="directory-table-wrap">
-      <table className="directory-table">
-        <thead>
-          <tr>
-            <th>Account</th>
-            <th>Legal name</th>
-            <th>Status</th>
-            <th>Payment timing</th>
-            <th>Credit</th>
+    <DataTable>
+      <thead>
+        <tr>
+          <th>Account</th>
+          <th>Legal name</th>
+          <th>Status</th>
+          <th>Payment timing</th>
+          <th>Credit</th>
+        </tr>
+      </thead>
+      <tbody>
+        {state.items.map((customer) => (
+          <tr key={customer.customerId}>
+            <td>
+              <code>{customer.accountNumber}</code>
+            </td>
+            <td>{customer.legalName}</td>
+            <td>
+              <Badge>{customer.status}</Badge>
+            </td>
+            <td>{customerPaymentTimingLabels[customer.paymentTimingPolicy]}</td>
+            <td>{customer.creditHold ? "On hold" : "Clear"}</td>
           </tr>
-        </thead>
-        <tbody>
-          {state.items.map((customer) => (
-            <tr key={customer.customerId}>
-              <td>
-                <code>{customer.accountNumber}</code>
-              </td>
-              <td>{customer.legalName}</td>
-              <td>
-                <span className={`account-status status-${customer.status}`}>
-                  {customer.status}
-                </span>
-              </td>
-              <td>
-                {customerPaymentTimingLabels[customer.paymentTimingPolicy]}
-              </td>
-              <td>{customer.creditHold ? "On hold" : "Clear"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        ))}
+      </tbody>
+    </DataTable>
   );
 }
 
@@ -472,7 +480,7 @@ function CustomerDocket({
       >
         <header>
           <div>
-            <p className="section-number">02 / New account</p>
+            <span className="section-number">New account</span>
             <h2 id="docket-title">Customer account docket</h2>
           </div>
           <button className="close-action" type="button" onClick={onClose}>
@@ -609,11 +617,7 @@ function CustomerDocket({
           ))}
           <div className="docket-actions">
             <span>Submission is idempotent and auditable.</span>
-            <button
-              className="primary-action"
-              disabled={submitting}
-              type="submit"
-            >
+            <button className="btn-primary" disabled={submitting} type="submit">
               {submitting ? "Creating…" : "Create customer account"}
             </button>
           </div>

@@ -5,21 +5,20 @@ test.skip(
   "Runs only against the migrated real-stack acceptance environment.",
 );
 
-test("@real-stack renders the authenticated API and PostgreSQL session", async ({
+test("@real-stack renders the authoritative operations overview", async ({
   page,
 }) => {
-  const sessionResponse = page.waitForResponse((response) =>
-    response.url().endsWith("/api/platform-session"),
+  const overviewResponse = page.waitForResponse((response) =>
+    response.url().includes("/api/operations/overview"),
   );
 
-  await page.goto("/");
-  const response = await sessionResponse;
+  await page.goto("/operations");
+  const response = await overviewResponse;
 
   await expect(
-    page.getByRole("heading", { name: "Platform handoff is ready" }),
+    page.getByRole("heading", { name: "Operations overview" }),
   ).toBeVisible();
-  await expect(page.getByText("Local Platform Operator")).toBeVisible();
-  await expect(page.getByText("ready", { exact: true })).toBeVisible();
+  await expect(page.getByText("Server-authoritative")).toBeVisible();
   expect(response.status()).toBe(200);
   expect(response.headers()["x-correlation-id"]).toMatch(/^[0-9a-f-]{36}$/u);
 });

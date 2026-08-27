@@ -44,6 +44,35 @@ def test_production_configuration_accepts_oidc_verification_settings() -> None:
     assert settings.auth_test_secret is None
 
 
+def test_demo_configuration_requires_explicit_demo_database() -> None:
+    with pytest.raises(ValidationError, match="DEMO_DATABASE_NAME"):
+        Settings(
+            environment="demo",
+            database_url="postgresql+asyncpg://tradeflow:tradeflow@db/tradeflow",
+            auth_test_secret="test-secret-with-at-least-32-characters",
+            demo_mode=True,
+            demo_seed_version="2026.08.24.1",
+            demo_state_path="/demo-state/status.json",
+            demo_reset_token="reset-token-with-at-least-thirty-two-characters",
+        )
+
+
+def test_demo_configuration_accepts_only_matching_demo_database() -> None:
+    settings = Settings(
+        environment="demo",
+        database_url="postgresql+asyncpg://tradeflow:tradeflow@db/tradeflow_demo",
+        auth_test_secret="test-secret-with-at-least-32-characters",
+        demo_mode=True,
+        demo_database_name="tradeflow_demo",
+        demo_seed_version="2026.08.24.1",
+        demo_state_path="/demo-state/status.json",
+        demo_reset_token="reset-token-with-at-least-thirty-two-characters",
+    )
+
+    assert settings.environment == "demo"
+    assert settings.demo_database_name == "tradeflow_demo"
+
+
 def test_picking_kill_switch_removes_new_workflow_routes() -> None:
     settings = Settings(
         environment="testing",

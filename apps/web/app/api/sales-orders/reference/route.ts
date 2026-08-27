@@ -1,3 +1,4 @@
+import { getServerApiConfig } from "@/lib/server-api";
 import { loadOrderEntryReference } from "@tradeflow/sales-order-draft";
 import { NextRequest } from "next/server";
 
@@ -5,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest): Promise<Response> {
   const correlationId = crypto.randomUUID();
-  const accessToken = process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN;
+  const accessToken = getServerApiConfig().accessToken;
   const branchId = request.nextUrl.searchParams.get("branchId");
   const customerId = request.nextUrl.searchParams.get("customerId");
   if (branchId === null || customerId === null) {
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   }
   const state = await loadOrderEntryReference({
     accessToken,
-    baseUrl: process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000",
+    baseUrl: getServerApiConfig().baseUrl,
     branchId,
     correlationId,
     customerId,

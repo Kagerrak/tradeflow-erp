@@ -1,0 +1,930 @@
+/* Shared operational hierarchy. Loaded after domain styles to normalize legacy workspaces. */
+:root {
+  --workspace-canvas: #f7f9fc;
+  --workspace-surface: #fbfcfe;
+  --workspace-inset: #f0f4f9;
+  --workspace-border-soft: rgb(39 68 110 / 10%);
+  --workspace-border: rgb(39 68 110 / 18%);
+  --workspace-border-strong: rgb(39 68 110 / 28%);
+  --workspace-text-primary: #111d33;
+  --workspace-text-secondary: #425574;
+  --workspace-text-tertiary: #64758b;
+  --workspace-ease: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.app-main {
+  width: 100%;
+  max-width: 96rem;
+  margin-inline: auto;
+}
+
+.app-rail {
+  border-right-color: var(--workspace-border-soft);
+  background: #f9fbfe;
+}
+
+.app-rail-nav {
+  padding: 0.75rem 0.625rem;
+}
+
+.app-rail-section + .app-rail-section {
+  border-top-color: var(--workspace-border-soft);
+}
+
+.app-rail-item {
+  min-height: 2.5rem;
+  border: 1px solid transparent;
+  color: var(--workspace-text-secondary);
+  transition:
+    background-color 150ms var(--workspace-ease),
+    border-color 150ms var(--workspace-ease),
+    color 150ms var(--workspace-ease);
+}
+
+.app-rail-item:hover {
+  background: var(--workspace-inset);
+}
+
+.app-rail-item-active {
+  border-color: rgb(36 91 212 / 12%);
+  background: rgb(36 91 212 / 7%);
+  color: var(--primary);
+}
+
+.app-rail-marker,
+.app-rail-item-active .app-rail-marker {
+  width: 1.25rem;
+  height: 1.25rem;
+  background: transparent;
+  color: currentcolor;
+}
+
+.app-rail-marker svg {
+  width: 1rem;
+  height: 1rem;
+  stroke-width: 1.8;
+}
+
+.app-rail-foot svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--green-700);
+}
+
+.app-menu-button svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.page-header {
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--workspace-border-soft);
+}
+
+.page-header-main {
+  align-items: end;
+}
+
+.page-header-eyebrow {
+  margin-bottom: 0.5rem;
+  color: var(--workspace-text-tertiary);
+  font-size: 0.6875rem;
+  letter-spacing: 0.11em;
+}
+
+.page-header h1 {
+  color: var(--workspace-text-primary);
+  font-family: var(--font-body);
+  font-size: 1.875rem;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+
+.page-header p {
+  max-width: 64ch;
+  margin-top: 0.5rem;
+  color: var(--workspace-text-secondary);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.page-header-tabs {
+  gap: 1.5rem;
+  margin-top: 1.25rem;
+}
+
+.page-header-tabs a,
+.page-header-tabs button {
+  min-height: 2.5rem;
+  padding: 0.55rem 0;
+  font-size: 0.8125rem;
+  transition: color 150ms var(--workspace-ease);
+}
+
+/* PageHeader already supplies the page promise. Remove duplicated slogan panels. */
+.app-main
+  :is(.inventory-intro, .sales-title, .procurement-title, .finance-title) {
+  display: none;
+}
+
+.card,
+.sales-panel,
+.inventory-directory,
+.procurement-panel,
+.finance-panel,
+.payment-panel {
+  border-color: var(--workspace-border);
+  border-radius: 0.625rem;
+  background: var(--workspace-surface);
+  box-shadow: none;
+}
+
+.sales-panel,
+.inventory-directory,
+.procurement-panel,
+.finance-panel {
+  margin-bottom: 1.25rem;
+}
+
+:is(
+  .sales-panel-head,
+  .inventory-section-head,
+  .procurement-section-head,
+  .finance-section-head,
+  .payment-section-head
+) {
+  min-height: 4.5rem;
+  margin: 0;
+  padding: 1rem 1.25rem;
+  align-items: center;
+  border-bottom-color: var(--workspace-border-soft);
+}
+
+:is(
+    .sales-panel-head,
+    .inventory-section-head,
+    .procurement-section-head,
+    .finance-section-head,
+    .payment-section-head
+  )
+  :is(h2, h3) {
+  margin: 0.2rem 0 0;
+  color: var(--workspace-text-primary);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+:is(
+  .section-number,
+  .eyebrow,
+  .procurement-section-head span,
+  .finance-section-head span
+) {
+  color: var(--workspace-text-tertiary);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+/* Forms: grouped, inset controls with one predictable action edge. */
+:is(.sales-form, .procurement-fields, .finance-fields, .payment-fields) label,
+[data-slot="field-label"] {
+  color: var(--workspace-text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.35;
+  text-transform: none;
+}
+
+:is(
+    .sales-form,
+    .procurement-fields,
+    .procurement-search,
+    .finance-fields,
+    .payment-fields
+  )
+  :is(input, select, textarea),
+.operational-form [data-slot="input"],
+.sales-approval-fields [data-slot="input"],
+.operational-select {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.5rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--workspace-border);
+  border-radius: 0.375rem;
+  outline: none;
+  background: var(--workspace-inset);
+  color: var(--workspace-text-primary);
+  font: inherit;
+  font-size: 0.875rem;
+  transition:
+    background-color 150ms var(--workspace-ease),
+    border-color 150ms var(--workspace-ease),
+    box-shadow 150ms var(--workspace-ease);
+}
+
+:is(
+    .sales-form,
+    .procurement-fields,
+    .procurement-search,
+    .finance-fields,
+    .payment-fields
+  )
+  :is(input, select, textarea):hover,
+.operational-form [data-slot="input"]:hover,
+.sales-approval-fields [data-slot="input"]:hover,
+.operational-select:hover {
+  border-color: var(--workspace-border-strong);
+}
+
+:is(
+    .sales-form,
+    .procurement-fields,
+    .procurement-search,
+    .finance-fields,
+    .payment-fields
+  )
+  :is(input, select, textarea):focus-visible,
+.operational-form [data-slot="input"]:focus-visible,
+.sales-approval-fields [data-slot="input"]:focus-visible,
+.operational-select:focus-visible {
+  border-color: var(--primary);
+  outline: 0;
+  background: var(--workspace-surface);
+  box-shadow: 0 0 0 3px rgb(36 91 212 / 12%);
+}
+
+:is(.sales-form, .procurement-fields, .finance-fields, .payment-fields)
+  :is(input, select)[readonly] {
+  border-color: transparent;
+  background: var(--workspace-inset);
+  color: var(--workspace-text-secondary);
+}
+
+.sales-form-section {
+  padding: 1.25rem;
+  border-bottom-color: var(--workspace-border-soft);
+}
+
+.sales-form-grid,
+.procurement-fields,
+.finance-fields,
+.payment-fields {
+  gap: 1rem 1.25rem;
+}
+
+.sales-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.procurement-fields,
+.finance-fields,
+.payment-fields {
+  padding: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+}
+
+.procurement-fields > button,
+.procurement-search button,
+.procurement-panel button,
+.finance-primary,
+.payment-primary,
+.inventory-directory button,
+.sales-panel button {
+  min-height: 2.5rem;
+  padding: 0.55rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+  transition:
+    background-color 150ms var(--workspace-ease),
+    border-color 150ms var(--workspace-ease),
+    color 150ms var(--workspace-ease),
+    transform 150ms var(--workspace-ease);
+}
+
+:is(
+    .procurement-fields > button,
+    .procurement-search button,
+    .procurement-panel button,
+    .finance-primary,
+    .payment-primary,
+    .inventory-directory button,
+    .sales-panel button
+  ):hover:not(:disabled) {
+  background: color-mix(in srgb, var(--primary) 90%, var(--ink-950));
+}
+
+:is(
+    .procurement-fields > button,
+    .procurement-search button,
+    .procurement-panel button,
+    .finance-primary,
+    .payment-primary,
+    .inventory-directory button,
+    .sales-panel button
+  ):active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+:is(
+  .procurement-fields > button,
+  .procurement-search button,
+  .procurement-panel button,
+  .finance-primary,
+  .payment-primary,
+  .inventory-directory button,
+  .sales-panel button
+):focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 3px rgb(36 91 212 / 18%);
+}
+
+:is(
+  .procurement-fields > button,
+  .procurement-search button,
+  .procurement-panel button,
+  .finance-primary,
+  .payment-primary,
+  .inventory-directory button,
+  .sales-panel button
+):disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Official shadcn Field composition for complex inventory commands. */
+.operational-form {
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.25rem;
+}
+
+.operational-form [data-slot="field-set"] {
+  display: grid;
+  min-width: 0;
+  gap: 1rem;
+  padding: 1.1rem;
+  border: 1px solid var(--workspace-border-soft);
+  border-radius: 0.5rem;
+  background: var(--workspace-canvas);
+}
+
+.operational-form [data-slot="field-legend"] {
+  padding-inline: 0.25rem;
+  color: var(--workspace-text-primary);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.operational-form [data-slot="field-description"] {
+  margin: -0.5rem 0 0;
+  max-width: 64ch;
+  color: var(--workspace-text-tertiary);
+  font-size: 0.75rem;
+}
+
+.operational-form [data-slot="field"] {
+  display: grid;
+  min-width: 0;
+  gap: 0.5rem;
+}
+
+.operational-form [data-slot="field-label"] {
+  display: block;
+}
+
+.operational-form-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.operational-form-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.operational-form-action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 0.25rem;
+}
+
+.operational-form-action p {
+  margin: 0 auto 0 0;
+  color: var(--workspace-text-tertiary);
+  font-size: 0.75rem;
+}
+
+/* Commercial review becomes a master-detail work queue. */
+.sales-approval-list {
+  display: grid;
+  gap: 0;
+  border-bottom: 1px solid var(--workspace-border-soft);
+}
+
+.sales-approval-list button {
+  display: grid;
+  min-height: 4.25rem;
+  padding: 0.85rem 1.25rem;
+  border: 0;
+  border-bottom: 1px solid var(--workspace-border-soft);
+  border-radius: 0;
+  background: transparent;
+  color: var(--workspace-text-primary);
+  grid-template-columns: minmax(12rem, 1fr) auto auto;
+  gap: 1rem;
+  text-align: left;
+}
+
+.sales-approval-list button:hover:not(:disabled) {
+  background: var(--workspace-inset);
+  color: var(--workspace-text-primary);
+}
+
+.sales-approval-list button strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.sales-approval-list button small {
+  color: var(--workspace-text-tertiary);
+}
+
+.sales-approval {
+  margin: 1.25rem;
+  padding: 1.25rem;
+  border: 1px solid rgb(36 91 212 / 22%);
+  border-radius: 0.5rem;
+  background: rgb(36 91 212 / 5%);
+  grid-template-columns: minmax(14rem, 0.7fr) minmax(18rem, 1.3fr);
+}
+
+.sales-approval-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sales-approval-fields label {
+  display: grid;
+  gap: 0.5rem;
+  color: var(--workspace-text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.sales-approval-fields button {
+  align-self: end;
+}
+
+.sales-evidence {
+  display: grid;
+  gap: 1.25rem;
+  margin: 0 1.25rem 1.25rem;
+  padding: 1.25rem;
+  border-color: var(--workspace-border);
+  border-radius: 0.5rem;
+  background: var(--workspace-canvas);
+}
+
+.sales-evidence-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--workspace-border-soft);
+}
+
+.sales-evidence-heading h3,
+.sales-evidence-line-title strong {
+  color: var(--workspace-text-primary);
+}
+
+.sales-evidence-heading h3 {
+  margin: 0.25rem 0;
+  font-size: 1.125rem;
+}
+
+.sales-evidence-heading p,
+.sales-exceptions p {
+  margin: 0.2rem 0 0;
+  color: var(--workspace-text-secondary);
+  font-size: 0.8125rem;
+}
+
+.sales-evidence-flags {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sales-evidence-flags :is(strong, span) {
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+  background: var(--green-100);
+  color: var(--green-700);
+  font-size: 0.6875rem;
+  white-space: nowrap;
+}
+
+.sales-evidence-metrics,
+.sales-stock-evidence {
+  display: grid;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--workspace-border-soft);
+  border-radius: 0.5rem;
+  background: var(--workspace-surface);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.sales-evidence-metrics > div,
+.sales-stock-evidence > div {
+  min-width: 0;
+  padding: 0.875rem;
+  border-right: 1px solid var(--workspace-border-soft);
+}
+
+.sales-evidence-metrics > div:last-child,
+.sales-stock-evidence > div:last-child {
+  border-right: 0;
+}
+
+.sales-evidence :is(dt, dd) {
+  margin: 0;
+}
+
+.sales-evidence dt {
+  color: var(--workspace-text-tertiary);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.sales-evidence dd {
+  margin-top: 0.35rem;
+  color: var(--workspace-text-primary);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.sales-exceptions {
+  padding: 0.875rem 1rem;
+  border-left: 3px solid var(--primary);
+  background: rgb(36 91 212 / 4%);
+}
+
+.sales-exceptions h4 {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.sales-exceptions ul {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sales-exceptions li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.sales-evidence-lines {
+  display: grid;
+  gap: 1rem;
+}
+
+.sales-evidence-lines article {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--workspace-border-soft);
+  border-radius: 0.5rem;
+  background: var(--workspace-surface);
+}
+
+.sales-evidence-line-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.sales-evidence-line-title > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.sales-evidence-line-title span {
+  color: var(--workspace-text-tertiary);
+  font-size: 0.75rem;
+}
+
+.sales-evidence-lines article > dl:not(.sales-stock-evidence) {
+  display: grid;
+  margin: 0;
+  gap: 1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+/* Procurement and finance surfaces use headers, action rows, then data. */
+.procurement-panel,
+.finance-panel {
+  overflow: hidden;
+}
+
+.procurement-search {
+  align-items: center;
+}
+
+.procurement-table,
+.finance-table,
+.data-table {
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+:is(.procurement-table, .finance-table, .data-table) th {
+  padding-block: 0.75rem;
+  border-bottom-color: var(--workspace-border);
+  background: var(--workspace-inset);
+  color: var(--workspace-text-tertiary);
+  font-size: 0.6875rem;
+  letter-spacing: 0.065em;
+  text-transform: uppercase;
+}
+
+:is(.procurement-table, .finance-table, .data-table) td {
+  border-bottom-color: var(--workspace-border-soft);
+  color: var(--workspace-text-primary);
+}
+
+:is(.procurement-table, .finance-table, .data-table) tbody tr {
+  transition: background-color 150ms var(--workspace-ease);
+}
+
+:is(.procurement-table, .finance-table, .data-table) tbody tr:hover {
+  background: rgb(36 91 212 / 3%);
+}
+
+.dashboard-grid {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--workspace-border);
+  border-radius: 0.625rem;
+  background: var(--workspace-surface);
+}
+
+.dashboard-tile {
+  position: relative;
+  min-height: 7rem;
+  padding: 1.15rem 2.75rem 1.15rem 1.15rem;
+  border: 0;
+  border-right: 1px solid var(--workspace-border-soft);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  grid-template-columns: auto 1fr;
+  align-content: center;
+  align-items: start;
+  column-gap: 0.875rem;
+}
+
+.dashboard-tile:hover {
+  border-color: var(--workspace-border-soft);
+  background: var(--workspace-inset);
+  box-shadow: none;
+}
+
+.dashboard-tile-title {
+  color: var(--workspace-text-primary);
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.dashboard-tile-icon {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 1px solid rgb(36 91 212 / 14%);
+  border-radius: 0.375rem;
+  background: rgb(36 91 212 / 6%);
+  color: var(--primary);
+}
+
+.dashboard-tile-icon svg,
+.dashboard-tile-arrow {
+  width: 1rem;
+  height: 1rem;
+  stroke-width: 1.8;
+}
+
+.dashboard-tile-copy {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.dashboard-tile-arrow {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  color: var(--workspace-text-tertiary);
+  transition: transform 150ms var(--workspace-ease);
+}
+
+.dashboard-tile:hover .dashboard-tile-arrow {
+  transform: translate(2px, -2px);
+}
+
+.dashboard-tile-desc {
+  max-width: 28ch;
+  color: var(--workspace-text-secondary);
+  line-height: 1.45;
+}
+
+.inventory-card {
+  border-color: var(--workspace-border-soft);
+  border-radius: 0.5rem;
+  background: var(--workspace-canvas);
+}
+
+.inventory-card:hover {
+  border-color: var(--workspace-border);
+}
+
+.inventory-card-head h3 {
+  overflow-wrap: anywhere;
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+}
+
+.inventory-message,
+.sales-message,
+.procurement-message,
+.finance-message {
+  justify-items: start;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--workspace-border-soft);
+  background: var(--workspace-inset);
+  color: var(--workspace-text-secondary);
+  text-align: left;
+}
+
+.workspace-loading,
+.empty-state {
+  min-height: 12rem;
+  align-content: center;
+}
+
+@media (min-width: 64rem) {
+  .app-main {
+    padding: 2rem clamp(2rem, 4vw, 4rem);
+  }
+}
+
+@media (max-width: 48rem) {
+  .page-header {
+    margin-bottom: 1rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .page-header-tabs {
+    overflow-x: auto;
+  }
+
+  .sales-form-grid,
+  .operational-form-grid,
+  .operational-form-grid-3,
+  .sales-approval,
+  .sales-approval-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .sales-approval-list button {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+
+  .sales-evidence {
+    margin: 0 1rem 1rem;
+    padding: 1rem;
+  }
+
+  .sales-evidence-heading,
+  .sales-evidence-line-title,
+  .sales-exceptions li {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .sales-evidence-flags {
+    flex-wrap: wrap;
+  }
+
+  .sales-evidence-metrics,
+  .sales-stock-evidence,
+  .sales-evidence-lines article > dl:not(.sales-stock-evidence) {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .sales-evidence-metrics > div:nth-child(2),
+  .sales-stock-evidence > div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .sales-evidence-metrics > div:nth-child(-n + 2),
+  .sales-stock-evidence > div:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--workspace-border-soft);
+  }
+
+  .procurement-panel:has(.procurement-table) {
+    overflow-x: auto;
+  }
+
+  .procurement-table {
+    min-width: 40rem;
+  }
+
+  .operational-form,
+  .procurement-fields,
+  .finance-fields,
+  .payment-fields,
+  .sales-form-section {
+    padding: 1rem;
+  }
+
+  .operational-form [data-slot="field-set"] {
+    padding: 0.875rem;
+  }
+
+  .operational-form-action {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .operational-form-action p {
+    margin: 0;
+  }
+
+  .operational-form-action button {
+    width: 100%;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dashboard-tile {
+    min-height: 6.5rem;
+    border-bottom: 1px solid var(--workspace-border-soft);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .app-main > * {
+    animation: workspace-enter 280ms var(--workspace-ease) both;
+  }
+
+  .app-main > *:nth-child(2) {
+    animation-delay: 35ms;
+  }
+
+  .app-main > *:nth-child(3) {
+    animation-delay: 70ms;
+  }
+}
+
+@keyframes workspace-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

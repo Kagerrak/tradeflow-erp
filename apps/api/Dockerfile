@@ -11,6 +11,7 @@ COPY apps/api/pyproject.toml apps/api/pyproject.toml
 COPY apps/worker/pyproject.toml apps/worker/pyproject.toml
 COPY apps/api apps/api
 COPY apps/worker apps/worker
+COPY scripts scripts
 
 RUN uv sync --frozen --package tradeflow-api --no-dev
 

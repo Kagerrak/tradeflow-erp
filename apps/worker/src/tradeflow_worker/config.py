@@ -14,7 +14,7 @@ class WorkerSettings(BaseSettings):
         extra="ignore",
     )
 
-    environment: Literal["development", "testing", "preview", "production"] = "development"
+    environment: Literal["development", "testing", "demo", "preview", "production"] = "development"
     redis_url: str = "redis://localhost:6380/0"
     database_url: str = "postgresql+asyncpg://tradeflow:tradeflow@localhost:5433/tradeflow"
     object_storage_endpoint_url: str = "http://localhost:9000"

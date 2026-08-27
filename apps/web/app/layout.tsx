@@ -1,22 +1,47 @@
 import "@fontsource-variable/ibm-plex-sans";
-import "@fontsource-variable/newsreader";
+import "./globals.css";
 import "./customer.css";
 import "./delivery-confirmation.css";
 import "./delivery-corrections.css";
 import "./delivery-exceptions.css";
 import "./dispatch.css";
 import "./inventory.css";
+import "./operations.css";
 import "./payment-clearance.css";
 import "./picking.css";
 import "./sales-orders.css";
-import "./theme.css";
+import "./workspace.css";
 
+import { TooltipProvider } from "@/components/ui/tooltip";
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
-  description: "Auditable distribution operations across web and mobile.",
-  title: "TradeFlow ERP",
+  description:
+    "TradeFlow is an auditable distribution ERP that connects order approval, warehouse custody, delivery, invoicing, and payment.",
+  icons: {
+    apple: "/apple-icon.png",
+    icon: "/icon.svg",
+  },
+  metadataBase: new URL(
+    process.env.TRADEFLOW_PUBLIC_URL ?? "https://tradeflow.app",
+  ),
+  openGraph: {
+    description:
+      "Follow one accountable flow from commercial approval to warehouse custody, delivery, invoice, and payment.",
+    images: [
+      {
+        alt: "TradeFlow operations overview",
+        url: "/opengraph-image",
+      },
+    ],
+    title: "TradeFlow ERP | Accountable distribution operations",
+    type: "website",
+  },
+  title: {
+    default: "TradeFlow ERP | Accountable distribution operations",
+    template: "%s · TradeFlow ERP",
+  },
 };
 
 export const viewport: Viewport = {
@@ -29,8 +54,10 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" className="font-sans" data-scroll-behavior="smooth">
+      <body>
+        <TooltipProvider>{children}</TooltipProvider>
+      </body>
     </html>
   );
 }

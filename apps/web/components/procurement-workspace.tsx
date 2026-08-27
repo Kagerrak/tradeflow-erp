@@ -1,14 +1,51 @@
 "use client";
 
 import type { components } from "@tradeflow/api-client";
+import {
+  ArrowUpRight,
+  Building2,
+  ClipboardList,
+  PackageCheck,
+  ReceiptText,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { EmptyState } from "./ui/empty-state";
+import { ErrorState } from "./ui/error-state";
+import { PageHeader } from "./ui/page-header";
 
 type PurchaseOrderSummary = components["schemas"]["PurchaseOrderSummary"];
 type GoodsReceiptSummary = components["schemas"]["GoodsReceiptSummary"];
 
 type PurchaseOrderList = { items: PurchaseOrderSummary[]; total: number };
 type GoodsReceiptList = { items: GoodsReceiptSummary[]; total: number };
+
+const procurementModules = [
+  {
+    description: "Manage vendor accounts.",
+    href: "/procurement/suppliers",
+    icon: Building2,
+    title: "Suppliers",
+  },
+  {
+    description: "Create and approve purchase orders.",
+    href: "/procurement/purchase-orders",
+    icon: ClipboardList,
+    title: "Purchase orders",
+  },
+  {
+    description: "Raise and convert purchase requests.",
+    href: "/procurement/purchase-requests",
+    icon: ReceiptText,
+    title: "Purchase requests",
+  },
+  {
+    description: "Record incoming goods and landed costs.",
+    href: "/procurement/goods-receipts",
+    icon: PackageCheck,
+    title: "Goods receipts",
+  },
+];
 
 export function ProcurementWorkspace() {
   const [openOrders, setOpenOrders] = useState<PurchaseOrderSummary[]>([]);
@@ -51,104 +88,82 @@ export function ProcurementWorkspace() {
   }, []);
 
   return (
-    <div className="procurement-app">
-      <header className="procurement-header">
-        <Link href="/">TradeFlow</Link>
-        <span>Procurement</span>
-      </header>
-      <main className="procurement-main">
-        <section className="procurement-title">
-          <div>
-            <p className="eyebrow">Inbound supply</p>
-            <h1>Procurement workspace.</h1>
-          </div>
-          <p>
-            Manage suppliers, purchase orders, goods receipts, and landed costs
-            from one place.
-          </p>
-        </section>
+    <>
+      <PageHeader
+        description="Manage suppliers, purchase orders, goods receipts, and landed costs from one place."
+        eyebrow="Operations"
+        title="Procurement"
+      />
 
-        <section className="procurement-panel">
-          <div className="procurement-section-head">
-            <div>
-              <span>Procurement / navigate</span>
-              <h2>Workspaces</h2>
-            </div>
-          </div>
-          <nav className="procurement-fields">
-            <Link className="button" href="/procurement/suppliers">
-              Suppliers
-            </Link>
-            <Link className="button" href="/procurement/purchase-orders">
-              Purchase orders
-            </Link>
-            <Link className="button" href="/procurement/purchase-requests">
-              Purchase requests
-            </Link>
-            <Link className="button" href="/procurement/goods-receipts">
-              Goods receipts
-            </Link>
-          </nav>
-        </section>
+      <section className="dashboard-grid" aria-label="Procurement modules">
+        {procurementModules.map((module) => (
+          <Link className="dashboard-tile" href={module.href} key={module.href}>
+            <span className="dashboard-tile-icon" aria-hidden="true">
+              <module.icon />
+            </span>
+            <span className="dashboard-tile-copy">
+              <span className="dashboard-tile-title">{module.title}</span>
+              <span className="dashboard-tile-desc">{module.description}</span>
+            </span>
+            <ArrowUpRight className="dashboard-tile-arrow" aria-hidden="true" />
+          </Link>
+        ))}
+      </section>
 
-        {loading ? (
-          <p className="procurement-message">Loading summary…</p>
-        ) : message !== null ? (
-          <p className="procurement-message">{message}</p>
-        ) : (
-          <>
-            <section className="procurement-panel">
-              <div className="procurement-section-head">
-                <div>
-                  <span>Procurement / read</span>
-                  <h2>Open purchase orders</h2>
-                </div>
-              </div>
-              {openOrders.length === 0 ? (
-                <p className="procurement-empty">No open purchase orders.</p>
-              ) : (
-                <ul className="procurement-list">
-                  {openOrders.map(function renderOrder(order) {
-                    return (
-                      <li key={order.purchase_order_id}>
-                        <Link href={`/procurement/purchase-orders`}>
-                          {order.code} — {order.currency} ({order.status})
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </section>
+      {loading ? (
+        <div className="workspace-loading" role="status">
+          <span className="workspace-loader" aria-hidden="true" />
+          <p>Loading summary…</p>
+        </div>
+      ) : message !== null ? (
+        <ErrorState title="Procurement summary unavailable">
+          <p>{message}</p>
+        </ErrorState>
+      ) : (
+        <>
+          <section className="card" aria-labelledby="open-orders-title">
+            <h2 id="open-orders-title">Open purchase orders</h2>
+            {openOrders.length === 0 ? (
+              <EmptyState
+                description="Approved purchase orders will appear here."
+                title="No open purchase orders"
+              />
+            ) : (
+              <ul className="procurement-list">
+                {openOrders.map((order) => (
+                  <li key={order.purchase_order_id}>
+                    <Link href="/procurement/purchase-orders">
+                      {order.code} — {order.currency} ({order.status})
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
-            <section className="procurement-panel">
-              <div className="procurement-section-head">
-                <div>
-                  <span>Inventory / read</span>
-                  <h2>Recent goods receipts</h2>
-                </div>
-              </div>
-              {recentReceipts.length === 0 ? (
-                <p className="procurement-empty">No recent goods receipts.</p>
-              ) : (
-                <ul className="procurement-list">
-                  {recentReceipts.map(function renderReceipt(receipt) {
-                    return (
-                      <li key={receipt.goods_receipt_id}>
-                        <Link
-                          href={`/procurement/goods-receipts/${receipt.goods_receipt_id}/landed-costs`}
-                        >
-                          {receipt.receipt_number} — {receipt.status}
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </section>
-          </>
-        )}
-      </main>
-    </div>
+          <section className="card" aria-labelledby="recent-receipts-title">
+            <h2 id="recent-receipts-title">Recent goods receipts</h2>
+            {recentReceipts.length === 0 ? (
+              <EmptyState
+                description="Recent receipts will appear here."
+                title="No recent goods receipts"
+              />
+            ) : (
+              <ul className="procurement-list">
+                {recentReceipts.map((receipt) => (
+                  <li key={receipt.goods_receipt_id}>
+                    <Link
+                      href={`/procurement/goods-receipts/${receipt.goods_receipt_id}/landed-costs`}
+                    >
+                      {receipt.receipt_number} — {receipt.status}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </>
+      )}
+    </>
   );
 }

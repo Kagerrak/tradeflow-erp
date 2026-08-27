@@ -1,105 +1,69 @@
-.inventory-app {
-  min-height: 100svh;
-  background: var(--paper-50);
-  color: var(--ink-950);
-}
-
-.inventory-header {
-  display: grid;
-  min-height: 4.5rem;
-  align-items: center;
-  border-bottom: 1px solid var(--ink-950);
-  grid-template-columns: 1fr auto 1fr;
-  padding: 0 clamp(1rem, 4vw, 3rem);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-}
-
-.inventory-header > :last-child {
-  justify-self: end;
-  color: var(--ink-650);
-}
-
-.inventory-wordmark {
-  color: var(--ink-950);
-  font-family: var(--font-display);
-  font-size: 1.3rem;
-  letter-spacing: -0.03em;
-  text-decoration: none;
-  text-transform: none;
-}
-
-.inventory-main {
-  max-width: 92rem;
-  margin: auto;
-  padding: 0 clamp(1rem, 4vw, 3rem) 5rem;
-}
-
 .inventory-intro {
   display: grid;
-  gap: 2rem;
-  align-items: end;
-  padding: clamp(3rem, 8vw, 7rem) 0 3rem;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
 }
 
-.inventory-intro h1 {
-  max-width: 13ch;
+.inventory-intro .eyebrow {
+  color: var(--primary);
+}
+
+.inventory-intro h2 {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: clamp(3rem, 7vw, 6.8rem);
-  font-weight: 470;
-  letter-spacing: -0.055em;
-  line-height: 0.9;
+  font-family: var(--font-display), serif;
+  font-size: clamp(1.75rem, 4vw, 3rem);
+  font-weight: 500;
+  line-height: 1;
 }
 
 .inventory-intro > p {
-  max-width: 33rem;
   margin: 0;
   color: var(--ink-650);
   line-height: 1.6;
 }
 
 .inventory-directory {
-  border-top: 2px solid var(--ink-950);
+  padding: 1.25rem;
 }
 
 .inventory-section-head {
   display: flex;
-  align-items: end;
+  flex-wrap: wrap;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1.25rem 0;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
 }
 
 .inventory-section-head h2 {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: 2.6rem;
-  font-weight: 520;
+  font-size: 1.125rem;
+  font-weight: 650;
 }
 
 .projection-badge {
-  border: 1px solid var(--orange-600);
-  padding: 0.4rem 0.55rem;
-  color: var(--orange-600);
-  font-size: 0.68rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--primary);
+  border-radius: 0.375rem;
+  color: var(--primary);
+  font-size: 0.65rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .inventory-search {
   display: grid;
   gap: 0.5rem;
-  border-block: 1px solid var(--paper-300);
-  padding: 1rem 0;
+  margin-bottom: 1.25rem;
 }
 
 .inventory-search label {
   color: var(--ink-650);
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 650;
 }
 
@@ -108,129 +72,108 @@
 }
 
 .inventory-search input {
-  width: 100%;
-  min-height: 3rem;
-  border: 1px solid var(--paper-300);
+  flex: 1;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border);
   border-right: 0;
-  padding: 0.7rem 0.8rem;
-  background: transparent;
+  border-radius: 0.5rem 0 0 0.5rem;
+  background: var(--card);
   color: inherit;
   font: inherit;
 }
 
-.inventory-search button,
-.inventory-message button {
-  min-height: 2.75rem;
-  border: 1px solid var(--ink-950);
-  padding: 0.7rem 1rem;
-  background: var(--ink-950);
-  color: var(--paper-50);
-  cursor: pointer;
-  font-weight: 700;
-}
-
-.inventory-search button:focus-visible,
-.inventory-search input:focus-visible,
-.inventory-message button:focus-visible {
-  outline: 3px solid var(--orange-600);
-  outline-offset: 2px;
+.inventory-search button {
+  border-radius: 0 0.5rem 0.5rem 0;
 }
 
 .inventory-message {
-  min-height: 18rem;
-  padding: 3rem 0;
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 2rem 0;
   color: var(--ink-650);
-}
-
-.inventory-message h3 {
-  margin: 0.5rem 0;
-  color: var(--ink-950);
-  font-family: var(--font-display);
-  font-size: 2rem;
-  font-weight: 500;
-}
-
-.inventory-alert,
-.inventory-empty > span {
-  color: var(--orange-600);
-  font-family: var(--font-display);
-  font-size: 3rem;
+  text-align: center;
 }
 
 .inventory-loader {
-  display: block;
-  width: 2.5rem;
+  width: 3rem;
   height: 0.25rem;
-  background: var(--orange-600);
+  border-radius: 999px;
   animation: inventory-pulse 1s ease-in-out infinite alternate;
+  background: var(--primary);
 }
 
 .inventory-grid {
   display: grid;
   gap: 1rem;
-  padding: 1.25rem 0;
 }
 
 .inventory-card {
-  border: 1px solid var(--paper-300);
-  padding: clamp(1rem, 3vw, 1.5rem);
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--card);
 }
 
 .inventory-card-head {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
+  margin-bottom: 1rem;
 }
 
 .inventory-card-head span,
 .inventory-card-head strong,
 .inventory-trace dt,
 .inventory-quantities dt {
-  color: var(--ink-500);
+  color: var(--ink-600);
   font-size: 0.65rem;
-  font-weight: 750;
-  letter-spacing: 0.1em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .inventory-card-head h3 {
-  margin: 0.2rem 0 0;
-  font-family: var(--font-display);
-  font-size: 1.8rem;
-  font-weight: 520;
+  margin: 0.15rem 0 0;
+  font-size: 1.1rem;
+  font-weight: 650;
 }
 
 .inventory-card-head strong {
   align-self: start;
+  padding: 0.2rem 0.4rem;
   border: 1px solid currentColor;
-  padding: 0.25rem 0.4rem;
-  color: var(--orange-600);
+  border-radius: 0.25rem;
+  color: var(--primary);
 }
 
 .inventory-quantities {
   display: grid;
-  margin: 1.5rem 0;
-  border-block: 1px solid var(--paper-300);
+  margin: 1rem 0;
+  padding: 1rem 0;
+  border-block: 1px solid var(--muted);
   grid-template-columns: repeat(3, 1fr);
 }
 
 .inventory-quantities > div {
-  padding: 1rem 0;
+  padding: 0.5rem 0;
 }
 
 .inventory-quantities dd {
   margin: 0.2rem 0 0;
-  font-family: var(--font-display);
-  font-size: clamp(1.4rem, 3vw, 2.4rem);
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .inventory-available dd {
-  color: var(--orange-600);
+  color: var(--green-700);
 }
 
 .inventory-quantities small {
-  font-family: var(--font-body);
   font-size: 0.7rem;
+  font-weight: 500;
 }
 
 .inventory-trace {
@@ -240,35 +183,30 @@
 }
 
 .inventory-trace dd {
-  margin: 0.2rem 0 0;
+  margin: 0.15rem 0 0;
+  font-size: 0.9rem;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 @media (min-width: 54rem) {
-  .inventory-intro {
-    grid-template-columns: 2fr 1fr;
-  }
-
   .inventory-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 40rem) {
-  .inventory-header {
-    grid-template-columns: 1fr auto;
-  }
-
-  .inventory-header > :nth-child(2) {
-    display: none;
-  }
-
   .inventory-search > div {
     display: grid;
   }
 
   .inventory-search input {
-    border-right: 1px solid var(--paper-300);
+    border-right: 1px solid var(--border);
+    border-radius: 0.5rem 0.5rem 0 0;
+  }
+
+  .inventory-search button {
+    border-radius: 0 0 0.5rem 0.5rem;
   }
 
   .inventory-quantities,
@@ -279,7 +217,7 @@
 
 @keyframes inventory-pulse {
   to {
-    width: 8rem;
+    width: 5rem;
   }
 }
 

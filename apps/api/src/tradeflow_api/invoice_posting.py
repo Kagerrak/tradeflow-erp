@@ -28,6 +28,7 @@ from tradeflow_api.models import (
     customer_ledger_entries,
     draft_invoice_lines,
     draft_invoices,
+    fulfillment_orders,
 )
 from tradeflow_api.payment_allocation import auto_allocate_invoice
 
@@ -341,6 +342,26 @@ async def _update_credit_exposure(
         )
 
 
+async def _commercial_approval_id(
+    session: AsyncSession, sales_order_id: UUID, sales_order_revision_id: UUID
+) -> UUID:
+    approval_id = await session.scalar(
+        select(fulfillment_orders.c.commercial_approval_id)
+        .where(
+            fulfillment_orders.c.sales_order_id == sales_order_id,
+            fulfillment_orders.c.sales_order_revision_id == sales_order_revision_id,
+        )
+        .limit(1)
+    )
+    if approval_id is None:
+        raise AppError(
+            409,
+            "invoice_commercial_approval_missing",
+            "The Invoice source Commercial Approval could not be resolved.",
+        )
+    return cast(UUID, approval_id)
+
+
 @router.post(
     "/{draft_invoice_id}/post",
     response_model=PostedInvoiceResponse,
@@ -407,6 +428,13 @@ async def post_invoice(
         amount = invoice["grand_total"]
         available_uninvoiced = await _available_uninvoiced(session, invoice["customer_id"])
         approved_uninvoiced_delta = -min(amount, available_uninvoiced)
+        commercial_approval_id = (
+            await _commercial_approval_id(
+                session, invoice["sales_order_id"], invoice["sales_order_revision_id"]
+            )
+            if approved_uninvoiced_delta != ZERO
+            else None
+        )
         entry_id = uuid4()
         await session.execute(
             insert(customer_ledger_entries).values(
@@ -428,7 +456,7 @@ async def post_invoice(
         await _update_credit_exposure(
             session,
             customer_id=invoice["customer_id"],
-            commercial_approval_id=None,
+            commercial_approval_id=commercial_approval_id,
             sales_order_id=invoice["sales_order_id"],
             open_balance_delta=amount,
             approved_uninvoiced_delta=approved_uninvoiced_delta,
@@ -531,10 +559,17 @@ async def void_invoice(
             )
         )
         restored_uninvoiced = await _posted_uninvoiced_reduction(session, draft_invoice_id)
+        commercial_approval_id = (
+            await _commercial_approval_id(
+                session, invoice["sales_order_id"], invoice["sales_order_revision_id"]
+            )
+            if restored_uninvoiced != ZERO
+            else None
+        )
         await _update_credit_exposure(
             session,
             customer_id=invoice["customer_id"],
-            commercial_approval_id=None,
+            commercial_approval_id=commercial_approval_id,
             sales_order_id=invoice["sales_order_id"],
             open_balance_delta=-invoice["grand_total"],
             approved_uninvoiced_delta=restored_uninvoiced,
