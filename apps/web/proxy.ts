@@ -74,8 +74,9 @@ export function proxy(request: NextRequest) {
   ) {
     return NextResponse.json(
       {
-        code: "demo_operation_forbidden",
-        message: "Organization administration is disabled in the public demo.",
+        code: "evaluation_operation_forbidden",
+        message:
+          "Organization administration is disabled in the evaluation environment.",
       },
       { status: 403 },
     );
@@ -88,8 +89,9 @@ export function proxy(request: NextRequest) {
   ) {
     return NextResponse.json(
       {
-        code: "demo_refreshing",
-        message: "The demo is refreshing and will be ready shortly.",
+        code: "evaluation_refreshing",
+        message:
+          "The evaluation environment is refreshing and will be ready shortly.",
       },
       { headers: { "Retry-After": "30" }, status: 503 },
     );
@@ -100,9 +102,9 @@ export function proxy(request: NextRequest) {
     if (rate.limited) {
       return NextResponse.json(
         {
-          code: "demo_rate_limited",
+          code: "evaluation_rate_limited",
           message:
-            "This demo visitor has sent too many requests. Try again in a minute.",
+            "This session has sent too many requests. Try again in a minute.",
         },
         {
           headers: { "Retry-After": "60", "X-RateLimit-Remaining": "0" },

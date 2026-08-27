@@ -1,7 +1,7 @@
 import "server-only";
 
 const labels: Record<string, string> = {
-  demo: "Live demo",
+  demo: "Evaluation",
   development: "Development",
   preview: "Preview",
   production: "Production",

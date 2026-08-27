@@ -238,7 +238,7 @@ export function CustomerWorkspace() {
               id="customer-query"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="e.g. MNL-0042 or Northstar"
+              placeholder="Search by account number or legal name"
             />
             <button className="btn-primary" type="submit">
               Search

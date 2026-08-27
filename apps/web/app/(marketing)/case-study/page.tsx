@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  description: "The domain and engineering decisions behind TradeFlow ERP.",
-  title: "Engineering case study",
+  description: "The product and engineering decisions behind TradeFlow ERP.",
+  title: "Why TradeFlow",
 };
 
 const sections = [
@@ -30,7 +30,7 @@ const sections = [
   {
     title: "Authorization",
     heading: "Maker/checker is enforced at the server boundary.",
-    body: "Capabilities answer what a person may do, scope answers where, and approval limits answer how much. Distinct internal personas pre-seed approval history for the public demo; visitors operate only as the restricted Demo Operator and cannot administer the organization.",
+    body: "Capabilities answer what a person may do, scope answers where, and approval limits answer how much. Distinct internal personas seed approval history for evaluation; visitors operate as a restricted operator and cannot administer the organization.",
   },
   {
     title: "Reliability",
@@ -56,18 +56,18 @@ export default function CaseStudyPage() {
           <Link href="/">Product</Link>
           <a href="#decisions">Decisions</a>
         </nav>
-        <Link className="marketing-nav-cta" href="/demo">
-          Explore the demo <span aria-hidden="true">↗</span>
+        <Link className="marketing-nav-cta" href="/operations">
+          Explore the product <span aria-hidden="true">↗</span>
         </Link>
       </header>
       <main className="case-study">
         <header className="case-study-header">
           <div>
-            <p className="marketing-kicker">Engineering case study</p>
+            <p className="marketing-kicker">Why TradeFlow</p>
             <h1>Building trust into the handoff.</h1>
           </div>
           <p>
-            How I modeled an auditable distribution ERP across commercial
+            How TradeFlow models an auditable distribution ERP across commercial
             approval, inventory custody, delivery evidence, invoicing, and
             payment.
           </p>
@@ -108,9 +108,9 @@ export default function CaseStudyPage() {
             <div className="case-study-decision">
               <b>Scope</b>
               <p>
-                The public product demo uses one shared company and omits tenant
-                provisioning, billing, and invitations to focus on operational
-                depth.
+                The public evaluation environment uses one shared company and
+                omits tenant provisioning, billing, and invitations to focus on
+                operational depth.
               </p>
             </div>
             <div className="case-study-decision">
@@ -124,8 +124,8 @@ export default function CaseStudyPage() {
         </section>
         <div className="case-study-cta">
           <p>See the decisions as working operational states.</p>
-          <Link className="marketing-primary" href="/demo">
-            Open the live product <span aria-hidden="true">→</span>
+          <Link className="marketing-primary" href="/operations">
+            Open operations overview <span aria-hidden="true">→</span>
           </Link>
         </div>
       </main>

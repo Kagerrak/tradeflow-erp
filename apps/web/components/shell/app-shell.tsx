@@ -32,7 +32,7 @@ import { navSections } from "./navigation";
 const navIcons: Record<string, LucideIcon> = {
   "/customers": Users,
   "/deliveries": PackageCheck,
-  "/demo": LayoutDashboard,
+  "/operations": LayoutDashboard,
   "/dispatch": Truck,
   "/finance": Landmark,
   "/finance/allocations": Waypoints,
@@ -86,7 +86,7 @@ export function AppShell({
               {mobileOpen ? "Close" : "Open"} navigation
             </span>
           </button>
-          <Link className="app-brand" href="/demo">
+          <Link className="app-brand" href="/operations">
             <span className="app-brand-mark" aria-hidden="true">
               TF
             </span>
@@ -110,7 +110,7 @@ export function AppShell({
         aria-label="Primary navigation"
       >
         <div className="app-rail-brand">
-          <Link className="app-brand" href="/demo">
+          <Link className="app-brand" href="/operations">
             <span className="app-brand-mark" aria-hidden="true">
               TF
             </span>

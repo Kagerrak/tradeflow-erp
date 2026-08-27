@@ -19,8 +19,12 @@ import type { ReactNode } from "react";
 export const metadata: Metadata = {
   description:
     "TradeFlow is an auditable distribution ERP that connects order approval, warehouse custody, delivery, invoicing, and payment.",
+  icons: {
+    apple: "/apple-icon.png",
+    icon: "/icon.svg",
+  },
   metadataBase: new URL(
-    process.env.TRADEFLOW_PUBLIC_URL ?? "http://localhost:3000",
+    process.env.TRADEFLOW_PUBLIC_URL ?? "https://tradeflow.app",
   ),
   openGraph: {
     description:

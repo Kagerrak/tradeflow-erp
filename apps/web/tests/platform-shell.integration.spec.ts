@@ -12,7 +12,7 @@ test("@real-stack renders the authoritative operations overview", async ({
     response.url().includes("/api/operations/overview"),
   );
 
-  await page.goto("/demo");
+  await page.goto("/operations");
   const response = await overviewResponse;
 
   await expect(

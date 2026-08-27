@@ -100,7 +100,7 @@ test("operations overview renders authoritative work and supports search", async
   page,
 }) => {
   await mockOverview(page);
-  await page.goto("/demo");
+  await page.goto("/operations");
   await expect(page.getByText("Harbor & Pine Retail")).toBeVisible();
   await expect(page.getByText("₱1,371").first()).toBeVisible();
   await page
@@ -124,7 +124,7 @@ test("operations overview keeps current values visible while refreshing", async 
       status: 200,
     });
   });
-  await page.goto("/demo");
+  await page.goto("/operations");
   await page.getByRole("button", { name: "Refresh operational data" }).click();
   await expect(page.getByText("Refreshing live data")).toBeVisible();
   await expect(page.getByText("Harbor & Pine Retail")).toBeVisible();
@@ -138,7 +138,7 @@ test("operations overview shows honest empty and error states", async ({
     action_queue: [],
     recent_activity: [],
   });
-  await page.goto("/demo");
+  await page.goto("/operations");
   await expect(
     page.getByRole("heading", { name: "No work requires attention" }),
   ).toBeVisible();
@@ -165,7 +165,7 @@ test("operations overview has no horizontal overflow on mobile", async ({
   page,
 }) => {
   await mockOverview(page);
-  await page.goto("/demo");
+  await page.goto("/operations");
   const overflow = await page.evaluate(
     () =>
       document.documentElement.scrollWidth -

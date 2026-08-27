@@ -117,7 +117,7 @@ export function InventoryWorkspace() {
             <input
               id="inventory-query"
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="e.g. COLA-330"
+              placeholder="Search by SKU code or product name"
               value={query}
             />
             <button className="btn-primary" type="submit">

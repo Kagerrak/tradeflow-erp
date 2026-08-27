@@ -455,18 +455,18 @@ export function OperationsOverview() {
               }
             >
               <UserRound aria-hidden="true" />
-              <span>Demo Operator</span>
+              <span>Operator</span>
               <ChevronDown aria-hidden="true" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="operations-user-menu">
               <DropdownMenuGroup>
                 <DropdownMenuLabel>
-                  <strong>Demo Operator</strong>
-                  <small>All demo branches</small>
+                  <strong>Operator</strong>
+                  <small>All branches</small>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem render={<Link href="/" />}>
-                  Return to product site
+                  Return to website
                 </DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>

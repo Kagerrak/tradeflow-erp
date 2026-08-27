@@ -50,7 +50,7 @@ test("operations overview passes automated WCAG A and AA checks", async ({
       status: 200,
     }),
   );
-  await page.goto("/demo");
+  await page.goto("/operations");
   const results = await new AxeBuilder({ page }).withTags(wcagTags).analyze();
   expect(results.violations).toEqual([]);
 });

@@ -29,8 +29,14 @@ test("@seeded-demo completes the commercial order-to-payment smoke journey", asy
   const partiallyPicked = demo.records.orders.partially_picked;
   const delivery = demo.records.orders.delivery_awaiting_confirmation;
   const customerId = demo.records.customers.HARBOR;
-  if (!partiallyPicked?.fulfillment_order_id || !delivery?.delivery_id || !customerId) {
-    throw new Error("The seeded demo manifest is missing smoke-journey records.");
+  if (
+    !partiallyPicked?.fulfillment_order_id ||
+    !delivery?.delivery_id ||
+    !customerId
+  ) {
+    throw new Error(
+      "The seeded demo manifest is missing smoke-journey records.",
+    );
   }
 
   await page.goto("/");
@@ -39,7 +45,7 @@ test("@seeded-demo completes the commercial order-to-payment smoke journey", asy
       name: "Control every order from sale to settlement.",
     }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Open live demo" }).first().click();
+  await page.getByRole("link", { name: "Explore the product" }).first().click();
   await expect(
     page.getByRole("heading", { name: "Operations overview" }),
   ).toBeVisible();

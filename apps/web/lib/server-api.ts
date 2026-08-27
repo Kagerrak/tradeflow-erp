@@ -9,20 +9,20 @@ export type ServerApiConfig = Readonly<{
 function requireDemoBoundary(environment: string): void {
   if (environment !== "demo" || process.env.TRADEFLOW_DEMO_MODE !== "enabled") {
     throw new Error(
-      "Demo credentials require TRADEFLOW_ENVIRONMENT=demo and TRADEFLOW_DEMO_MODE=enabled.",
+      "Evaluation credentials require TRADEFLOW_ENVIRONMENT=demo and TRADEFLOW_DEMO_MODE=enabled.",
     );
   }
 
   const databaseName = process.env.TRADEFLOW_DATABASE_NAME ?? "";
   if (!/^(tradeflow[-_])?demo(?:[-_][a-z0-9]+)?$/i.test(databaseName)) {
     throw new Error(
-      "Demo credentials require an explicitly demo-named database.",
+      "Evaluation credentials require an explicitly demo-named database.",
     );
   }
 
   if (process.env.TRADEFLOW_PRODUCTION_CONFIGURATION === "true") {
     throw new Error(
-      "Demo credentials are forbidden with production configuration.",
+      "Evaluation credentials are forbidden with production configuration.",
     );
   }
 }

@@ -37,8 +37,8 @@ export default function MarketingPage() {
           <a href="#workflows">Workflows</a>
           <a href="#security">Security</a>
         </nav>
-        <Link className="marketing-nav-cta" href="/demo">
-          Open live demo <ArrowRight aria-hidden="true" size={16} />
+        <Link className="marketing-nav-cta" href="/operations">
+          Explore the product <ArrowRight aria-hidden="true" size={16} />
         </Link>
       </header>
 
@@ -56,8 +56,8 @@ export default function MarketingPage() {
               payments in one accountable system.
             </p>
             <div className="marketing-actions">
-              <Link className="marketing-primary" href="/demo">
-                Open live demo <ArrowRight aria-hidden="true" size={17} />
+              <Link className="marketing-primary" href="/operations">
+                Explore the product <ArrowRight aria-hidden="true" size={17} />
               </Link>
               <a className="marketing-secondary" href="#workflows">
                 See workflows
@@ -77,7 +77,7 @@ export default function MarketingPage() {
           <div className="hero-product-frame">
             <div className="product-frame-bar">
               <span>TradeFlow / Operations overview</span>
-              <span>Live seeded product</span>
+              <span>Live product</span>
             </div>
             <Image
               alt="TradeFlow operations overview showing live work queues and operational metrics"
@@ -85,7 +85,7 @@ export default function MarketingPage() {
               height={900}
               loading="eager"
               priority
-              src="/product/operations-overview-shadcn.png"
+              src="/product/operations-overview.png"
               width={1440}
             />
           </div>
@@ -166,7 +166,8 @@ export default function MarketingPage() {
               <Image
                 alt="TradeFlow operations dashboard with action queue"
                 height={900}
-                src="/product/operations-overview-shadcn.png"
+                loading="eager"
+                src="/product/operations-overview.png"
                 width={1440}
               />
               <figcaption>
@@ -229,10 +230,13 @@ export default function MarketingPage() {
             <h2 id="final-title">
               Run the complete order-to-payment workflow.
             </h2>
-            <p>Explore TradeFlow using realistic, seeded operational data.</p>
+            <p>
+              Run the complete order-to-payment workflow in the operations
+              overview.
+            </p>
           </div>
-          <Link className="marketing-primary" href="/demo">
-            Open live demo <ArrowRight aria-hidden="true" size={17} />
+          <Link className="marketing-primary" href="/operations">
+            Explore the product <ArrowRight aria-hidden="true" size={17} />
           </Link>
         </section>
       </main>
@@ -244,7 +248,7 @@ export default function MarketingPage() {
         </Link>
         <p>Accountable order-to-payment operations.</p>
         <div>
-          <Link href="/case-study">Engineering case study</Link>
+          <Link href="/case-study">Why TradeFlow</Link>
           <a href="https://github.com/Kagerrak/tradeflow-erp">Source</a>
         </div>
       </footer>

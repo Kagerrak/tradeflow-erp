@@ -8,9 +8,9 @@ test("public landing presents TradeFlow as a commercial product without an API",
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Control every order from sale to settlement.",
   );
-  await expect(page.getByRole("link", { name: "Open live demo" })).toHaveCount(
-    3,
-  );
+  await expect(
+    page.getByRole("link", { name: "Explore the product" }),
+  ).toHaveCount(3);
   await expect(
     page.getByRole("heading", { name: "Keep every order moving." }),
   ).toBeVisible();
@@ -28,15 +28,15 @@ test("commercial navigation opens the operations overview", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: "Open live demo" }).first().click();
-  await expect(page).toHaveURL(/\/demo$/u);
+  await page.getByRole("link", { name: "Explore the product" }).first().click();
+  await expect(page).toHaveURL(/\/operations$/u);
   await expect(
     page.getByRole("heading", { name: "Operations overview" }),
   ).toBeVisible();
 });
 
 test("public responses contain no bearer credential", async ({ request }) => {
-  for (const path of ["/", "/demo", "/api/demo/status"]) {
+  for (const path of ["/", "/operations", "/api/demo/status"]) {
     const response = await request.get(path);
     const body = await response.text();
     expect(body).not.toContain("Authorization: Bearer");
@@ -51,7 +51,7 @@ test("public links resolve", async ({ page }) => {
   for (const href of [
     "/",
     "/case-study",
-    "/demo",
+    "/operations",
     "/robots.txt",
     "/sitemap.xml",
   ]) {
