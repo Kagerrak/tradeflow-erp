@@ -24,3 +24,6 @@ __pycache__/
 
 *.log
 *.tsbuildinfo
+
+checkpoint/
+scrollcraft/
