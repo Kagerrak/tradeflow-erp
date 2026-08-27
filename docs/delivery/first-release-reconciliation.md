@@ -6,7 +6,10 @@
 - Release decision: Issue #107 / PR #114 have landed and are no longer blocking
   the first release. The two PR #114 / ADR-0019 business-policy decisions are
   resolved, issue #107 part 2 (counted-variance Inventory Adjustments) is
-  implemented, and the full release gate has passed.
+  implemented, the full release gate has passed, and PR #114 received explicit
+  approval from the repo owner (recorded in PR comment
+  https://github.com/Kagerrak/tradeflow-erp/pull/114#issuecomment-5359718827;
+  GitHub self-approval is blocked in this single-collaborator repository).
 - Pending evidence: Return Authorization PR #112 at `8e649cf` (green, awaiting
   explicit PR-specific approval); Issue #72 closed by PR #116; Issue #110
   current-system baseline closed by PR #117; Issue #77 in progress via PR #118.
