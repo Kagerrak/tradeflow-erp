@@ -41,7 +41,10 @@
 - immediate cash clearance and reconciliation, non-cash maker-checker
   verification, check clearance, active-reference uniqueness, provider
   confirmation, rejection, reversal, and duplicate command replay;
-- return eligibility against delivered and previously returned quantity;
+- return eligibility against the current receipt-chain head and previously
+  authorized quantity, maker-checker value limits, exact replay, concurrent
+  final-quantity authorization, immutable request guards, and exclusion with
+  later Delivery Correction;
 - purchase receipt variance and landed-cost allocation;
 - expense approval and duplicate evidence;
 - commission accrual, tier, adjustment, reversal, and payout.

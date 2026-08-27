@@ -42,9 +42,7 @@ test("shows scoped inventory quantity, custody, and traceability", async ({
   await page.goto("/inventory");
 
   await expect(
-    page.getByRole("heading", {
-      name: "Promise only what is actually available.",
-    }),
+    page.getByRole("heading", { level: 1, name: "Stock ledger" }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Cola 330 mL" }),

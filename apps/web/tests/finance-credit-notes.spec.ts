@@ -145,7 +145,7 @@ test("requests, authorizes, and reverses a credit note through the workspace", a
 
   await page.goto("/finance/credit-notes");
   await expect(
-    page.getByRole("heading", { name: "Issue immutable credit notes." }),
+    page.getByRole("heading", { level: 1, name: "Credit notes" }),
   ).toBeVisible();
 
   await page

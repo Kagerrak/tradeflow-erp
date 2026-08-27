@@ -51,6 +51,10 @@ test("operations overview passes automated WCAG A and AA checks", async ({
     }),
   );
   await page.goto("/operations");
+  await page.waitForLoadState("networkidle");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Operations overview" }),
+  ).toBeVisible();
   const results = await new AxeBuilder({ page }).withTags(wcagTags).analyze();
   expect(results.violations).toEqual([]);
 });

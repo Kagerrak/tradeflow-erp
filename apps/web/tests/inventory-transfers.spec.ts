@@ -72,9 +72,7 @@ test("requests and receives a transfer through the workspace", async ({
 
   await page.goto("/inventory/transfers");
   await expect(
-    page.getByRole("heading", {
-      name: "Move stock between warehouses at source cost.",
-    }),
+    page.getByRole("heading", { level: 1, name: "Transfers" }),
   ).toBeVisible();
 
   await page

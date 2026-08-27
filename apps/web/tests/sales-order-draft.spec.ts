@@ -181,9 +181,7 @@ test("creates and edits an authoritative priced Sales Order Draft", async ({
   );
   await page.goto("/sales-orders/new");
   await expect(
-    page.getByRole("heading", {
-      name: "Price the promise before committing it.",
-    }),
+    page.getByRole("heading", { level: 1, name: "New sales order" }),
   ).toBeVisible();
   await page.getByLabel("Customer Account").selectOption(customerId);
   await expect(page.getByText(/MNL-CUSTOMER/)).toBeVisible();

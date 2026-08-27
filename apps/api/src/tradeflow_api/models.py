@@ -4700,6 +4700,137 @@ Index(
     postgresql_where=delivery_receipts.c.correction_id.is_(None),
 )
 
+return_reasons = Table(
+    "return_reasons",
+    metadata,
+    Column("code", String(50), primary_key=True),
+    Column("label", String(200), nullable=False),
+    Column("is_active", Boolean, nullable=False, server_default="true"),
+)
+
+return_responsible_parties = Table(
+    "return_responsible_parties",
+    metadata,
+    Column("code", String(50), primary_key=True),
+    Column("label", String(200), nullable=False),
+    Column("is_active", Boolean, nullable=False, server_default="true"),
+)
+
+return_requests = Table(
+    "return_requests",
+    metadata,
+    Column("return_request_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "delivery_receipt_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_receipts.delivery_receipt_id"),
+        nullable=False,
+    ),
+    Column(
+        "confirmation_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_confirmations.confirmation_id"),
+        nullable=False,
+    ),
+    Column(
+        "delivery_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_dispatches.delivery_id"),
+        nullable=False,
+    ),
+    Column(
+        "branch_id", PostgresUUID(as_uuid=True), ForeignKey("branches.branch_id"), nullable=False
+    ),
+    Column(
+        "warehouse_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("warehouses.warehouse_id"),
+        nullable=False,
+    ),
+    Column("reason_code", String(50), nullable=False),
+    Column("reason_label", String(200), nullable=False),
+    Column("responsible_party_code", String(50), nullable=False),
+    Column("responsible_party_label", String(200), nullable=False),
+    Column("notes", String(2000), nullable=True),
+    Column("requested_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("base_currency", String(3), nullable=False),
+    Column("affected_value_base_currency", Numeric(24, 6), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False),
+    Column("requested_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("sealed_at", DateTime(timezone=True), nullable=True),
+    UniqueConstraint("requested_by", "idempotency_key", name="uq_return_request_actor_key"),
+    CheckConstraint("btrim(reason_code) <> ''", name="ck_return_request_reason_code"),
+    CheckConstraint("btrim(reason_label) <> ''", name="ck_return_request_reason_label"),
+    CheckConstraint(
+        "btrim(responsible_party_code) <> ''",
+        name="ck_return_request_responsible_party_code",
+    ),
+    CheckConstraint(
+        "btrim(responsible_party_label) <> ''",
+        name="ck_return_request_responsible_party_label",
+    ),
+    CheckConstraint(
+        "affected_value_base_currency >= 0",
+        name="ck_return_request_affected_value_nonnegative",
+    ),
+)
+
+return_request_lines = Table(
+    "return_request_lines",
+    metadata,
+    Column("return_request_line_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "return_request_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("return_requests.return_request_id"),
+        nullable=False,
+    ),
+    Column(
+        "delivery_line_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("delivery_lines.delivery_line_id"),
+        nullable=False,
+    ),
+    Column("line_id", PostgresUUID(as_uuid=True), nullable=False),
+    Column("sku_id", PostgresUUID(as_uuid=True), ForeignKey("skus.sku_id"), nullable=False),
+    Column("quantity_base", Numeric(18, 6), nullable=False),
+    Column("delivered_quantity_base", Numeric(18, 6), nullable=False),
+    Column("affected_value_base_currency", Numeric(24, 6), nullable=False),
+    UniqueConstraint("return_request_id", "delivery_line_id", name="uq_return_request_line"),
+    CheckConstraint(
+        "quantity_base > 0 AND delivered_quantity_base > 0 "
+        "AND quantity_base <= delivered_quantity_base",
+        name="ck_return_request_line_quantity",
+    ),
+    CheckConstraint(
+        "affected_value_base_currency >= 0",
+        name="ck_return_request_line_value_nonnegative",
+    ),
+)
+
+return_authorizations = Table(
+    "return_authorizations",
+    metadata,
+    Column(
+        "return_request_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("return_requests.return_request_id"),
+        primary_key=True,
+    ),
+    Column("authorized_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column(
+        "approval_authority_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("approval_authorities.approval_authority_id"),
+        nullable=False,
+    ),
+    Column("idempotency_key", String(200), nullable=False),
+    Column("correlation_id", String(100), nullable=False),
+    Column("authorized_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint("authorized_by", "idempotency_key", name="uq_return_authorization_actor_key"),
+)
+
 delivery_receipt_documents = Table(
     "delivery_receipt_documents",
     metadata,

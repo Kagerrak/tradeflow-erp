@@ -105,6 +105,9 @@ outputs.
 ### Damaged return
 
 1. Return authorization validates delivered quantity and prior returns.
+   The authorization transaction shares the Delivery Receipt chain lock with
+   Delivery Correction; only the current head is eligible, pending requests do
+   not reserve quantity, and an authorized return closes correction eligibility.
 2. Return receipt posts stock into quarantine/damaged location.
 3. Inspection records condition and disposition.
 4. Restock requires a separate approved movement into available inventory.

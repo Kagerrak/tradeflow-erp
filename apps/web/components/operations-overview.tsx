@@ -448,6 +448,7 @@ export function OperationsOverview() {
             <DropdownMenuTrigger
               render={
                 <Button
+                  aria-label="Operator menu"
                   className="operations-user-trigger"
                   type="button"
                   variant="outline"

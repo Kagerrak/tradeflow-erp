@@ -1,7 +1,8 @@
 # First-release scope reconciliation
 
-- Date: August 21, 2026
-- Baseline: `origin/main` at `baf1d48` (PR #114 merged)
+- Date: August 28, 2026
+- Baseline: `origin/main` after PR #112 (Return Authorization) and PR #114
+  (Inventory Transfer / Adjustment) merged
 - Tracker reconciliation: GitHub issue #55 (closed)
 - Release decision: Issue #107 / PR #114 have landed and are no longer blocking
   the first release. The two PR #114 / ADR-0019 business-policy decisions are
@@ -10,9 +11,10 @@
   approval from the repo owner (recorded in PR comment
   https://github.com/Kagerrak/tradeflow-erp/pull/114#issuecomment-5359718827;
   GitHub self-approval is blocked in this single-collaborator repository).
-- Pending evidence: Return Authorization PR #112 at `8e649cf` (green, awaiting
-  explicit PR-specific approval); Issue #72 closed by PR #116; Issue #110
-  current-system baseline closed by PR #117; Issue #77 in progress via PR #118.
+  PR #112 (Return Authorization) was approved by the repo owner and merged,
+  adding immutable Return Requests with maker-checker authorization.
+- Pending evidence: Issue #72 closed by PR #116; Issue #110 current-system
+  baseline closed by PR #117; Issue #77 in progress via PR #118.
 
 ## Why the tracker was reopened
 
@@ -80,7 +82,7 @@ PRD behavior or release evidence does not.
 | Invoices, receipts, allocations, credits, adjustments and aging                                                         | `invoice_posting.py`, `payment_allocation.py`, `customer_statement.py`, and merged PR #113 implement Invoice, Allocation, Statement, and immutable Credit Note foundations                                                                                                                              | Partial: #71 tracker/gate reconciliation; overpayment, reversals, complete states and rebuild #72–#76 |
 | Partial and Unapplied Payment with immediate Statement refresh                                                          | Partial allocation exists, but the user-facing Unapplied/overpaid workflow and complete receipt reconciliation do not                                                                                                                                                                                   | Partial: #72, #76                                                                                     |
 | Paid, partially paid, unpaid, overdue and credited document states                                                      | `customer_statement.py` derives a subset from ledger rows; reversal-complete, due-date-snapshotted behavior is absent                                                                                                                                                                                   | Partial: #75–#76                                                                                      |
-| Return request/approval against Delivered Quantity                                                                      | Draft PR #112 implements Return Authorization but is stacked on unmerged PR #111 and its migration descends from `d524a29c32b8`, bypassing current Credit Note merge head `0017`                                                                                                                        | Missing on `main`; pending reconciliation and review: #56, #65, PR #112                               |
+| Return request/approval against Delivered Quantity                                                                      | `returns.py`, migration `e93736a741bd`, `test_return_authorization_contract.py`, `test_return_authorization_migration.py`, web workspace `return-authorization-workspace.tsx` and Playwright tests implement immutable Return Requests with maker-checker authorization against delivered receipts | Shipped foundation via PR #112; return disposition outcomes (#68–#70) remain open                                                |
 | Offline return evidence, Return Receipt/Inspection and controlled damaged custody                                       | Delivery-exception Return-to-Warehouse Receipt exists, but not the customer Returns lifecycle                                                                                                                                                                                                           | Missing: #66–#67                                                                                      |
 | Restock, Replacement, repair, Supplier Return, write-off and finance credit outcomes                                    | No Return Disposition or outcome model exists                                                                                                                                                                                                                                                           | Missing: #68–#70, with Finance #71 and Supplier Return #79                                            |
 | Supplier, Purchase Request/approval, Purchase Order and Goods Receipt                                                   | `suppliers.py`, `purchase_orders.py`, `goods_receipts.py`, and `purchase_requests.py` with contract tests and web workspace via PR #118                                                                                                                                                                 | Partial: #58 supplier config; #77 implemented, pending merge in PR #118                               |

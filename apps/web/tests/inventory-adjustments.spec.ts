@@ -85,9 +85,7 @@ test("requests, posts, and reverses an adjustment through the workspace", async 
 
   await page.goto("/inventory/adjustments");
   await expect(
-    page.getByRole("heading", {
-      name: "Correct inventory counts with authorized adjustments.",
-    }),
+    page.getByRole("heading", { level: 1, name: "Adjustments" }),
   ).toBeVisible();
 
   await page

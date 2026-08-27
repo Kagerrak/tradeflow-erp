@@ -624,10 +624,13 @@
   padding: 2rem;
   text-align: center;
 }
+.operations-empty h3 {
+  color: var(--ink-800);
+}
 .operations-empty p {
   max-width: 26rem;
   margin: 0.45rem 0 0;
-  color: var(--ink-600);
+  color: var(--ink-700);
   font-size: 0.8rem;
 }
 .operations-error {

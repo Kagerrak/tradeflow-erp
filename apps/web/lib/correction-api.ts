@@ -5,7 +5,7 @@ export type CorrectionList = components["schemas"]["DeliveryCorrectionList"];
 export type CorrectionResponse =
   components["schemas"]["DeliveryCorrectionResponse"];
 
-export function createCorrectionClient(correlationId: string) {
+export function createBusinessClient(correlationId: string) {
   const accessToken = getServerApiConfig().accessToken;
   if (accessToken === undefined || accessToken.length === 0) {
     return null;
@@ -17,11 +17,13 @@ export function createCorrectionClient(correlationId: string) {
   });
 }
 
+export const createCorrectionClient = createBusinessClient;
+
 export function unauthenticatedResponse(
   correlationId: string,
   message: string,
 ): Response {
-  return correctionResponse(
+  return businessResponse(
     {
       code: "authentication_required",
       correlationId,
@@ -33,7 +35,7 @@ export function unauthenticatedResponse(
   );
 }
 
-export function correctionResponse(
+export function businessResponse(
   value: object,
   status: number,
   correlationId: string,
@@ -44,7 +46,7 @@ export function correctionResponse(
   });
 }
 
-export function normalizeCorrectionError(
+export function normalizeBusinessError(
   payload: object | null | undefined,
   status: number,
   correlationId: string,
@@ -56,12 +58,12 @@ export function normalizeCorrectionError(
     payload !== null &&
     payload !== undefined
   ) {
-    return correctionResponse(payload, status, correlationId);
+    return businessResponse(payload, status, correlationId);
   }
   const envelope = (payload ?? {}) as {
     error?: { code?: string; correlation_id?: string; message?: string };
   };
-  return correctionResponse(
+  return businessResponse(
     {
       code:
         envelope.error?.code ??
@@ -70,7 +72,7 @@ export function normalizeCorrectionError(
           ? "authentication_required"
           : `http_${status.toString()}`),
       correlationId: envelope.error?.correlation_id ?? correlationId,
-      kind: correctionFailureKind(status),
+      kind: businessFailureKind(status),
       message: envelope.error?.message ?? options.defaultMessage,
     },
     status,
@@ -78,7 +80,9 @@ export function normalizeCorrectionError(
   );
 }
 
-export function correctionFailureKind(status: number): string {
+export const normalizeCorrectionError = normalizeBusinessError;
+
+export function businessFailureKind(status: number): string {
   if (status === 401) return "unauthenticated";
   if (status === 403) return "forbidden";
   if (status === 409) return "conflict";
@@ -90,9 +94,21 @@ export function correctionUnavailableResponse(
   correlationId: string,
   message: string,
 ): Response {
-  return correctionResponse(
+  return serviceUnavailableResponse(
+    "delivery_correction_service_unavailable",
+    correlationId,
+    message,
+  );
+}
+
+export function serviceUnavailableResponse(
+  code: string,
+  correlationId: string,
+  message: string,
+): Response {
+  return businessResponse(
     {
-      code: "delivery_correction_service_unavailable",
+      code,
       correlationId,
       kind: "unavailable",
       message,

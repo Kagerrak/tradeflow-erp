@@ -18,6 +18,10 @@ from tradeflow_api.app import create_app
 from tradeflow_api.config import Settings
 
 
+def _utc_today() -> date:
+    return datetime.now(UTC).date()
+
+
 @pytest.fixture
 def fake_storage() -> FakeObjectStorage:
     return FakeObjectStorage()
@@ -187,7 +191,7 @@ async def test_statement_empty_range_returns_zero_balances(
         postgres_url,
         fake_storage,
     )
-    today = datetime.now(UTC).date().isoformat()
+    today = _utc_today().isoformat()
     response = await statement_client.get(
         f"/v1/finance/customers/{fixture['customer_id']}/statement",
         headers=auth(statement_settings, "finance-recorder"),
@@ -218,7 +222,7 @@ async def test_statement_shows_posted_invoice_and_open_document(
     )
     await _post_invoice(statement_client, statement_settings, draft_invoice_id)
 
-    today = datetime.now(UTC).date().isoformat()
+    today = _utc_today().isoformat()
     response = await statement_client.get(
         f"/v1/finance/customers/{fixture['customer_id']}/statement",
         headers=auth(statement_settings, "finance-recorder"),
@@ -270,7 +274,7 @@ async def test_statement_reflects_partial_allocation(
         "allocate-partial",
     )
 
-    today = datetime.now(UTC).date().isoformat()
+    today = _utc_today().isoformat()
     response = await statement_client.get(
         f"/v1/finance/customers/{fixture['customer_id']}/statement",
         headers=auth(statement_settings, "finance-recorder"),
@@ -316,7 +320,7 @@ async def test_statement_reflects_full_payment(
         "allocate-full",
     )
 
-    today = datetime.now(UTC).date().isoformat()
+    today = _utc_today().isoformat()
     response = await statement_client.get(
         f"/v1/finance/customers/{fixture['customer_id']}/statement",
         headers=auth(statement_settings, "finance-recorder"),
@@ -400,7 +404,7 @@ async def test_statement_aging_buckets_overdue_invoice(
         postgres_url,
         fake_storage,
     )
-    posted_at = datetime.fromisoformat((date.today() - timedelta(days=45)).isoformat())
+    posted_at = datetime.fromisoformat((_utc_today() - timedelta(days=45)).isoformat())
     await _post_invoice(
         statement_client,
         statement_settings,
@@ -408,7 +412,7 @@ async def test_statement_aging_buckets_overdue_invoice(
         posted_at=posted_at,
     )
 
-    as_of = datetime.now(UTC).date().isoformat()
+    as_of = _utc_today().isoformat()
     from_date = posted_at.date().isoformat()
     response = await statement_client.get(
         f"/v1/finance/customers/{fixture['customer_id']}/statement",
@@ -437,7 +441,7 @@ async def test_statement_branch_scope_hides_other_branch(
     )
     await _post_invoice(statement_client, statement_settings, draft_invoice_id)
 
-    today = datetime.now(UTC).date().isoformat()
+    today = _utc_today().isoformat()
     response = await statement_client.get(
         f"/v1/finance/customers/{fixture['customer_id']}/statement",
         headers=auth(statement_settings, "finance-ceb"),
@@ -463,7 +467,7 @@ async def test_statement_rejects_missing_capability(
         postgres_url,
         fake_storage,
     )
-    today = datetime.now(UTC).date().isoformat()
+    today = _utc_today().isoformat()
     response = await statement_client.get(
         f"/v1/finance/customers/{fixture['customer_id']}/statement",
         headers=auth(statement_settings, "sales-mnl"),
@@ -502,7 +506,7 @@ async def test_statement_rebuild_reconciles_credit_exposure(
         "allocate-partial",
     )
 
-    today = datetime.now(UTC).date().isoformat()
+    today = _utc_today().isoformat()
     response = await statement_client.get(
         f"/v1/finance/customers/{fixture['customer_id']}/statement",
         headers=auth(statement_settings, "finance-recorder"),

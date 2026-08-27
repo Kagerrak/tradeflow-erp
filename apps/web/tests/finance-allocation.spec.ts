@@ -152,7 +152,9 @@ test("allocates a cleared receipt to an open invoice and retains excess", async 
   );
 
   await page.goto("/finance/allocations");
-  await expect(page.getByText("Apply payments to open invoices")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Payment allocation" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Select" }).click();
 
   await expect(
