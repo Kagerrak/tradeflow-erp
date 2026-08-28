@@ -671,6 +671,24 @@ async def require_return_reader(
     return user
 
 
+async def require_return_evidence_capturer(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    return require_capability(user, "returns:evidence-capture")
+
+
+async def require_return_evidence_reader(
+    user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
+) -> AuthorizedUser:
+    if not {"returns:evidence-capture", "returns:evidence-read"}.intersection(user.capabilities):
+        raise AppError(
+            status_code=403,
+            code="capability_required",
+            message="A Return Evidence capability is required.",
+        )
+    return user
+
+
 async def require_delivery_exception_reader(
     user: Annotated[AuthorizedUser, Depends(load_authorized_user)],
 ) -> AuthorizedUser:

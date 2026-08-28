@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from hashlib import sha256
 from typing import Annotated, Any, Literal, cast
@@ -10,11 +10,14 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy import func, insert, or_, select, text, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tradeflow_api.auth import (
     AuthorizedUser,
     require_return_authorizer,
+    require_return_evidence_capturer,
+    require_return_evidence_reader,
     require_return_reader,
     require_return_requester,
 )
@@ -32,6 +35,8 @@ from tradeflow_api.models import (
     delivery_receipts,
     return_authorizations,
     return_reasons,
+    return_request_evidence,
+    return_request_evidence_sync_state,
     return_request_lines,
     return_requests,
     return_responsible_parties,
@@ -39,6 +44,7 @@ from tradeflow_api.models import (
     sales_order_revisions,
 )
 from tradeflow_api.money import currency_quantum
+from tradeflow_api.object_storage import ObjectStorage, UploadedPart, get_object_storage
 
 router = APIRouter(tags=["returns"])
 ZERO = Decimal("0")
@@ -137,6 +143,83 @@ class ReturnEligibilityResponse(BaseModel):
     delivery_receipt_id: UUID
     number: str
     lines: list[ReturnEligibleLine]
+
+
+class ReturnEvidenceUploadIntent(CommandModel):
+    evidence_id: UUID
+    kind: Literal["photo"]
+    content_type: Literal["image/png", "image/jpeg", "image/webp"]
+    size_bytes: int = Field(gt=0, le=10 * 1024 * 1024)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    device_captured_at: datetime
+
+
+class EvidenceUploadPartResponse(BaseModel):
+    part_number: int
+    start_byte: int
+    end_byte: int
+    upload_url: str
+    upload_headers: dict[str, str]
+
+
+class EvidenceUploadResponse(BaseModel):
+    evidence_id: UUID
+    status: Literal["uploading", "verified"]
+    upload_id: str | None
+    part_size: int | None
+    parts: list[EvidenceUploadPartResponse]
+    expires_at: datetime | None
+
+
+class SignedAccessResponse(BaseModel):
+    access_url: str
+    expires_at: datetime
+
+
+class ReturnEvidenceNoteCommand(CommandModel):
+    evidence_id: UUID
+    device_captured_at: datetime
+    note_text: str = Field(min_length=1, max_length=2000)
+
+
+class ReturnEvidenceItem(BaseModel):
+    evidence_id: UUID
+    kind: Literal["photo", "note"]
+    status: Literal["uploading", "verified", "rejected"]
+    content_type: str | None
+    size_bytes: int | None
+    sha256: str | None
+    note_text: str | None
+    captured_by: str
+    device_captured_at: datetime
+    created_at: datetime
+    verified_at: datetime | None
+
+
+class ReturnEvidenceList(BaseModel):
+    items: list[ReturnEvidenceItem]
+
+
+class OfflineEvidenceEntry(CommandModel):
+    evidence_id: UUID
+    kind: Literal["photo", "note"]
+    note_text: str | None = Field(default=None, max_length=2000)
+
+
+class SyncOfflineEvidenceCommand(CommandModel):
+    expected_request_version: int = Field(gt=0)
+    correlation_id: str = Field(min_length=1, max_length=100)
+    evidence: list[OfflineEvidenceEntry] = Field(min_length=1)
+
+
+class ReturnEvidenceSyncState(BaseModel):
+    return_request_id: UUID
+    expected_version: int
+    current_version: int
+    status: Literal["acknowledged", "conflict", "pending"]
+    acknowledged_at: datetime | None
+    conflict_detected_at: datetime | None
+    conflict_reason: str | None
 
 
 @router.get(
@@ -846,3 +929,618 @@ async def authorize_return_request(
         )
         response.headers["X-Idempotency-Replayed"] = "false"
     return result
+
+
+UPLOAD_PART_SIZE = 5 * 1024 * 1024
+
+
+async def _authorize_return_request_scope(
+    session: AsyncSession,
+    return_request_id: UUID,
+    actor: AuthorizedUser,
+) -> Mapping[str, Any]:
+    row = (
+        (
+            await session.execute(
+                select(
+                    return_requests.c.return_request_id,
+                    return_requests.c.branch_id,
+                    return_requests.c.warehouse_id,
+                ).where(return_requests.c.return_request_id == return_request_id)
+            )
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if row is None:
+        raise AppError(404, "return_request_not_found", "Return Request does not exist.")
+    if row["branch_id"] not in actor.branch_ids or row["warehouse_id"] not in actor.warehouse_ids:
+        raise AppError(
+            403, "operational_scope_required", "Branch and Warehouse scope are required."
+        )
+    return cast(Mapping[str, Any], row)
+
+
+async def _return_request_version(session: AsyncSession, return_request_id: UUID) -> int:
+    authorized = await session.scalar(
+        select(return_authorizations.c.return_request_id).where(
+            return_authorizations.c.return_request_id == return_request_id
+        )
+    )
+    return 2 if authorized is not None else 1
+
+
+async def _record_sync_state(
+    session: AsyncSession,
+    *,
+    return_request_id: UUID,
+    expected_version: int,
+    correlation_id: str,
+    status: Literal["acknowledged", "conflict", "pending"],
+    conflict_reason: str | None = None,
+) -> None:
+    acknowledged_at: datetime | None = None
+    conflict_detected_at: datetime | None = None
+    reason: str | None = None
+    if status == "acknowledged":
+        acknowledged_at = datetime.now(UTC)
+    elif status == "conflict":
+        conflict_detected_at = datetime.now(UTC)
+        reason = conflict_reason
+    await session.execute(
+        pg_insert(return_request_evidence_sync_state)
+        .values(
+            return_request_id=return_request_id,
+            expected_version=expected_version,
+            acknowledged_at=acknowledged_at,
+            conflict_detected_at=conflict_detected_at,
+            conflict_reason=reason,
+            correlation_id=correlation_id,
+        )
+        .on_conflict_do_update(
+            index_elements=[return_request_evidence_sync_state.c.return_request_id],
+            set_={
+                "expected_version": expected_version,
+                "acknowledged_at": acknowledged_at,
+                "conflict_detected_at": conflict_detected_at,
+                "conflict_reason": reason,
+                "correlation_id": correlation_id,
+                "updated_at": func.now(),
+            },
+        )
+    )
+
+
+def _evidence_object_key(return_request_id: UUID, evidence_id: UUID) -> str:
+    return f"return-requests/{return_request_id}/evidence/{evidence_id}"
+
+
+async def _stored_evidence_matches(storage: ObjectStorage, evidence: Mapping[str, Any]) -> bool:
+    try:
+        stored = await storage.head(evidence["object_key"])
+        computed = await storage.computed_sha256(evidence["object_key"])
+    except Exception:
+        return False
+    return bool(
+        stored.content_type == evidence["content_type"]
+        and stored.size_bytes == evidence["size_bytes"]
+        and stored.sha256 == evidence["sha256"]
+        and computed == evidence["sha256"]
+    )
+
+
+def _validate_uploaded_parts(parts: list[UploadedPart], size_bytes: int) -> None:
+    if not parts:
+        raise AppError(
+            409,
+            "evidence_upload_incomplete",
+            "Uploaded evidence is incomplete; no parts were found.",
+        )
+    total = sum(part.size_bytes for part in parts)
+    if total != size_bytes:
+        raise AppError(
+            409,
+            "evidence_upload_size_conflict",
+            "Uploaded evidence size does not match the declared intent.",
+        )
+    seen: set[int] = set()
+    for part in parts:
+        if part.number in seen:
+            raise AppError(
+                409,
+                "evidence_upload_part_duplicate",
+                "Uploaded evidence contains duplicate part numbers.",
+            )
+        seen.add(part.number)
+
+
+@router.post(
+    "/v1/return-requests/{return_request_id}/evidence/uploads",
+    response_model=EvidenceUploadResponse,
+    status_code=201,
+    responses=error_responses(401, 403, 404, 409, 422, 503),
+)
+async def create_return_evidence_upload(
+    return_request_id: UUID,
+    command: ReturnEvidenceUploadIntent,
+    response: Response,
+    actor: Annotated[AuthorizedUser, Depends(require_return_evidence_capturer)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    storage: Annotated[ObjectStorage, Depends(get_object_storage)],
+) -> EvidenceUploadResponse:
+    await session.rollback()
+    async with session.begin():
+        await _authorize_return_request_scope(session, return_request_id, actor)
+        await _lock(session, f"return-request-evidence:{return_request_id}")
+        existing = (
+            (
+                await session.execute(
+                    select(return_request_evidence).where(
+                        return_request_evidence.c.evidence_id == command.evidence_id
+                    )
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+        object_key = _evidence_object_key(return_request_id, command.evidence_id)
+        if existing is not None:
+            same = (
+                existing["return_request_id"] == return_request_id
+                and existing["captured_by"] == actor.subject
+                and existing["kind"] == command.kind
+                and existing["content_type"] == command.content_type
+                and existing["size_bytes"] == command.size_bytes
+                and existing["sha256"] == command.sha256
+                and existing["device_captured_at"] == command.device_captured_at
+            )
+            if not same:
+                raise AppError(
+                    409,
+                    "return_evidence_identity_conflict",
+                    "Evidence identity was already used for different proof.",
+                )
+            if existing["status"] == "verified":
+                response.status_code = 200
+                return EvidenceUploadResponse(
+                    evidence_id=command.evidence_id,
+                    status="verified",
+                    upload_id=None,
+                    part_size=None,
+                    parts=[],
+                    expires_at=None,
+                )
+            response.status_code = 200
+        try:
+            await storage.ensure_bucket()
+            upload_id = (
+                cast(str, existing["upload_id"])
+                if existing is not None
+                else await storage.create_multipart_upload(
+                    content_type=command.content_type,
+                    object_key=object_key,
+                    sha256=command.sha256,
+                )
+            )
+            uploaded_parts = await storage.list_uploaded_parts(
+                object_key=object_key,
+                upload_id=upload_id,
+            )
+        except Exception as error:
+            if existing is not None and await _stored_evidence_matches(
+                storage, cast(Mapping[str, Any], existing)
+            ):
+                await session.execute(
+                    update(return_request_evidence)
+                    .where(return_request_evidence.c.evidence_id == command.evidence_id)
+                    .values(status="verified", verified_at=func.now())
+                )
+                response.status_code = 200
+                return EvidenceUploadResponse(
+                    evidence_id=command.evidence_id,
+                    status="verified",
+                    upload_id=None,
+                    part_size=None,
+                    parts=[],
+                    expires_at=None,
+                )
+            raise AppError(
+                503,
+                "evidence_storage_unavailable",
+                "Evidence storage could not prepare the private resumable upload.",
+            ) from error
+        if existing is None:
+            await session.execute(
+                insert(return_request_evidence).values(
+                    evidence_id=command.evidence_id,
+                    return_request_id=return_request_id,
+                    kind=command.kind,
+                    object_key=object_key,
+                    content_type=command.content_type,
+                    size_bytes=command.size_bytes,
+                    sha256=command.sha256,
+                    upload_id=upload_id,
+                    captured_by=actor.subject,
+                    device_captured_at=command.device_captured_at,
+                    status="uploading",
+                )
+            )
+        completed_numbers = {part.number for part in uploaded_parts}
+        part_count = (command.size_bytes + UPLOAD_PART_SIZE - 1) // UPLOAD_PART_SIZE
+        return EvidenceUploadResponse(
+            evidence_id=command.evidence_id,
+            status="uploading",
+            upload_id=upload_id,
+            part_size=UPLOAD_PART_SIZE,
+            parts=[
+                EvidenceUploadPartResponse(
+                    part_number=part_number,
+                    start_byte=(part_number - 1) * UPLOAD_PART_SIZE,
+                    end_byte=min(part_number * UPLOAD_PART_SIZE, command.size_bytes),
+                    upload_url=storage.signed_upload_part_url(
+                        object_key=object_key,
+                        part_number=part_number,
+                        upload_id=upload_id,
+                    ),
+                    upload_headers={},
+                )
+                for part_number in range(1, part_count + 1)
+                if part_number not in completed_numbers
+            ],
+            expires_at=datetime.now(UTC) + timedelta(seconds=storage.url_expiry_seconds),
+        )
+
+
+@router.post(
+    "/v1/return-requests/{return_request_id}/evidence/{evidence_id}/complete",
+    response_model=EvidenceUploadResponse,
+    responses=error_responses(401, 403, 404, 409, 422, 503),
+)
+async def complete_return_evidence_upload(
+    return_request_id: UUID,
+    evidence_id: UUID,
+    actor: Annotated[AuthorizedUser, Depends(require_return_evidence_capturer)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    storage: Annotated[ObjectStorage, Depends(get_object_storage)],
+) -> EvidenceUploadResponse:
+    await session.rollback()
+    async with session.begin():
+        await _authorize_return_request_scope(session, return_request_id, actor)
+        await _lock(session, f"return-request-evidence:{return_request_id}")
+        evidence = (
+            (
+                await session.execute(
+                    select(return_request_evidence)
+                    .where(
+                        return_request_evidence.c.evidence_id == evidence_id,
+                        return_request_evidence.c.return_request_id == return_request_id,
+                        return_request_evidence.c.captured_by == actor.subject,
+                    )
+                    .with_for_update()
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+        if evidence is None:
+            raise AppError(404, "return_evidence_not_found", "Evidence does not exist.")
+        if evidence["status"] != "verified":
+            try:
+                if not await _stored_evidence_matches(storage, cast(Mapping[str, Any], evidence)):
+                    parts = await storage.list_uploaded_parts(
+                        object_key=evidence["object_key"],
+                        upload_id=evidence["upload_id"],
+                    )
+                    _validate_uploaded_parts(parts, evidence["size_bytes"])
+                    await storage.complete_multipart_upload(
+                        object_key=evidence["object_key"],
+                        parts=parts,
+                        upload_id=evidence["upload_id"],
+                    )
+            except AppError:
+                raise
+            except Exception as error:
+                raise AppError(
+                    503,
+                    "evidence_storage_unavailable",
+                    "Evidence storage could not verify the uploaded object.",
+                ) from error
+            if not await _stored_evidence_matches(storage, cast(Mapping[str, Any], evidence)):
+                raise AppError(
+                    409,
+                    "return_evidence_integrity_conflict",
+                    "Uploaded evidence type, size, or SHA-256 did not match the intent.",
+                )
+            await session.execute(
+                update(return_request_evidence)
+                .where(return_request_evidence.c.evidence_id == evidence_id)
+                .values(status="verified", verified_at=func.now())
+            )
+        return EvidenceUploadResponse(
+            evidence_id=evidence_id,
+            status="verified",
+            upload_id=None,
+            part_size=None,
+            parts=[],
+            expires_at=None,
+        )
+
+
+@router.post(
+    "/v1/return-requests/{return_request_id}/evidence/notes",
+    response_model=ReturnEvidenceItem,
+    status_code=201,
+    responses=error_responses(401, 403, 404, 409, 422, 500),
+)
+async def create_return_evidence_note(
+    return_request_id: UUID,
+    command: ReturnEvidenceNoteCommand,
+    actor: Annotated[AuthorizedUser, Depends(require_return_evidence_capturer)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> ReturnEvidenceItem:
+    await session.rollback()
+    async with session.begin():
+        await _authorize_return_request_scope(session, return_request_id, actor)
+        await _lock(session, f"return-request-evidence:{return_request_id}")
+        existing = await session.scalar(
+            select(return_request_evidence.c.evidence_id).where(
+                return_request_evidence.c.evidence_id == command.evidence_id
+            )
+        )
+        if existing is not None:
+            raise AppError(
+                409,
+                "return_evidence_identity_conflict",
+                "Evidence identity was already used for different proof.",
+            )
+        await session.execute(
+            insert(return_request_evidence).values(
+                evidence_id=command.evidence_id,
+                return_request_id=return_request_id,
+                kind="note",
+                note_text=command.note_text,
+                captured_by=actor.subject,
+                device_captured_at=command.device_captured_at,
+                status="verified",
+                verified_at=func.now(),
+            )
+        )
+        return ReturnEvidenceItem(
+            evidence_id=command.evidence_id,
+            kind="note",
+            status="verified",
+            content_type=None,
+            size_bytes=None,
+            sha256=None,
+            note_text=command.note_text,
+            captured_by=actor.subject,
+            device_captured_at=command.device_captured_at,
+            created_at=datetime.now(UTC),
+            verified_at=datetime.now(UTC),
+        )
+
+
+@router.post(
+    "/v1/return-requests/{return_request_id}/evidence/{evidence_id}/access",
+    response_model=SignedAccessResponse,
+    responses=error_responses(401, 403, 404, 409, 500),
+)
+async def access_return_evidence(
+    return_request_id: UUID,
+    evidence_id: UUID,
+    actor: Annotated[AuthorizedUser, Depends(require_return_evidence_reader)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    storage: Annotated[ObjectStorage, Depends(get_object_storage)],
+) -> SignedAccessResponse:
+    await _authorize_return_request_scope(session, return_request_id, actor)
+    evidence = (
+        (
+            await session.execute(
+                select(return_request_evidence).where(
+                    return_request_evidence.c.evidence_id == evidence_id,
+                    return_request_evidence.c.return_request_id == return_request_id,
+                    return_request_evidence.c.status == "verified",
+                    return_request_evidence.c.kind == "photo",
+                )
+            )
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if evidence is None:
+        raise AppError(404, "return_evidence_not_found", "Verified photo evidence does not exist.")
+    return SignedAccessResponse(
+        access_url=storage.signed_get_url(object_key=evidence["object_key"]),
+        expires_at=datetime.now(UTC) + timedelta(seconds=storage.url_expiry_seconds),
+    )
+
+
+@router.get(
+    "/v1/return-requests/{return_request_id}/evidence",
+    response_model=ReturnEvidenceList,
+    responses=error_responses(401, 403, 404, 500),
+)
+async def list_return_evidence(
+    return_request_id: UUID,
+    actor: Annotated[AuthorizedUser, Depends(require_return_evidence_reader)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> ReturnEvidenceList:
+    await _authorize_return_request_scope(session, return_request_id, actor)
+    rows = list(
+        (
+            await session.execute(
+                select(return_request_evidence).where(
+                    return_request_evidence.c.return_request_id == return_request_id
+                )
+            )
+        ).mappings()
+    )
+    return ReturnEvidenceList(
+        items=[
+            ReturnEvidenceItem(
+                evidence_id=row["evidence_id"],
+                kind=row["kind"],
+                status=row["status"],
+                content_type=row["content_type"],
+                size_bytes=row["size_bytes"],
+                sha256=row["sha256"],
+                note_text=row["note_text"],
+                captured_by=row["captured_by"],
+                device_captured_at=row["device_captured_at"],
+                created_at=row["created_at"],
+                verified_at=row["verified_at"],
+            )
+            for row in rows
+        ]
+    )
+
+
+@router.post(
+    "/v1/return-requests/{return_request_id}/offline-evidence",
+    response_model=ReturnEvidenceSyncState,
+    responses=error_responses(400, 401, 403, 404, 409, 422, 500),
+)
+async def sync_offline_return_evidence(
+    return_request_id: UUID,
+    command: SyncOfflineEvidenceCommand,
+    request: Request,
+    actor: Annotated[AuthorizedUser, Depends(require_return_evidence_capturer)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> ReturnEvidenceSyncState:
+    await session.rollback()
+    async with session.begin():
+        await _authorize_return_request_scope(session, return_request_id, actor)
+        await _lock(session, f"return-request-evidence:{return_request_id}")
+        current_version = await _return_request_version(session, return_request_id)
+        if current_version != command.expected_request_version:
+            conflict_reason = (
+                f"Return Request changed from version {command.expected_request_version} "
+                f"to version {current_version} before the offline evidence could be synced."
+            )
+            await _record_sync_state(
+                session,
+                return_request_id=return_request_id,
+                expected_version=command.expected_request_version,
+                correlation_id=command.correlation_id,
+                status="conflict",
+                conflict_reason=conflict_reason,
+            )
+            return ReturnEvidenceSyncState(
+                return_request_id=return_request_id,
+                expected_version=command.expected_request_version,
+                current_version=current_version,
+                status="conflict",
+                acknowledged_at=None,
+                conflict_detected_at=datetime.now(UTC),
+                conflict_reason=conflict_reason,
+            )
+        evidence_ids = [entry.evidence_id for entry in command.evidence]
+        existing = (
+            await session.scalars(
+                select(return_request_evidence.c.evidence_id).where(
+                    return_request_evidence.c.evidence_id.in_(evidence_ids)
+                )
+            )
+        ).all()
+        existing_set = set(existing)
+        for entry in command.evidence:
+            if entry.evidence_id in existing_set:
+                continue
+            if entry.kind == "photo":
+                await session.execute(
+                    insert(return_request_evidence).values(
+                        evidence_id=entry.evidence_id,
+                        return_request_id=return_request_id,
+                        kind="photo",
+                        captured_by=actor.subject,
+                        device_captured_at=datetime.now(UTC),
+                        status="uploading",
+                        sync_correlation_id=command.correlation_id,
+                    )
+                )
+            elif entry.kind == "note":
+                if not entry.note_text:
+                    raise AppError(
+                        422,
+                        "return_evidence_note_text_required",
+                        "Note evidence must include note_text.",
+                    )
+                await session.execute(
+                    insert(return_request_evidence).values(
+                        evidence_id=entry.evidence_id,
+                        return_request_id=return_request_id,
+                        kind="note",
+                        note_text=entry.note_text,
+                        captured_by=actor.subject,
+                        device_captured_at=datetime.now(UTC),
+                        status="verified",
+                        verified_at=func.now(),
+                        sync_correlation_id=command.correlation_id,
+                    )
+                )
+        await _record_sync_state(
+            session,
+            return_request_id=return_request_id,
+            expected_version=command.expected_request_version,
+            correlation_id=command.correlation_id,
+            status="acknowledged",
+        )
+        return ReturnEvidenceSyncState(
+            return_request_id=return_request_id,
+            expected_version=command.expected_request_version,
+            current_version=current_version,
+            status="acknowledged",
+            acknowledged_at=datetime.now(UTC),
+            conflict_detected_at=None,
+            conflict_reason=None,
+        )
+
+
+@router.get(
+    "/v1/return-requests/{return_request_id}/sync-state",
+    response_model=ReturnEvidenceSyncState,
+    responses=error_responses(401, 403, 404, 500),
+)
+async def get_return_evidence_sync_state(
+    return_request_id: UUID,
+    actor: Annotated[AuthorizedUser, Depends(require_return_evidence_reader)],
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> ReturnEvidenceSyncState:
+    await _authorize_return_request_scope(session, return_request_id, actor)
+    current_version = await _return_request_version(session, return_request_id)
+    state = (
+        (
+            await session.execute(
+                select(return_request_evidence_sync_state).where(
+                    return_request_evidence_sync_state.c.return_request_id == return_request_id
+                )
+            )
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if state is None:
+        return ReturnEvidenceSyncState(
+            return_request_id=return_request_id,
+            expected_version=current_version,
+            current_version=current_version,
+            status="pending",
+            acknowledged_at=None,
+            conflict_detected_at=None,
+            conflict_reason=None,
+        )
+    if state["acknowledged_at"] is not None:
+        status: Literal["acknowledged", "conflict", "pending"] = "acknowledged"
+    elif state["conflict_detected_at"] is not None:
+        status = "conflict"
+    else:
+        status = "pending"
+    return ReturnEvidenceSyncState(
+        return_request_id=return_request_id,
+        expected_version=state["expected_version"],
+        current_version=current_version,
+        status=status,
+        acknowledged_at=state["acknowledged_at"],
+        conflict_detected_at=state["conflict_detected_at"],
+        conflict_reason=state["conflict_reason"],
+    )
