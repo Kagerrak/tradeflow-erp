@@ -4831,6 +4831,91 @@ return_authorizations = Table(
     UniqueConstraint("authorized_by", "idempotency_key", name="uq_return_authorization_actor_key"),
 )
 
+return_request_evidence = Table(
+    "return_request_evidence",
+    metadata,
+    Column("evidence_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "return_request_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("return_requests.return_request_id"),
+        nullable=False,
+    ),
+    Column("kind", String(30), nullable=False),
+    Column("object_key", String(500), nullable=True, unique=True),
+    Column("content_type", String(100), nullable=True),
+    Column("size_bytes", Integer, nullable=True),
+    Column("sha256", String(64), nullable=True),
+    Column("upload_id", String(500), nullable=True),
+    Column("note_text", String(2000), nullable=True),
+    Column("captured_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("device_captured_at", DateTime(timezone=True), nullable=False),
+    Column("status", String(30), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("verified_at", DateTime(timezone=True), nullable=True),
+    Column("sync_correlation_id", String(100), nullable=True),
+    CheckConstraint("kind IN ('photo', 'note')", name="ck_return_request_evidence_kind"),
+    CheckConstraint(
+        "status IN ('uploading', 'verified', 'rejected')", name="ck_return_request_evidence_status"
+    ),
+    CheckConstraint(
+        """(
+            kind = 'photo'
+            AND object_key IS NOT NULL
+            AND content_type IS NOT NULL
+            AND size_bytes IS NOT NULL
+            AND sha256 IS NOT NULL
+            AND note_text IS NULL
+        )
+        OR (
+            kind = 'note'
+            AND object_key IS NULL
+            AND content_type IS NULL
+            AND size_bytes IS NULL
+            AND sha256 IS NULL
+            AND note_text IS NOT NULL
+        )""",
+        name="ck_return_request_evidence_fields_by_kind",
+    ),
+    UniqueConstraint("return_request_id", "evidence_id", name="uq_return_request_evidence_request"),
+)
+
+return_request_evidence_sync_state = Table(
+    "return_request_evidence_sync_state",
+    metadata,
+    Column(
+        "return_request_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("return_requests.return_request_id"),
+        primary_key=True,
+    ),
+    Column("expected_version", Integer, nullable=False),
+    Column("acknowledged_at", DateTime(timezone=True), nullable=True),
+    Column("conflict_detected_at", DateTime(timezone=True), nullable=True),
+    Column("conflict_reason", String(200), nullable=True),
+    Column("correlation_id", String(100), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("expected_version > 0", name="ck_return_evidence_sync_version_positive"),
+    CheckConstraint(
+        "("
+        "acknowledged_at IS NULL "
+        "AND conflict_detected_at IS NOT NULL "
+        "AND conflict_reason IS NOT NULL"
+        ") "
+        "OR ("
+        "acknowledged_at IS NOT NULL "
+        "AND conflict_detected_at IS NULL "
+        "AND conflict_reason IS NULL"
+        ") "
+        "OR ("
+        "acknowledged_at IS NULL "
+        "AND conflict_detected_at IS NULL "
+        "AND conflict_reason IS NULL"
+        ")",
+        name="ck_return_evidence_sync_state_mutual_exclusion",
+    ),
+)
+
 delivery_receipt_documents = Table(
     "delivery_receipt_documents",
     metadata,

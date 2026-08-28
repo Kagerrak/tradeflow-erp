@@ -6,6 +6,9 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 type ReturnRequest = components["schemas"]["ReturnRequestResponse"];
 type Classifications = components["schemas"]["ReturnClassificationsResponse"];
 type Eligibility = components["schemas"]["ReturnEligibilityResponse"];
+type EvidenceItem = components["schemas"]["ReturnEvidenceItem"];
+type EvidenceList = components["schemas"]["ReturnEvidenceList"];
+type EvidenceSyncState = components["schemas"]["ReturnEvidenceSyncState"];
 type Mutation = { body: string };
 
 export function ReturnAuthorizationWorkspace() {
@@ -23,8 +26,13 @@ export function ReturnAuthorizationWorkspace() {
     useState<Classifications | null>(null);
   const [reasonCode, setReasonCode] = useState("");
   const [partyCode, setPartyCode] = useState("");
+  const [evidence, setEvidence] = useState<EvidenceItem[]>([]);
+  const [syncState, setSyncState] = useState<EvidenceSyncState | null>(null);
+  const [noteText, setNoteText] = useState("");
+  const [evidenceBusy, setEvidenceBusy] = useState(false);
   const createMutation = useRef<Mutation | null>(null);
   const authorizationMutation = useRef<Mutation | null>(null);
+  const noteMutation = useRef<Mutation | null>(null);
 
   useEffect(() => {
     void fetch("/api/return-requests?status=pending_authorization", {
@@ -95,6 +103,91 @@ export function ReturnAuthorizationWorkspace() {
         ),
       );
   }, []);
+
+  useEffect(() => {
+    if (selected === null) return;
+    const returnRequestId = selected.return_request_id;
+    const controller = new AbortController();
+    async function loadEvidence() {
+      setEvidenceBusy(true);
+      try {
+        const [evidenceResponse, syncResponse] = await Promise.all([
+          fetch(`/api/return-requests/${returnRequestId}/evidence`, {
+            cache: "no-store",
+            signal: controller.signal,
+          }),
+          fetch(`/api/return-requests/${returnRequestId}/sync-state`, {
+            cache: "no-store",
+            signal: controller.signal,
+          }),
+        ]);
+        if (!evidenceResponse.ok || !syncResponse.ok) {
+          throw new Error("Return evidence could not be loaded.");
+        }
+        const evidencePayload = (await evidenceResponse.json()) as EvidenceList;
+        const syncPayload = (await syncResponse.json()) as EvidenceSyncState;
+        setEvidence(evidencePayload.items);
+        setSyncState(syncPayload);
+      } catch (reason: unknown) {
+        if (reason instanceof DOMException && reason.name === "AbortError")
+          return;
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "Return evidence could not be loaded.",
+        );
+      } finally {
+        setEvidenceBusy(false);
+      }
+    }
+    void loadEvidence();
+    return () => controller.abort();
+  }, [selected]);
+
+  async function addNote(event: FormEvent) {
+    event.preventDefault();
+    if (selected === null || noteText.trim() === "") return;
+    setEvidenceBusy(true);
+    setError(null);
+    try {
+      const evidenceId = crypto.randomUUID();
+      const mutation = noteMutation.current ?? {
+        body: JSON.stringify({
+          command: {
+            evidence_id: evidenceId,
+            device_captured_at: new Date().toISOString(),
+            note_text: noteText.trim(),
+          },
+          idempotencyKey: `return-evidence-note:${evidenceId}`,
+        }),
+      };
+      noteMutation.current = mutation;
+      const response = await fetch(
+        `/api/return-requests/${selected.return_request_id}/evidence/notes`,
+        {
+          body: mutation.body,
+          headers: { "Content-Type": "application/json" },
+          method: "POST",
+        },
+      );
+      const payload = (await response.json()) as EvidenceItem & {
+        message?: string;
+      };
+      if (!response.ok) {
+        if (response.status < 500) noteMutation.current = null;
+        throw new Error(payload.message ?? "Note could not be added.");
+      }
+      noteMutation.current = null;
+      setNoteText("");
+      setEvidence((current) => [...current, payload]);
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "Note could not be added.",
+      );
+    } finally {
+      setEvidenceBusy(false);
+    }
+  }
 
   async function authorize() {
     if (selected === null) return;
@@ -400,6 +493,83 @@ export function ReturnAuthorizationWorkspace() {
                     </button>
                   </>
                 )}
+                <section
+                  aria-label="Return evidence"
+                  className="evidence-panel"
+                >
+                  <h3>Evidence</h3>
+                  {evidenceBusy ? (
+                    <p>Loading evidence…</p>
+                  ) : (
+                    <>
+                      {syncState !== null && (
+                        <p
+                          className={`sync-status sync-status-${syncState.status}`}
+                        >
+                          Sync: {syncState.status}
+                          {syncState.status === "conflict" &&
+                          syncState.conflict_reason
+                            ? ` — ${syncState.conflict_reason}`
+                            : null}
+                        </p>
+                      )}
+                      {evidence.length === 0 ? (
+                        <p>No evidence captured yet.</p>
+                      ) : (
+                        <ul className="evidence-list">
+                          {evidence.map((item) => (
+                            <li key={item.evidence_id}>
+                              <strong>
+                                {item.kind === "photo" ? "Photo" : "Note"}
+                              </strong>{" "}
+                              <span
+                                className={`evidence-status evidence-status-${item.status}`}
+                              >
+                                {item.status}
+                              </span>
+                              <br />
+                              <small>
+                                {item.captured_by} ·{" "}
+                                {new Date(
+                                  item.device_captured_at,
+                                ).toLocaleString()}
+                              </small>
+                              {item.kind === "note" && item.note_text ? (
+                                <p>{item.note_text}</p>
+                              ) : null}
+                              {item.kind === "photo" ? (
+                                <small>
+                                  {item.content_type} · {item.size_bytes} bytes
+                                </small>
+                              ) : null}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {selected.status !== "authorized" && (
+                        <form onSubmit={(event) => void addNote(event)}>
+                          <label>
+                            Add note
+                            <textarea
+                              disabled={evidenceBusy}
+                              maxLength={2000}
+                              onChange={(event) =>
+                                setNoteText(event.target.value)
+                              }
+                              value={noteText}
+                            />
+                          </label>
+                          <button
+                            disabled={evidenceBusy || noteText.trim() === ""}
+                            type="submit"
+                          >
+                            Save note
+                          </button>
+                        </form>
+                      )}
+                    </>
+                  )}
+                </section>
               </>
             )}
           </section>

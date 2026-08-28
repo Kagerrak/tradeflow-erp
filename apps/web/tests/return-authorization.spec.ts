@@ -133,6 +133,96 @@ test("reviews and authorizes a Return Request against remaining quantity", async
   });
 });
 
+test("lists evidence and adds a note", async ({ page }) => {
+  const evidenceId = "evidence-note-1";
+  await page.route(
+    "**/api/return-requests?status=pending_authorization",
+    (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        json: { items: [pending], total: 1 },
+      }),
+  );
+  await page.route(`**/api/return-requests/${requestId}/evidence`, (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      json: {
+        items: [
+          {
+            captured_by: "maker-1",
+            content_type: null,
+            created_at: "2026-08-13T08:30:00Z",
+            device_captured_at: "2026-08-13T08:30:00Z",
+            evidence_id: evidenceId,
+            kind: "note",
+            note_text: "Initial note",
+            sha256: null,
+            size_bytes: null,
+            status: "verified",
+            verified_at: "2026-08-13T08:30:00Z",
+          },
+        ],
+      },
+    }),
+  );
+  await page.route(`**/api/return-requests/${requestId}/sync-state`, (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      json: {
+        acknowledged_at: "2026-08-13T08:30:00Z",
+        conflict_detected_at: null,
+        conflict_reason: null,
+        current_version: 1,
+        expected_version: 1,
+        return_request_id: requestId,
+        status: "acknowledged",
+      },
+    }),
+  );
+  const notes: unknown[] = [];
+  await page.route(
+    `**/api/return-requests/${requestId}/evidence/notes`,
+    (route) => {
+      notes.push(route.request().postDataJSON());
+      return route.fulfill({
+        contentType: "application/json",
+        json: {
+          captured_by: "checker-1",
+          content_type: null,
+          created_at: "2026-08-13T09:00:00Z",
+          device_captured_at: "2026-08-13T09:00:00Z",
+          evidence_id: "evidence-note-2",
+          kind: "note",
+          note_text: (
+            notes[notes.length - 1] as { command: { note_text: string } }
+          ).command.note_text,
+          sha256: null,
+          size_bytes: null,
+          status: "verified",
+          verified_at: "2026-08-13T09:00:00Z",
+        },
+      });
+    },
+  );
+
+  await page.goto("/returns");
+  await page.getByRole("button", { name: new RegExp(requestId) }).click();
+  await expect(page.getByLabel("Return evidence")).toContainText(
+    "Initial note",
+  );
+  await expect(page.getByLabel("Return evidence")).toContainText(
+    "Sync: acknowledged",
+  );
+  await page.getByLabel("Add note").fill("Follow-up note");
+  await page.getByRole("button", { name: "Save note" }).click();
+  await expect(page.getByLabel("Return evidence")).toContainText(
+    "Follow-up note",
+  );
+  expect(notes[0]).toMatchObject({
+    command: { note_text: "Follow-up note" },
+  });
+});
+
 test("creates a Return Request from a Delivery Receipt", async ({ page }) => {
   await page.route(
     "**/api/return-requests?status=pending_authorization",
