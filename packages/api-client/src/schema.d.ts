@@ -1974,6 +1974,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/return-requests/{return_request_id}/evidence/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Return Evidence Upload */
+        post: operations["create_return_evidence_upload_v1_return_requests__return_request_id__evidence_uploads_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/return-requests/{return_request_id}/evidence/{evidence_id}/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Access Return Evidence */
+        post: operations["access_return_evidence_v1_return_requests__return_request_id__evidence__evidence_id__access_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/return-requests/{return_request_id}/evidence/{evidence_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete Return Evidence Upload */
+        post: operations["complete_return_evidence_upload_v1_return_requests__return_request_id__evidence__evidence_id__complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/return-requests/{return_request_id}/receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Return Receipt */
+        post: operations["create_return_receipt_v1_return_requests__return_request_id__receipts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sales/order-entry-reference": {
         parameters: {
             query?: never;
@@ -4042,6 +4110,27 @@ export interface components {
             payment_timing_override_reason?: string | null;
             /** Payment Timing Policy */
             payment_timing_policy?: ("prepaid" | "cash_on_delivery" | "on_account") | null;
+        };
+        /** CreateReturnReceipt */
+        CreateReturnReceipt: {
+            /** Evidence Ids */
+            evidence_ids?: string[];
+            /** Expected Request Version */
+            expected_request_version: number;
+            /** Lines */
+            lines: components["schemas"]["ReturnReceiptLineCommand"][];
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Received At
+             * Format: date-time
+             */
+            received_at: string;
+            /**
+             * Return Receipt Id
+             * Format: uuid
+             */
+            return_receipt_id: string;
         };
         /** CreateReturnRequest */
         CreateReturnRequest: {
@@ -7536,6 +7625,91 @@ export interface components {
             /** Quantity Base */
             quantity_base: string;
         };
+        /** ReturnReceiptLineCommand */
+        ReturnReceiptLineCommand: {
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "restock" | "quarantine" | "damaged" | "rejected";
+            /** Received Quantity Base */
+            received_quantity_base: number | string;
+            /**
+             * Return Request Line Id
+             * Format: uuid
+             */
+            return_request_line_id: string;
+        };
+        /** ReturnReceiptLineResponse */
+        ReturnReceiptLineResponse: {
+            /**
+             * Custody
+             * @enum {unknown}
+             */
+            custody: "available" | "quarantine" | null;
+            /**
+             * Delivery Line Id
+             * Format: uuid
+             */
+            delivery_line_id: string;
+            /**
+             * Line Id
+             * Format: uuid
+             */
+            line_id: string;
+            /** Movement Id */
+            movement_id: string | null;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "restock" | "quarantine" | "damaged" | "rejected";
+            /** Received Quantity Base */
+            received_quantity_base: string;
+            /**
+             * Return Request Line Id
+             * Format: uuid
+             */
+            return_request_line_id: string;
+            /**
+             * Sku Id
+             * Format: uuid
+             */
+            sku_id: string;
+        };
+        /** ReturnReceiptResponse */
+        ReturnReceiptResponse: {
+            /** Lines */
+            lines: components["schemas"]["ReturnReceiptLineResponse"][];
+            /** Notes */
+            notes: string | null;
+            /**
+             * Received At
+             * Format: date-time
+             */
+            received_at: string;
+            /** Received By */
+            received_by: string;
+            /**
+             * Return Receipt Id
+             * Format: uuid
+             */
+            return_receipt_id: string;
+            /**
+             * Return Request Id
+             * Format: uuid
+             */
+            return_request_id: string;
+            /**
+             * Status
+             * @constant
+             */
+            status: "received";
+            /** Version */
+            version: number;
+        };
         /** ReturnRequestLineCommand */
         ReturnRequestLineCommand: {
             /**
@@ -7564,6 +7738,11 @@ export interface components {
             line_id: string;
             /** Quantity Base */
             quantity_base: string;
+            /**
+             * Return Request Line Id
+             * Format: uuid
+             */
+            return_request_line_id: string;
             /**
              * Sku Id
              * Format: uuid
@@ -7615,6 +7794,10 @@ export interface components {
             reason_code: string;
             /** Reason Label */
             reason_label: string;
+            /** Received At */
+            received_at?: string | null;
+            /** Received By */
+            received_by?: string | null;
             /**
              * Requested At
              * Format: date-time
@@ -7626,6 +7809,8 @@ export interface components {
             responsible_party_code: string;
             /** Responsible Party Label */
             responsible_party_label: string;
+            /** Return Receipt Id */
+            return_receipt_id?: string | null;
             /**
              * Return Request Id
              * Format: uuid
@@ -7635,7 +7820,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "pending_authorization" | "authorized";
+            status: "pending_authorization" | "authorized" | "received";
             /** Version */
             version: number;
             /**
@@ -18870,7 +19055,7 @@ export interface operations {
     list_return_requests_v1_return_requests_get: {
         parameters: {
             query?: {
-                status?: ("pending_authorization" | "authorized") | null;
+                status?: ("pending_authorization" | "authorized" | "received") | null;
                 limit?: number;
                 offset?: number;
             };
@@ -19018,6 +19203,358 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReturnRequestResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_return_evidence_upload_v1_return_requests__return_request_id__evidence_uploads_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                return_request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvidenceUploadIntent"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceUploadResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    access_return_evidence_v1_return_requests__return_request_id__evidence__evidence_id__access_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                return_request_id: string;
+                evidence_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignedAccessResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    complete_return_evidence_upload_v1_return_requests__return_request_id__evidence__evidence_id__complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                return_request_id: string;
+                evidence_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceUploadResponse"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stable TradeFlow error envelope. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_return_receipt_v1_return_requests__return_request_id__receipts_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                return_request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateReturnReceipt"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReturnReceiptResponse"];
                 };
             };
             /** @description Stable TradeFlow error envelope. */

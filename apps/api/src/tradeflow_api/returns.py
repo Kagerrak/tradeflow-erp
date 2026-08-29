@@ -32,6 +32,7 @@ from tradeflow_api.models import (
     delivery_receipts,
     return_authorizations,
     return_reasons,
+    return_receipts,
     return_request_lines,
     return_requests,
     return_responsible_parties,
@@ -79,6 +80,7 @@ class AuthorizeReturnRequest(CommandModel):
 
 
 class ReturnRequestLineResponse(BaseModel):
+    return_request_line_id: UUID
     delivery_line_id: UUID
     line_id: UUID
     sku_id: UUID
@@ -94,7 +96,7 @@ class ReturnRequestResponse(BaseModel):
     delivery_id: UUID
     branch_id: UUID
     warehouse_id: UUID
-    status: Literal["pending_authorization", "authorized"]
+    status: Literal["pending_authorization", "authorized", "received"]
     version: int
     reason_code: str
     reason_label: str
@@ -105,6 +107,9 @@ class ReturnRequestResponse(BaseModel):
     requested_at: datetime
     authorized_by: str | None
     authorized_at: datetime | None
+    return_receipt_id: UUID | None = None
+    received_by: str | None = None
+    received_at: datetime | None = None
     affected_value_base_currency: Decimal
     base_currency: str
     lines: list[ReturnRequestLineResponse]
@@ -364,11 +369,18 @@ async def _responses(session: AsyncSession, request_ids: list[UUID]) -> list[Ret
                     return_requests,
                     return_authorizations.c.authorized_by,
                     return_authorizations.c.authorized_at,
+                    return_receipts.c.return_receipt_id,
+                    return_receipts.c.received_by,
+                    return_receipts.c.received_at,
                 )
                 .outerjoin(
                     return_authorizations,
                     return_authorizations.c.return_request_id
                     == return_requests.c.return_request_id,
+                )
+                .outerjoin(
+                    return_receipts,
+                    return_receipts.c.return_request_id == return_requests.c.return_request_id,
                 )
                 .where(return_requests.c.return_request_id.in_(request_ids))
             )
@@ -421,6 +433,11 @@ async def _responses(session: AsyncSession, request_ids: list[UUID]) -> list[Ret
     for request_id in request_ids:
         row = rows_by_id[request_id]
         authorized = row["authorized_by"] is not None
+        received = row["return_receipt_id"] is not None
+        status: Literal["pending_authorization", "authorized", "received"] = (
+            "received" if received else "authorized" if authorized else "pending_authorization"
+        )
+        version = 3 if received else 2 if authorized else 1
         responses.append(
             ReturnRequestResponse(
                 return_request_id=row["return_request_id"],
@@ -429,8 +446,8 @@ async def _responses(session: AsyncSession, request_ids: list[UUID]) -> list[Ret
                 delivery_id=row["delivery_id"],
                 branch_id=row["branch_id"],
                 warehouse_id=row["warehouse_id"],
-                status="authorized" if authorized else "pending_authorization",
-                version=2 if authorized else 1,
+                status=status,
+                version=version,
                 reason_code=row["reason_code"],
                 reason_label=row["reason_label"],
                 responsible_party_code=row["responsible_party_code"],
@@ -440,10 +457,14 @@ async def _responses(session: AsyncSession, request_ids: list[UUID]) -> list[Ret
                 requested_at=row["requested_at"],
                 authorized_by=row["authorized_by"],
                 authorized_at=row["authorized_at"],
+                return_receipt_id=row["return_receipt_id"],
+                received_by=row["received_by"],
+                received_at=row["received_at"],
                 affected_value_base_currency=row["affected_value_base_currency"],
                 base_currency=row["base_currency"],
                 lines=[
                     ReturnRequestLineResponse(
+                        return_request_line_id=line["return_request_line_id"],
                         delivery_line_id=line["delivery_line_id"],
                         line_id=line["line_id"],
                         sku_id=line["sku_id"],
@@ -656,7 +677,9 @@ async def get_return_request(
 async def list_return_requests(
     actor: Annotated[AuthorizedUser, Depends(require_return_reader)],
     session: Annotated[AsyncSession, Depends(get_database_session)],
-    status: Annotated[Literal["pending_authorization", "authorized"] | None, Query()] = None,
+    status: Annotated[
+        Literal["pending_authorization", "authorized", "received"] | None, Query()
+    ] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> ReturnRequestList:
@@ -666,6 +689,10 @@ async def list_return_requests(
             return_authorizations,
             return_authorizations.c.return_request_id == return_requests.c.return_request_id,
         )
+        .outerjoin(
+            return_receipts,
+            return_receipts.c.return_request_id == return_requests.c.return_request_id,
+        )
         .where(
             return_requests.c.branch_id.in_(actor.branch_ids),
             return_requests.c.warehouse_id.in_(actor.warehouse_ids),
@@ -674,7 +701,12 @@ async def list_return_requests(
     if status == "pending_authorization":
         query = query.where(return_authorizations.c.return_request_id.is_(None))
     elif status == "authorized":
-        query = query.where(return_authorizations.c.return_request_id.is_not(None))
+        query = query.where(
+            return_authorizations.c.return_request_id.is_not(None),
+            return_receipts.c.return_request_id.is_(None),
+        )
+    elif status == "received":
+        query = query.where(return_receipts.c.return_request_id.is_not(None))
     total = cast(int, await session.scalar(select(func.count()).select_from(query.subquery())))
     ids = list(
         await session.scalars(

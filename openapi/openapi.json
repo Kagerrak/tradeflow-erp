@@ -4629,6 +4629,62 @@
         "title": "CreateQuotationCommand",
         "type": "object"
       },
+      "CreateReturnReceipt": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "expected_request_version": {
+            "exclusiveMinimum": 0.0,
+            "title": "Expected Request Version",
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnReceiptLineCommand"
+            },
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          },
+          "return_receipt_id": {
+            "format": "uuid",
+            "title": "Return Receipt Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "return_receipt_id",
+          "expected_request_version",
+          "received_at",
+          "lines"
+        ],
+        "title": "CreateReturnReceipt",
+        "type": "object"
+      },
       "CreateReturnRequest": {
         "additionalProperties": false,
         "properties": {
@@ -13178,6 +13234,191 @@
         "title": "ReturnLineResponse",
         "type": "object"
       },
+      "ReturnReceiptLineCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "outcome": {
+            "enum": [
+              "restock",
+              "quarantine",
+              "damaged",
+              "rejected"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "received_quantity_base": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,19}0*$)\\d{0,12}\\.\\d{0,6}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Received Quantity Base"
+          },
+          "return_request_line_id": {
+            "format": "uuid",
+            "title": "Return Request Line Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "return_request_line_id",
+          "received_quantity_base",
+          "outcome"
+        ],
+        "title": "ReturnReceiptLineCommand",
+        "type": "object"
+      },
+      "ReturnReceiptLineResponse": {
+        "properties": {
+          "custody": {
+            "enum": [
+              "available",
+              "quarantine",
+              null
+            ],
+            "title": "Custody"
+          },
+          "delivery_line_id": {
+            "format": "uuid",
+            "title": "Delivery Line Id",
+            "type": "string"
+          },
+          "line_id": {
+            "format": "uuid",
+            "title": "Line Id",
+            "type": "string"
+          },
+          "movement_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Movement Id"
+          },
+          "outcome": {
+            "enum": [
+              "restock",
+              "quarantine",
+              "damaged",
+              "rejected"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "received_quantity_base": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Received Quantity Base",
+            "type": "string"
+          },
+          "return_request_line_id": {
+            "format": "uuid",
+            "title": "Return Request Line Id",
+            "type": "string"
+          },
+          "sku_id": {
+            "format": "uuid",
+            "title": "Sku Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "return_request_line_id",
+          "delivery_line_id",
+          "line_id",
+          "sku_id",
+          "received_quantity_base",
+          "outcome",
+          "movement_id",
+          "custody"
+        ],
+        "title": "ReturnReceiptLineResponse",
+        "type": "object"
+      },
+      "ReturnReceiptResponse": {
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnReceiptLineResponse"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          },
+          "received_by": {
+            "title": "Received By",
+            "type": "string"
+          },
+          "return_receipt_id": {
+            "format": "uuid",
+            "title": "Return Receipt Id",
+            "type": "string"
+          },
+          "return_request_id": {
+            "format": "uuid",
+            "title": "Return Request Id",
+            "type": "string"
+          },
+          "status": {
+            "const": "received",
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "return_receipt_id",
+          "return_request_id",
+          "status",
+          "version",
+          "received_by",
+          "received_at",
+          "notes",
+          "lines"
+        ],
+        "title": "ReturnReceiptResponse",
+        "type": "object"
+      },
       "ReturnRequestLineCommand": {
         "additionalProperties": false,
         "properties": {
@@ -13234,6 +13475,11 @@
             "title": "Quantity Base",
             "type": "string"
           },
+          "return_request_line_id": {
+            "format": "uuid",
+            "title": "Return Request Line Id",
+            "type": "string"
+          },
           "sku_id": {
             "format": "uuid",
             "title": "Sku Id",
@@ -13241,6 +13487,7 @@
           }
         },
         "required": [
+          "return_request_line_id",
           "delivery_line_id",
           "line_id",
           "sku_id",
@@ -13352,6 +13599,29 @@
             "title": "Reason Label",
             "type": "string"
           },
+          "received_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received At"
+          },
+          "received_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received By"
+          },
           "requested_at": {
             "format": "date-time",
             "title": "Requested At",
@@ -13369,6 +13639,18 @@
             "title": "Responsible Party Label",
             "type": "string"
           },
+          "return_receipt_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return Receipt Id"
+          },
           "return_request_id": {
             "format": "uuid",
             "title": "Return Request Id",
@@ -13377,7 +13659,8 @@
           "status": {
             "enum": [
               "pending_authorization",
-              "authorized"
+              "authorized",
+              "received"
             ],
             "title": "Status",
             "type": "string"
@@ -31025,7 +31308,8 @@
                 {
                   "enum": [
                     "pending_authorization",
-                    "authorized"
+                    "authorized",
+                    "received"
                   ],
                   "type": "string"
                 },
@@ -31345,6 +31629,497 @@
         "summary": "Authorize Return Request",
         "tags": [
           "returns"
+        ]
+      }
+    },
+    "/v1/return-requests/{return_request_id}/evidence/uploads": {
+      "post": {
+        "operationId": "create_return_evidence_upload_v1_return_requests__return_request_id__evidence_uploads_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "return_request_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Return Request Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvidenceUploadIntent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceUploadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Return Evidence Upload",
+        "tags": [
+          "return-receipts"
+        ]
+      }
+    },
+    "/v1/return-requests/{return_request_id}/evidence/{evidence_id}/access": {
+      "post": {
+        "operationId": "access_return_evidence_v1_return_requests__return_request_id__evidence__evidence_id__access_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "return_request_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Return Request Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "evidence_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Evidence Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedAccessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Access Return Evidence",
+        "tags": [
+          "return-receipts"
+        ]
+      }
+    },
+    "/v1/return-requests/{return_request_id}/evidence/{evidence_id}/complete": {
+      "post": {
+        "operationId": "complete_return_evidence_upload_v1_return_requests__return_request_id__evidence__evidence_id__complete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "return_request_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Return Request Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "evidence_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Evidence Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceUploadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Complete Return Evidence Upload",
+        "tags": [
+          "return-receipts"
+        ]
+      }
+    },
+    "/v1/return-requests/{return_request_id}/receipts": {
+      "post": {
+        "operationId": "create_return_receipt_v1_return_requests__return_request_id__receipts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "return_request_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Return Request Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "pattern": ".*\\S.*",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReturnReceipt"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnReceiptResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Stable TradeFlow error envelope."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Return Receipt",
+        "tags": [
+          "return-receipts"
         ]
       }
     },

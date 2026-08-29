@@ -253,6 +253,7 @@ async def test_requester_records_return_request_without_stock_or_financial_effec
     assert payload["base_currency"] == "PHP"
     assert payload["lines"] == [
         {
+            "return_request_line_id": payload["lines"][0]["return_request_line_id"],
             "delivery_line_id": confirmation["lines"][0]["delivery_line_id"],
             "line_id": fixture["line_id"],
             "sku_id": fixture["sku_id"],

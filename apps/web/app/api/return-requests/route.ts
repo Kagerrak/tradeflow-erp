@@ -24,7 +24,9 @@ export async function GET(request: Request): Promise<Response> {
   const query: Query =
     status === null
       ? {}
-      : { status: status as "pending_authorization" | "authorized" };
+      : {
+          status: status as "pending_authorization" | "authorized" | "received",
+        };
   try {
     const result = await client.GET("/v1/return-requests", {
       params: { query },

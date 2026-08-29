@@ -994,7 +994,7 @@ stock_movements = Table(
         "movement_type IN ('opening_stock', 'pick', 'pick_reversal', 'dispatch', "
         "'delivery_confirmation', 'delivery_exception', 'return_to_warehouse', "
         "'investigation_resolution', 'delivery_correction', 'goods_receipt', 'transfer', "
-        "'inventory_adjustment')",
+        "'inventory_adjustment', 'authorized_return_receipt')",
         name="ck_stock_movements_type",
     ),
     CheckConstraint(
@@ -1029,7 +1029,10 @@ stock_movements = Table(
         "'transfer_in_transit_out', 'transfer_destination_in')) "
         "OR (movement_type = 'inventory_adjustment' "
         "AND movement_leg IN ('adjustment_surplus_in', 'adjustment_shortage_out', "
-        "'adjustment_surplus_reversal_out', 'adjustment_shortage_reversal_in'))",
+        "'adjustment_surplus_reversal_out', 'adjustment_shortage_reversal_in')) "
+        "OR (movement_type = 'authorized_return_receipt' "
+        "AND movement_leg IN ('authorized_return_available_in', "
+        "'authorized_return_quarantine_in'))",
         name="ck_stock_movements_leg",
     ),
     CheckConstraint("quantity_base > 0", name="ck_stock_movements_quantity_positive"),
@@ -4829,6 +4832,105 @@ return_authorizations = Table(
     Column("correlation_id", String(100), nullable=False),
     Column("authorized_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     UniqueConstraint("authorized_by", "idempotency_key", name="uq_return_authorization_actor_key"),
+)
+
+return_request_evidence = Table(
+    "return_request_evidence",
+    metadata,
+    Column("evidence_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "return_request_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("return_requests.return_request_id"),
+        nullable=False,
+    ),
+    Column("kind", String(30), nullable=False),
+    Column("object_key", String(500), nullable=False, unique=True),
+    Column("content_type", String(100), nullable=False),
+    Column("size_bytes", Integer, nullable=False),
+    Column("sha256", String(64), nullable=False),
+    Column("upload_id", String(500), nullable=True),
+    Column("captured_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("device_captured_at", DateTime(timezone=True), nullable=False),
+    Column("status", String(30), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("verified_at", DateTime(timezone=True), nullable=True),
+    CheckConstraint("kind IN ('photo')", name="ck_return_request_evidence_kind"),
+    CheckConstraint(
+        "status IN ('uploading', 'verified', 'rejected')", name="ck_return_request_evidence_status"
+    ),
+    UniqueConstraint("return_request_id", "evidence_id", name="uq_return_request_evidence"),
+)
+
+return_receipts = Table(
+    "return_receipts",
+    metadata,
+    Column("return_receipt_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "return_request_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("return_requests.return_request_id"),
+        nullable=False,
+        unique=True,
+    ),
+    Column("received_by", String(200), ForeignKey("users.subject"), nullable=False),
+    Column("received_at", DateTime(timezone=True), nullable=False),
+    Column("notes", String(2000), nullable=True),
+    Column("correlation_id", String(100), nullable=False),
+    Column("idempotency_key", String(200), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint("received_by", "idempotency_key", name="uq_return_receipts_actor_key"),
+)
+
+return_receipt_lines = Table(
+    "return_receipt_lines",
+    metadata,
+    Column("return_receipt_line_id", PostgresUUID(as_uuid=True), primary_key=True),
+    Column(
+        "return_receipt_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("return_receipts.return_receipt_id"),
+        nullable=False,
+    ),
+    Column(
+        "return_request_line_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("return_request_lines.return_request_line_id"),
+        nullable=False,
+    ),
+    Column("received_quantity_base", Numeric(18, 6), nullable=False),
+    Column("outcome", String(30), nullable=False),
+    Column("notes", String(2000), nullable=True),
+    Column(
+        "movement_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("stock_movements.movement_id"),
+        nullable=True,
+    ),
+    UniqueConstraint("return_receipt_id", "return_request_line_id", name="uq_return_receipts_line"),
+    CheckConstraint("received_quantity_base >= 0", name="ck_return_receipt_line_quantity"),
+    CheckConstraint(
+        "(outcome = 'rejected' AND received_quantity_base = 0 AND movement_id IS NULL) "
+        "OR (outcome <> 'rejected' AND received_quantity_base > 0 AND movement_id IS NOT NULL)",
+        name="ck_return_receipt_line_outcome_shape",
+    ),
+)
+
+return_receipt_evidence = Table(
+    "return_receipt_evidence",
+    metadata,
+    Column(
+        "return_receipt_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("return_receipts.return_receipt_id"),
+        primary_key=True,
+    ),
+    Column(
+        "evidence_id",
+        PostgresUUID(as_uuid=True),
+        ForeignKey("return_request_evidence.evidence_id"),
+        primary_key=True,
+    ),
 )
 
 delivery_receipt_documents = Table(
