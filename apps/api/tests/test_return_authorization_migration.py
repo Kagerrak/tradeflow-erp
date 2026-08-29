@@ -48,7 +48,7 @@ async def test_return_authorization_migration_upgrade_downgrade_reupgrade(
             )
         await engine.dispose()
         assert dict(state) == {
-            "version_num": "e93736a741bd",
+            "version_num": "0024",
             "has_requests": True,
             "has_authorizations": True,
             "has_authorization_guard": True,
