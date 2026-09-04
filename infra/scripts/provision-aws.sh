@@ -70,8 +70,10 @@ cat >"$TRUST_POLICY" <<EOF
     "Action": "sts:AssumeRoleWithWebIdentity",
     "Condition": {
       "StringEquals": {
-        "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-        "token.actions.githubusercontent.com:sub": "repo:$REPO:ref:refs/heads/main"
+        "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+      },
+      "StringLike": {
+        "token.actions.githubusercontent.com:sub": "repo:${REPO%%/*}@*/${REPO##*/}@*:ref:refs/heads/main"
       }
     }
   }]
