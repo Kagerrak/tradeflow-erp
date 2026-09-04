@@ -62,10 +62,10 @@ docker compose -f compose.demo.yaml -f compose.deploy.yaml pull
 echo "==> Restarting stack"
 docker compose -f compose.demo.yaml -f compose.deploy.yaml up -d --remove-orphans
 
-echo "==> Waiting for /demo to answer"
+echo "==> Waiting for /api/demo/status to answer"
 for attempt in $(seq 1 60); do
-  if curl -fsS "http://localhost/demo" >/dev/null 2>&1; then
-    echo "==> Healthy. Demo is live at $PUBLIC_URL/demo"
+  if curl -fsS "http://localhost/api/demo/status" >/dev/null 2>&1; then
+    echo "==> Healthy. Demo is live at $PUBLIC_URL"
     exit 0
   fi
   sleep 5

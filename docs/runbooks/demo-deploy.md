@@ -62,13 +62,15 @@ owner's IP for manual access), and every deploy command is logged in AWS.
 ## Verify
 
 ```bash
-curl -fsS http://<EIP>/demo        # or https://demo.yourdomain.com/demo
+curl -fsS http://<EIP>/api/demo/status   # or https://demo.yourdomain.com/api/demo/status
 ssh -i ~/.ssh/tradeflow-demo_deploy.pem ubuntu@<EIP>
 ssh ... 'cd /opt/tradeflow && docker compose -f compose.demo.yaml -f compose.deploy.yaml ps'
 ```
 
-Open `/demo` in a browser: it shows the auto-generated demo login credentials.
-The data re-seeds every 45 minutes; nothing visitors do persists.
+The demo console is the web app itself (visit `/sales-orders`, `/inventory`,
+etc.) — in demo mode the server signs visitors in with the seeded evaluation
+identity automatically. `/api/demo/status` reports the seed state and the time
+of the next 45-minute reset.
 
 ## Rollback
 
