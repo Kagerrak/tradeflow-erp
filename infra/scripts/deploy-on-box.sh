@@ -10,7 +10,16 @@ cd "$(dirname "$0")"
 
 CUSTOMER="${CUSTOMER:-demo}"
 PREFIX="tradeflow-$CUSTOMER"
-REGION="$(curl -s http://169.254.169.254/latest/meta-data/placement/region)"
+IMDS="http://169.254.169.254/latest"
+IMDS_TOKEN="$(curl -s --max-time 5 -X PUT "$IMDS/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" || true)"
+if [ -n "$IMDS_TOKEN" ]; then
+  META() { curl -s --max-time 5 -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" "$IMDS/$1"; }
+else
+  META() { curl -s --max-time 5 "$IMDS/$1"; }
+fi
+AZ="$(META meta-data/placement/availability-zone)"
+REGION="${AZ%?}" # ap-southeast-2a -> ap-southeast-2
+: "${REGION:?could not determine region from instance metadata}"
 ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 REGISTRY="${ECR_REGISTRY:-$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com}"
 IMAGE_TAG="${IMAGE_TAG:?IMAGE_TAG is required (git SHA from the workflow)}"
