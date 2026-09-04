@@ -109,6 +109,22 @@ EOF
 aws iam put-role-policy --role-name "$PREFIX-github-actions" --policy-name ecr-push --policy-document "file://$ECR_PUSH_POLICY"
 echo "  attached ecr-push policy"
 
+# Lets the deploy job drive the instance through SSM (no inbound SSH needed).
+DEPLOY_CONTROL_POLICY="$(mktemp)"
+cat >"$DEPLOY_CONTROL_POLICY" <<'EOF'
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    { "Effect": "Allow", "Action": ["ec2:DescribeInstances"], "Resource": "*" },
+    { "Effect": "Allow",
+      "Action": ["ssm:SendCommand", "ssm:GetCommandInvocation", "ssm:ListCommandInvocations"],
+      "Resource": "*" }
+  ]
+}
+EOF
+aws iam put-role-policy --role-name "$PREFIX-github-actions" --policy-name deploy-control --policy-document "file://$DEPLOY_CONTROL_POLICY"
+echo "  attached ecr-push policy"
+
 # --------------------------------------------- EC2 instance role + SSM secrets
 say "IAM role for the EC2 instance: $PREFIX-ec2"
 if ! aws iam get-role --role-name "$PREFIX-ec2" >/dev/null 2>&1; then
@@ -139,6 +155,8 @@ cat >"$EC2_POLICY" <<EOF
 }
 EOF
 aws iam put-role-policy --role-name "$PREFIX-ec2" --policy-name instance-policy --policy-document "file://$EC2_POLICY"
+aws iam attach-role-policy --role-name "$PREFIX-ec2" \
+  --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
 if ! aws iam get-instance-profile --instance-profile-name "$PREFIX-ec2" >/dev/null 2>&1; then
   aws iam create-instance-profile --instance-profile-name "$PREFIX-ec2" >/dev/null
   aws iam add-role-to-instance-profile --instance-profile-name "$PREFIX-ec2" --role-name "$PREFIX-ec2" >/dev/null

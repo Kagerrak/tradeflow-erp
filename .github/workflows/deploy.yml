@@ -67,30 +67,53 @@ jobs:
     name: Deploy to demo EC2
     needs: build
     runs-on: ubuntu-latest
+    env:
+      ECR_REGISTRY: ${{ needs.build.outputs.registry }}
+      IMAGE_TAG: ${{ needs.build.outputs.tag }}
+      INSTANCE_NAME: tradeflow-demo
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DEMO_SSH_KEY }}" > ~/.ssh/demo_deploy
-          chmod 600 ~/.ssh/demo_deploy
-          ssh-keyscan -H "${{ secrets.DEMO_HOST }}" >> ~/.ssh/known_hosts
+      - name: Authenticate to AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::527673188999:role/tradeflow-demo-github-actions
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Ship deploy files to the instance
+      - name: Send deploy command via SSM
         run: |
-          scp -i ~/.ssh/demo_deploy \
-            infra/compose.demo.yaml \
-            infra/compose.deploy.yaml \
-            infra/Caddyfile \
-            infra/scripts/deploy-on-box.sh \
-            ubuntu@${{ secrets.DEMO_HOST }}:/tmp/
-          ssh -i ~/.ssh/demo_deploy ubuntu@${{ secrets.DEMO_HOST }} '
-            sudo mkdir -p /opt/tradeflow &&
-            sudo mv /tmp/compose.demo.yaml /tmp/compose.deploy.yaml /tmp/Caddyfile /tmp/deploy-on-box.sh /opt/tradeflow/ &&
-            sudo chmod +x /opt/tradeflow/deploy-on-box.sh'
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=$INSTANCE_NAME" "Name=instance-state-name,Values=running" \
+            --query 'Reservations[0].Instances[0].InstanceId' --output text)
+          [ -n "$INSTANCE_ID" ] && [ "$INSTANCE_ID" != "None" ] || { echo "instance $INSTANCE_NAME not found"; exit 1; }
 
-      - name: Pull and restart
-        run: |
-          ssh -i ~/.ssh/demo_deploy ubuntu@${{ secrets.DEMO_HOST }} \
-            "cd /opt/tradeflow && ECR_REGISTRY=${{ needs.build.outputs.registry }} IMAGE_TAG=${{ needs.build.outputs.tag }} CUSTOMER=${{ env.CUSTOMER }} bash deploy-on-box.sh"
+          # One self-contained shell script: decode the compose files and the
+          # deploy script into /opt/tradeflow, then run the deploy.
+          PAYLOAD=$(mktemp)
+          {
+            echo "set -e"
+            echo "sudo mkdir -p /opt/tradeflow && cd /opt/tradeflow"
+            for f in infra/compose.demo.yaml infra/compose.deploy.yaml infra/Caddyfile infra/scripts/deploy-on-box.sh; do
+              echo "echo '$(base64 -w0 "$f")' | base64 -d | sudo tee $(basename "$f") >/dev/null"
+            done
+            echo "sudo chmod +x deploy-on-box.sh"
+            echo "sudo ECR_REGISTRY=$ECR_REGISTRY IMAGE_TAG=$IMAGE_TAG CUSTOMER=$CUSTOMER bash deploy-on-box.sh"
+          } >"$PAYLOAD"
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --comment "tradeflow demo deploy $IMAGE_TAG" \
+            --parameters "{\"commands\": [$(jq -Rs . <"$PAYLOAD")]}" \
+            --query Command.CommandId --output text)
+          echo "SSM command: $COMMAND_ID on $INSTANCE_ID"
+
+          for attempt in $(seq 1 90); do
+            STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" \
+              --query Status --output text 2>/dev/null || echo Pending)
+            case "$STATUS" in Success|Failed|Cancelled|TimedOut) break ;; esac
+            sleep 10
+          done
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" \
+            --query StandardOutputContent --output text
+          [ "$STATUS" = Success ] || { echo "deploy failed with status $STATUS"; exit 1; }

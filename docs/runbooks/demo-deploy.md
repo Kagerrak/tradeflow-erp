@@ -13,13 +13,18 @@ GitHub push to main
   -> CI (.github/workflows/ci.yml)
   -> Deploy demo (.github/workflows/deploy.yml)
        -> build api/worker/web images, push to ECR (auth via OIDC role)
-       -> SSH to EC2, run deploy-on-box.sh
+       -> SSM SendCommand to the instance (no inbound SSH from GitHub)
+            -> decode compose files + deploy script into /opt/tradeflow
             -> fetch config from SSM Parameter Store -> .env
             -> docker login (instance IAM role), compose pull, up -d
             -> health check http://localhost/demo
 EC2 (t3.small): Caddy (:80/:443) -> web:3000 -> api:8000 (internal only)
                 + worker + reset + postgres + redis + minio (all in compose)
 ```
+
+Deploys use AWS Systems Manager (SSM) instead of SSH: the instance needs no
+inbound admin access from GitHub's runners (port 22 stays restricted to the
+owner's IP for manual access), and every deploy command is logged in AWS.
 
 ## One-time setup
 
@@ -35,12 +40,9 @@ EC2 (t3.small): Caddy (:80/:443) -> web:3000 -> api:8000 (internal only)
    group + Elastic IP + instance role, deploy SSH key
    (`~/.ssh/tradeflow-demo_deploy.pem`), and secrets in SSM (`/tradeflow/demo/*`).
 
-3. **GitHub secrets** (script prints the exact commands; `gh` must be authed):
-
-   ```bash
-   gh secret set -R Kagerrak/tradeflow-erp DEMO_HOST          # the Elastic IP
-   gh secret set -R Kagerrak/tradeflow-erp DEMO_SSH_KEY < ~/.ssh/tradeflow-demo_deploy.pem
-   ```
+3. **No GitHub secrets are needed for deploys** — OIDC + SSM carry the whole
+   path. The deploy SSH key (`~/.ssh/tradeflow-demo_deploy.pem`) is only for
+   your own manual access; port 22 is restricted to your IP.
 
 4. **Domain (for HTTPS)**: buy one anywhere, then
    `DOMAIN=yourdomain.com ./infra/scripts/provision-aws.sh` creates the hosted
