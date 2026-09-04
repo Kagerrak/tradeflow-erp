@@ -47,12 +47,15 @@ done
 say "GitHub Actions OIDC identity provider"
 OIDC_ARN="arn:aws:iam::$ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
 if aws iam list-open-id-connect-providers | grep -q "token.actions.githubusercontent.com"; then
-  echo "  exists: token.actions.githubusercontent.com"
+  aws iam update-open-id-connect-provider-thumbprint \
+    --open-id-connect-provider-arn "$OIDC_ARN" \
+    --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1 1b511abead59c6ce207077c0bf0e0043b1382612
+  echo "  exists: token.actions.githubusercontent.com (thumbprints refreshed)"
 else
   aws iam create-open-id-connect-provider \
     --url https://token.actions.githubusercontent.com \
     --client-id-list sts.amazonaws.com \
-    --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1 >/dev/null
+    --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1 1b511abead59c6ce207077c0bf0e0043b1382612 >/dev/null
   echo "  created: token.actions.githubusercontent.com"
 fi
 
