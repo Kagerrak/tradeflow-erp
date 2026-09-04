@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from datetime import date
 from decimal import Decimal
 from uuid import uuid4
 
@@ -243,9 +244,13 @@ async def test_credit_note_lifecycle_reduces_open_balance_and_updates_statement(
     await engine.dispose()
     assert exposure["open_balance"] == Decimal("0")
 
+    statement_month = date.today()
     statement = await credit_note_client.get(
         f"/v1/finance/customers/{fixture['customer_id']}/statement",
-        params={"from_date": "2026-08-01", "to_date": "2026-08-31"},
+        params={
+            "from_date": statement_month.replace(day=1).isoformat(),
+            "to_date": statement_month.isoformat(),
+        },
         headers=auth(credit_note_settings, "finance-recorder"),
     )
     assert statement.status_code == 200, statement.text

@@ -1155,6 +1155,11 @@ async def test_approved_non_prepaid_commitments_release_without_prepayment(
     assert released.json()["cleared_payment"] == "0.00"
 
 
+# Fixture payment deadlines are created relative to "now", so as_of must stay
+# safely in the future regardless of when the suite runs.
+AS_OF_PAST_DEADLINE = "2100-01-01T00:00:00Z"
+
+
 @pytest.mark.asyncio
 async def test_unpaid_deadline_replays_releases_to_hold_and_requires_reservation_retry(
     payment_client: AsyncClient,
@@ -1165,7 +1170,7 @@ async def test_unpaid_deadline_replays_releases_to_hold_and_requires_reservation
     fulfillment_order = fixture["fulfillment_order"]
     command = {
         "fulfillment_order_id": fulfillment_order["fulfillment_order_id"],
-        "as_of": "2026-08-31T00:00:00Z",
+        "as_of": AS_OF_PAST_DEADLINE,
     }
     expired = await payment_client.post(
         "/v1/fulfillment/payment-deadlines/process",
@@ -1291,7 +1296,7 @@ async def test_payment_and_deadline_race_has_one_coherent_serialized_outcome(
             ),
             json={
                 "fulfillment_order_id": fulfillment_order["fulfillment_order_id"],
-                "as_of": "2026-08-31T00:00:00Z",
+                "as_of": AS_OF_PAST_DEADLINE,
             },
         ),
     )
