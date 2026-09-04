@@ -9,6 +9,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "./ui/page-header";
+import { randomId } from "@/lib/random-id";
 
 const deliveryTabs = [
   { href: "/deliveries", label: "Deliveries" },
@@ -96,7 +97,7 @@ export function DeliveryConfirmationWorkspace({
       } catch {
         setList({
           code: "delivery_service_unavailable",
-          correlationId: crypto.randomUUID(),
+          correlationId: randomId(),
           kind: "unavailable",
           message: "Assigned Deliveries could not be reached.",
         });
@@ -171,18 +172,18 @@ export function DeliveryConfirmationWorkspace({
     setOperation({ kind: "pending" });
     let work = pending.current;
     if (work === null) {
-      const confirmationId = crypto.randomUUID();
+      const confirmationId = randomId();
       work = {
         capturedAt: new Date().toISOString(),
         confirmationId,
         evidence: [
           {
-            evidenceId: crypto.randomUUID(),
+            evidenceId: randomId(),
             file: signature,
             kind: "signature",
           },
           ...photos.map((file) => ({
-            evidenceId: crypto.randomUUID(),
+            evidenceId: randomId(),
             file,
             kind: "photo" as const,
           })),
@@ -190,7 +191,7 @@ export function DeliveryConfirmationWorkspace({
         idempotencyKey: `delivery-confirmation:${confirmationId}`,
         paymentReceiptId:
           selected.collectionRequired && settlementMode === "cash"
-            ? crypto.randomUUID()
+            ? randomId()
             : null,
       };
       pending.current = work;

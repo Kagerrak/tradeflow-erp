@@ -7,6 +7,7 @@ import {
 } from "@tradeflow/procurement-suppliers";
 import { type FormEvent, useEffect, useState } from "react";
 import { PageHeader } from "./ui/page-header";
+import { randomId } from "@/lib/random-id";
 
 type SearchState = SupplierSearchState | { kind: "loading" };
 type CreationState = SupplierCreationState | null;
@@ -47,7 +48,7 @@ export function ProcurementSuppliersWorkspace() {
       setSearch(await fetchSuppliers(nextQuery));
     } catch {
       setSearch({
-        correlationId: crypto.randomUUID(),
+        correlationId: randomId(),
         kind: "unavailable",
       });
     }
@@ -60,7 +61,7 @@ export function ProcurementSuppliersWorkspace() {
       })
       .catch(() => {
         setSearch({
-          correlationId: crypto.randomUUID(),
+          correlationId: randomId(),
           kind: "unavailable",
         });
       });
@@ -98,7 +99,7 @@ export function ProcurementSuppliersWorkspace() {
       }
     } catch {
       setCreation({
-        correlationId: crypto.randomUUID(),
+        correlationId: randomId(),
         kind: "unavailable",
       });
     } finally {

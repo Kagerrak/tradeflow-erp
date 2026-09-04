@@ -3,6 +3,7 @@
 import type { components } from "@tradeflow/api-client";
 import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "./ui/page-header";
+import { randomId } from "@/lib/random-id";
 
 type CreditNoteList = components["schemas"]["CreditNoteListResponse"];
 type CreditNote = components["schemas"]["CreditNoteResponse"];
@@ -20,9 +21,9 @@ async function fetchCreditNotes(): Promise<ListState> {
     if (response.ok && "items" in data) {
       return { kind: "ready", notes: data };
     }
-    return { kind: "unavailable", correlationId: crypto.randomUUID() };
+    return { kind: "unavailable", correlationId: randomId() };
   } catch {
-    return { kind: "unavailable", correlationId: crypto.randomUUID() };
+    return { kind: "unavailable", correlationId: randomId() };
   }
 }
 
@@ -66,7 +67,7 @@ export function FinanceCreditNoteWorkspace() {
           body: JSON.stringify({
             amount,
             currency,
-            idempotencyKey: crypto.randomUUID(),
+            idempotencyKey: randomId(),
             reason,
           }),
           headers: { "Content-Type": "application/json" },
@@ -101,7 +102,7 @@ export function FinanceCreditNoteWorkspace() {
       const response = await fetch(
         `/api/finance/credit-notes/${note.credit_note_id}/post`,
         {
-          body: JSON.stringify({ idempotencyKey: crypto.randomUUID() }),
+          body: JSON.stringify({ idempotencyKey: randomId() }),
           headers: { "Content-Type": "application/json" },
           method: "POST",
         },
@@ -134,7 +135,7 @@ export function FinanceCreditNoteWorkspace() {
         `/api/finance/credit-notes/${note.credit_note_id}/reverse`,
         {
           body: JSON.stringify({
-            idempotencyKey: crypto.randomUUID(),
+            idempotencyKey: randomId(),
             reason: "Reversed from workspace.",
           }),
           headers: { "Content-Type": "application/json" },

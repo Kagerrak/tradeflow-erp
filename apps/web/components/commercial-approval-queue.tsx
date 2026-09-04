@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { PageHeader } from "./ui/page-header";
+import { randomId } from "@/lib/random-id";
 
 type Scope = {
   capabilities: string[];
@@ -129,7 +130,7 @@ export function CommercialApprovalQueue({
       .catch(() => {
         if (active) {
           setReview({
-            correlationId: crypto.randomUUID(),
+            correlationId: randomId(),
             kind: "unavailable",
           });
         }
@@ -180,7 +181,7 @@ export function CommercialApprovalQueue({
       warehouseId,
     });
     if (commandIdentity.current?.fingerprint !== fingerprint) {
-      commandIdentity.current = { fingerprint, key: crypto.randomUUID() };
+      commandIdentity.current = { fingerprint, key: randomId() };
     }
     setApproving(true);
     try {
@@ -207,7 +208,7 @@ export function CommercialApprovalQueue({
       if (next.kind === "approved") await refresh();
     } catch {
       setApproval({
-        correlationId: crypto.randomUUID(),
+        correlationId: randomId(),
         kind: "unavailable",
       });
     } finally {

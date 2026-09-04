@@ -2,6 +2,7 @@
 
 import { type components } from "@tradeflow/api-client";
 import { useEffect, useRef, useState } from "react";
+import { randomId } from "@/lib/random-id";
 
 type ReturnRequest = components["schemas"]["ReturnRequestResponse"];
 type LineResponse = components["schemas"]["ReturnRequestLineResponse"];
@@ -86,7 +87,7 @@ export function ReturnReceiptWorkspace() {
     try {
       const evidenceIds: string[] = [];
       for (const photo of photos) {
-        const evidenceId = crypto.randomUUID();
+        const evidenceId = randomId();
         evidenceIds.push(
           await uploadEvidence(
             selected.return_request_id,
@@ -98,7 +99,7 @@ export function ReturnReceiptWorkspace() {
       }
       let mutation = receiptMutation.current;
       if (mutation === null) {
-        const receiptId = crypto.randomUUID();
+        const receiptId = randomId();
         const lines = buildLines(selected.lines, lineConfigs);
         const command = {
           evidence_ids: evidenceIds,

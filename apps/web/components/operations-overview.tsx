@@ -46,6 +46,7 @@ import {
 } from "./ui/select";
 import { Spinner } from "./ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { randomId } from "@/lib/random-id";
 
 type Metric = {
   key: string;
@@ -185,14 +186,14 @@ export function OperationsOverview() {
             correlationId:
               body.error?.correlation_id ??
               response.headers.get("X-Correlation-ID") ??
-              crypto.randomUUID(),
+              randomId(),
             kind: "error",
           });
           return;
         }
         setState({ data: (await response.json()) as Overview, kind: "ready" });
       } catch {
-        setState({ correlationId: crypto.randomUUID(), kind: "error" });
+        setState({ correlationId: randomId(), kind: "error" });
       } finally {
         setRefreshing(false);
       }

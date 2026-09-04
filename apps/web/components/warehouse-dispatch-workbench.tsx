@@ -18,6 +18,7 @@ import {
   useState,
 } from "react";
 import { PageHeader } from "./ui/page-header";
+import { randomId } from "@/lib/random-id";
 
 type LoadState = PickingContextState | { kind: "idle" } | { kind: "loading" };
 type CommandState = DispatchState | { kind: "idle" } | { kind: "submitting" };
@@ -64,7 +65,7 @@ export function WarehouseDispatchWorkbench({
     } catch {
       setLoadState({
         code: "dispatch_service_unavailable",
-        correlationId: crypto.randomUUID(),
+        correlationId: randomId(),
         kind: "unavailable",
         message: "The dispatch context could not be reached.",
       });
@@ -99,7 +100,7 @@ export function WarehouseDispatchWorkbench({
       } catch {
         setCommandState({
           code: "dispatch_service_unavailable",
-          correlationId: crypto.randomUUID(),
+          correlationId: randomId(),
           kind: "unavailable",
           message: "The Dispatch outcome is uncertain. Retry unchanged work.",
         });
@@ -115,11 +116,11 @@ export function WarehouseDispatchWorkbench({
     const work: PendingDispatch = {
       command: {
         assigned_to: assignedTo.trim(),
-        delivery_id: crypto.randomUUID(),
+        delivery_id: randomId(),
         expected_fulfillment_version: loadState.context.version,
         pick_ids: pickIds,
       },
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: randomId(),
     };
     pending.current = work;
     void postDispatch(work);

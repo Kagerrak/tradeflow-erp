@@ -2,6 +2,7 @@
 
 import { type components } from "@tradeflow/api-client";
 import { type FormEvent, useEffect, useRef, useState } from "react";
+import { randomId } from "@/lib/random-id";
 
 type ReturnRequest = components["schemas"]["ReturnRequestResponse"];
 type Classifications = components["schemas"]["ReturnClassificationsResponse"];
@@ -104,7 +105,7 @@ export function ReturnAuthorizationWorkspace() {
       const mutation = authorizationMutation.current ?? {
         body: JSON.stringify({
           command: { expected_request_version: selected.version },
-          idempotencyKey: `return-authorization:${crypto.randomUUID()}`,
+          idempotencyKey: `return-authorization:${randomId()}`,
         }),
       };
       authorizationMutation.current = mutation;
@@ -164,7 +165,7 @@ export function ReturnAuthorizationWorkspace() {
         throw new Error(
           "Load a receipt and select at least one eligible line.",
         );
-      const requestId = crypto.randomUUID();
+      const requestId = randomId();
       const mutation = createMutation.current ?? {
         body: JSON.stringify({
           command: {

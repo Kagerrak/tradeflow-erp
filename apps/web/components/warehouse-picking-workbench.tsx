@@ -13,6 +13,7 @@ import {
 } from "@tradeflow/warehouse-picking";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { PageHeader } from "./ui/page-header";
+import { randomId } from "@/lib/random-id";
 
 type LoadState = PickingContextState | { kind: "idle" } | { kind: "loading" };
 
@@ -103,7 +104,7 @@ export function WarehousePickingWorkbench({
     } catch {
       setLoadState({
         code: "warehouse_service_unavailable",
-        correlationId: crypto.randomUUID(),
+        correlationId: randomId(),
         kind: "unavailable",
         message: "The warehouse service could not be reached.",
       });
@@ -164,7 +165,7 @@ export function WarehousePickingWorkbench({
     } catch {
       setScanState({
         code: "warehouse_service_unavailable",
-        correlationId: crypto.randomUUID(),
+        correlationId: randomId(),
         kind: "unavailable",
         message: "Barcode resolution could not reach the warehouse service.",
       });
@@ -228,8 +229,8 @@ export function WarehousePickingWorkbench({
     if (pickIdentity.current?.fingerprint !== fingerprint) {
       pickIdentity.current = {
         fingerprint,
-        idempotencyKey: crypto.randomUUID(),
-        pickId: crypto.randomUUID(),
+        idempotencyKey: randomId(),
+        pickId: randomId(),
       };
     }
     setMessage(null);
@@ -254,7 +255,7 @@ export function WarehousePickingWorkbench({
     } catch {
       setCommandState({
         code: "warehouse_service_unavailable",
-        correlationId: crypto.randomUUID(),
+        correlationId: randomId(),
         kind: "unavailable",
         message: "The Pick outcome is uncertain. Retry the unchanged command.",
       });
@@ -274,8 +275,8 @@ export function WarehousePickingWorkbench({
     if (reversalIdentity.current?.fingerprint !== fingerprint) {
       reversalIdentity.current = {
         fingerprint,
-        idempotencyKey: crypto.randomUUID(),
-        reversalId: crypto.randomUUID(),
+        idempotencyKey: randomId(),
+        reversalId: randomId(),
       };
     }
     setMessage(null);
@@ -300,7 +301,7 @@ export function WarehousePickingWorkbench({
     } catch {
       setCommandState({
         code: "warehouse_service_unavailable",
-        correlationId: crypto.randomUUID(),
+        correlationId: randomId(),
         kind: "unavailable",
         message:
           "The reversal outcome is uncertain. Retry the unchanged command.",

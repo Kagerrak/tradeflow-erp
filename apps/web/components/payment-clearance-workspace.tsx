@@ -9,6 +9,7 @@ import {
 } from "@tradeflow/payment-clearance";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PageHeader } from "./ui/page-header";
+import { randomId } from "@/lib/random-id";
 
 const methods = ["cash", "bank_transfer", "check", "electronic"] as const;
 
@@ -59,7 +60,7 @@ export function PaymentClearanceWorkspace() {
       );
       setQueue((await response.json()) as PaymentReceiptListState);
     } catch {
-      setQueue({ correlationId: crypto.randomUUID(), kind: "unavailable" });
+      setQueue({ correlationId: randomId(), kind: "unavailable" });
     }
   }, []);
 
@@ -75,7 +76,7 @@ export function PaymentClearanceWorkspace() {
       .catch(() => {
         if (active) {
           setQueue({
-            correlationId: crypto.randomUUID(),
+            correlationId: randomId(),
             kind: "unavailable",
           });
         }
@@ -118,8 +119,8 @@ export function PaymentClearanceWorkspace() {
     if (identity.current?.fingerprint !== fingerprint) {
       identity.current = {
         fingerprint,
-        key: crypto.randomUUID(),
-        receiptId: crypto.randomUUID(),
+        key: randomId(),
+        receiptId: randomId(),
       };
     }
     setBusy(true);
@@ -159,7 +160,7 @@ export function PaymentClearanceWorkspace() {
         await loadQueue();
       }
     } catch {
-      setResult({ correlationId: crypto.randomUUID(), kind: "unavailable" });
+      setResult({ correlationId: randomId(), kind: "unavailable" });
     } finally {
       setBusy(false);
     }
@@ -180,7 +181,7 @@ export function PaymentClearanceWorkspace() {
               reason: "Evidence and value date reviewed",
               verified_at: new Date().toISOString(),
             },
-            idempotencyKey: crypto.randomUUID(),
+            idempotencyKey: randomId(),
           }),
           headers: { "Content-Type": "application/json" },
           method: "POST",
@@ -211,9 +212,9 @@ export function PaymentClearanceWorkspace() {
     });
     if (conversionIdentity.current?.fingerprint !== fingerprint) {
       conversionIdentity.current = {
-        conversionId: crypto.randomUUID(),
+        conversionId: randomId(),
         fingerprint,
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: randomId(),
       };
     }
     setBusy(true);
@@ -277,8 +278,8 @@ export function PaymentClearanceWorkspace() {
     if (cashIdentity.current?.fingerprint !== fingerprint) {
       cashIdentity.current = {
         fingerprint,
-        idempotencyKey: crypto.randomUUID(),
-        reconciliationId: crypto.randomUUID(),
+        idempotencyKey: randomId(),
+        reconciliationId: randomId(),
       };
     }
     setBusy(true);

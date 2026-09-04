@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PageHeader } from "./ui/page-header";
+import { randomId } from "@/lib/random-id";
 
 const deliveryTabs = [
   { href: "/deliveries", label: "Deliveries" },
@@ -99,7 +100,7 @@ export function DeliveryExceptionWorkspace() {
     } catch {
       setState({
         code: "delivery_exception_service_unavailable",
-        correlationId: crypto.randomUUID(),
+        correlationId: randomId(),
         kind: "unavailable",
         message: "Exception custody could not be reached.",
       });
@@ -123,7 +124,7 @@ export function DeliveryExceptionWorkspace() {
   const submit = async () => {
     if (selected === null || reason.trim() === "" || quantity.trim() === "")
       return;
-    const commandId = crypto.randomUUID();
+    const commandId = randomId();
     setAction({ kind: "pending" });
     const resolution = queue === "investigation";
     const retry = queue === "retry";

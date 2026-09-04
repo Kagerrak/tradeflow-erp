@@ -3,6 +3,7 @@
 import type { components } from "@tradeflow/api-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PageHeader } from "./ui/page-header";
+import { randomId } from "@/lib/random-id";
 
 type ReceiptList = components["schemas"]["PaymentReceiptListResponse"];
 type Receipt = components["schemas"]["PaymentReceiptResponse"];
@@ -43,11 +44,11 @@ export function FinanceAllocationWorkspace() {
       } else {
         setReceipts({
           kind: "unavailable",
-          correlationId: crypto.randomUUID(),
+          correlationId: randomId(),
         });
       }
     } catch {
-      setReceipts({ kind: "unavailable", correlationId: crypto.randomUUID() });
+      setReceipts({ kind: "unavailable", correlationId: randomId() });
     }
   }, []);
 
@@ -97,7 +98,7 @@ export function FinanceAllocationWorkspace() {
         } else {
           setReceipts({
             kind: "unavailable",
-            correlationId: crypto.randomUUID(),
+            correlationId: randomId(),
           });
         }
       })
@@ -105,7 +106,7 @@ export function FinanceAllocationWorkspace() {
         if (active) {
           setReceipts({
             kind: "unavailable",
-            correlationId: crypto.randomUUID(),
+            correlationId: randomId(),
           });
         }
       });
@@ -133,7 +134,7 @@ export function FinanceAllocationWorkspace() {
     if (allocationIdentity.current?.fingerprint !== fingerprint) {
       allocationIdentity.current = {
         fingerprint,
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: randomId(),
       };
     }
     setBusy(true);

@@ -15,6 +15,7 @@ import {
 } from "./ui/field";
 import { Input } from "./ui/input";
 import { PageHeader } from "./ui/page-header";
+import { randomId } from "@/lib/random-id";
 
 type AdjustmentList = components["schemas"]["AdjustmentListResponseWrapper"];
 type AdjustmentItem = components["schemas"]["AdjustmentResponse"];
@@ -41,7 +42,7 @@ function readCorrelationId(body: unknown): string {
   ) {
     return body.correlationId;
   }
-  return crypto.randomUUID();
+  return randomId();
 }
 
 async function fetchAdjustments(): Promise<ListState> {
@@ -55,7 +56,7 @@ async function fetchAdjustments(): Promise<ListState> {
     }
     return { kind: "unavailable", correlationId: readCorrelationId(data) };
   } catch {
-    return { kind: "unavailable", correlationId: crypto.randomUUID() };
+    return { kind: "unavailable", correlationId: randomId() };
   }
 }
 
@@ -132,7 +133,7 @@ export function InventoryAdjustmentWorkspace() {
     };
     const fingerprint = JSON.stringify(command);
     if (requestIdentity.current?.fingerprint !== fingerprint) {
-      requestIdentity.current = { fingerprint, key: crypto.randomUUID() };
+      requestIdentity.current = { fingerprint, key: randomId() };
     }
     setBusy(true);
     setMessage(null);
@@ -174,7 +175,7 @@ export function InventoryAdjustmentWorkspace() {
   const post = async (adjustment: AdjustmentItem) => {
     let idempotencyKey = postIdentities.current.get(adjustment.adjustment_id);
     if (idempotencyKey === undefined) {
-      idempotencyKey = crypto.randomUUID();
+      idempotencyKey = randomId();
       postIdentities.current.set(adjustment.adjustment_id, idempotencyKey);
     }
     setBusy(true);
@@ -219,7 +220,7 @@ export function InventoryAdjustmentWorkspace() {
       adjustment.adjustment_id,
     );
     if (idempotencyKey === undefined) {
-      idempotencyKey = crypto.randomUUID();
+      idempotencyKey = randomId();
       reverseIdentities.current.set(adjustment.adjustment_id, idempotencyKey);
     }
     setBusy(true);

@@ -15,6 +15,7 @@ import {
 } from "./ui/field";
 import { Input } from "./ui/input";
 import { PageHeader } from "./ui/page-header";
+import { randomId } from "@/lib/random-id";
 
 type TransferList = components["schemas"]["TransferListResponse"];
 type TransferItem =
@@ -43,7 +44,7 @@ function readCorrelationId(body: unknown): string {
   ) {
     return body.correlationId;
   }
-  return crypto.randomUUID();
+  return randomId();
 }
 
 async function fetchTransfers(): Promise<ListState> {
@@ -57,7 +58,7 @@ async function fetchTransfers(): Promise<ListState> {
     }
     return { kind: "unavailable", correlationId: readCorrelationId(data) };
   } catch {
-    return { kind: "unavailable", correlationId: crypto.randomUUID() };
+    return { kind: "unavailable", correlationId: randomId() };
   }
 }
 
@@ -137,7 +138,7 @@ export function InventoryTransferWorkspace() {
     };
     const fingerprint = JSON.stringify(command);
     if (requestIdentity.current?.fingerprint !== fingerprint) {
-      requestIdentity.current = { fingerprint, key: crypto.randomUUID() };
+      requestIdentity.current = { fingerprint, key: randomId() };
     }
     setBusy(true);
     setMessage(null);
@@ -181,7 +182,7 @@ export function InventoryTransferWorkspace() {
   const receive = async (transfer: TransferItem) => {
     let idempotencyKey = receiveIdentities.current.get(transfer.transfer_id);
     if (idempotencyKey === undefined) {
-      idempotencyKey = crypto.randomUUID();
+      idempotencyKey = randomId();
       receiveIdentities.current.set(transfer.transfer_id, idempotencyKey);
     }
     setBusy(true);

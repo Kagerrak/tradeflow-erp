@@ -11,6 +11,7 @@ import {
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { ErrorState } from "./ui/error-state";
 import { PageHeader } from "./ui/page-header";
+import { randomId } from "@/lib/random-id";
 
 type Branch = {
   branch_id: string;
@@ -91,7 +92,7 @@ export function SalesOrderEditor() {
   const [lastSaved, setLastSaved] = useState<SalesOrderDraft | null>(null);
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
-  const orderId = useRef(crypto.randomUUID());
+  const orderId = useRef(randomId());
   const idempotencyKey = useRef<string | null>(null);
   const approvalIdempotencyKey = useRef<string | null>(null);
   const lineIds = useRef(new Map<string, string>());
@@ -129,7 +130,7 @@ export function SalesOrderEditor() {
       .catch(() => {
         if (active) {
           setWorkspace({
-            correlationId: crypto.randomUUID(),
+            correlationId: randomId(),
             kind: "denied",
             reason: "unavailable",
           });
@@ -161,7 +162,7 @@ export function SalesOrderEditor() {
         }
       } catch {
         setReference({
-          correlationId: crypto.randomUUID(),
+          correlationId: randomId(),
           kind: "unavailable",
         });
       }
@@ -223,7 +224,7 @@ export function SalesOrderEditor() {
       if (quantity.length === 0 || Number(quantity) <= 0) return [];
       let lineId = lineIds.current.get(item.priceListLineId);
       if (lineId === undefined) {
-        lineId = crypto.randomUUID();
+        lineId = randomId();
         lineIds.current.set(item.priceListLineId, lineId);
       }
       return [
@@ -241,10 +242,10 @@ export function SalesOrderEditor() {
       ];
     });
     if (lines.length === 0) {
-      setSave({ correlationId: crypto.randomUUID(), kind: "validation" });
+      setSave({ correlationId: randomId(), kind: "validation" });
       return;
     }
-    const key = idempotencyKey.current ?? crypto.randomUUID();
+    const key = idempotencyKey.current ?? randomId();
     idempotencyKey.current = key;
     const fields: UpdateSalesOrderDraftInput = {
       branch_id: readyReference.branchId,
@@ -290,7 +291,7 @@ export function SalesOrderEditor() {
       setSave(next);
       if (next.kind === "saved") setLastSaved(next.draft);
     } catch {
-      setSave({ correlationId: crypto.randomUUID(), kind: "unavailable" });
+      setSave({ correlationId: randomId(), kind: "unavailable" });
     } finally {
       setSaving(false);
     }
@@ -299,7 +300,7 @@ export function SalesOrderEditor() {
   const approve = async () => {
     if (saved === undefined) return;
     if (approvalIdempotencyKey.current === null) {
-      approvalIdempotencyKey.current = crypto.randomUUID();
+      approvalIdempotencyKey.current = randomId();
     }
     setApproving(true);
     try {
@@ -309,7 +310,7 @@ export function SalesOrderEditor() {
           body: JSON.stringify({
             expectedVersion: saved.version,
             idempotencyKey:
-              approvalIdempotencyKey.current ?? crypto.randomUUID(),
+              approvalIdempotencyKey.current ?? randomId(),
           }),
           headers: { "Content-Type": "application/json" },
           method: "POST",
@@ -320,7 +321,7 @@ export function SalesOrderEditor() {
       if (next.kind === "saved") setLastSaved(next.draft);
     } catch {
       setSave({
-        correlationId: crypto.randomUUID(),
+        correlationId: randomId(),
         kind: "unavailable",
       });
     } finally {

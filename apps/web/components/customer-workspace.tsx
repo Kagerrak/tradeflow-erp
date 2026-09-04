@@ -12,6 +12,7 @@ import { DataTable } from "./ui/data-table";
 import { EmptyState } from "./ui/empty-state";
 import { ErrorState } from "./ui/error-state";
 import { PageHeader } from "./ui/page-header";
+import { randomId } from "@/lib/random-id";
 
 type Branch = {
   branch_id: string;
@@ -89,7 +90,7 @@ export function CustomerWorkspace() {
         setDirectory(await searchCustomers(nextQuery));
       } catch {
         setDirectory({
-          correlationId: crypto.randomUUID(),
+          correlationId: randomId(),
           kind: "unavailable",
         });
       }
@@ -118,7 +119,7 @@ export function CustomerWorkspace() {
       .catch(() => {
         if (active) {
           setWorkspace({
-            correlationId: crypto.randomUUID(),
+            correlationId: randomId(),
             kind: "denied",
             reason: "unavailable",
           });
@@ -449,7 +450,7 @@ function CustomerDocket({
       status: value("status") as CreateCustomerAccountInput["status"],
     };
     try {
-      idempotencyKeyRef.current ??= crypto.randomUUID();
+      idempotencyKeyRef.current ??= randomId();
       const response = await fetch("/api/customers", {
         body: JSON.stringify(command),
         headers: {
@@ -461,7 +462,7 @@ function CustomerDocket({
       await onCreated((await response.json()) as CustomerCreationState);
     } catch {
       await onCreated({
-        correlationId: crypto.randomUUID(),
+        correlationId: randomId(),
         kind: "unavailable",
       });
     } finally {

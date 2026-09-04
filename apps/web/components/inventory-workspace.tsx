@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { EmptyState } from "./ui/empty-state";
 import { ErrorState } from "./ui/error-state";
 import { PageHeader } from "./ui/page-header";
+import { randomId } from "@/lib/random-id";
 
 const inventoryTabs = [
   { href: "/inventory", label: "Stock ledger" },
@@ -36,7 +37,7 @@ export function InventoryWorkspace() {
     try {
       setState(await loadInventory(nextQuery));
     } catch {
-      setState({ correlationId: crypto.randomUUID(), kind: "unavailable" });
+      setState({ correlationId: randomId(), kind: "unavailable" });
     }
   }, []);
 
@@ -49,7 +50,7 @@ export function InventoryWorkspace() {
       .catch(() => {
         if (active) {
           setState({
-            correlationId: crypto.randomUUID(),
+            correlationId: randomId(),
             kind: "unavailable",
           });
         }

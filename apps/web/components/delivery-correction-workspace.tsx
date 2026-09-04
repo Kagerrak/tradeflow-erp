@@ -5,6 +5,7 @@ import { type components } from "@tradeflow/api-client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PageHeader } from "./ui/page-header";
+import { randomId } from "@/lib/random-id";
 
 type ApiCorrectionDetail = components["schemas"]["DeliveryCorrectionResponse"];
 type ApiCorrectionSummary = components["schemas"]["DeliveryCorrectionSummary"];
@@ -323,7 +324,7 @@ export function DeliveryCorrectionWorkspace() {
       return;
     let identity = createIdentity.current;
     if (identity === null) {
-      const correctionId = crypto.randomUUID();
+      const correctionId = randomId();
       identity = {
         correctionId,
         key: `delivery-correction:${correctionId}`,
@@ -373,7 +374,7 @@ export function DeliveryCorrectionWorkspace() {
       return;
     let key = authorizationKeys.current.get(detail.correction_id);
     if (key === undefined) {
-      key = `delivery-correction-authorization:${crypto.randomUUID()}`;
+      key = `delivery-correction-authorization:${randomId()}`;
       authorizationKeys.current.set(detail.correction_id, key);
     }
     setDetailState({ kind: "pending" });
@@ -1453,7 +1454,7 @@ function snapshotText(value: unknown): string {
 function serviceFailure(message: string): Failure {
   return {
     code: "delivery_correction_service_unavailable",
-    correlationId: crypto.randomUUID(),
+    correlationId: randomId(),
     kind: "unavailable",
     message,
   };
