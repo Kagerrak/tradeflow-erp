@@ -1,0 +1,7 @@
+# Caddy: automatic HTTPS when SITE_ADDRESS is a domain, plain HTTP on :80
+# while the stack is only reachable by IP. Only the web app is exposed; the
+# API stays on the internal compose network and is reached through the web
+# container's TRADEFLOW_API_URL (http://api:8000).
+{$SITE_ADDRESS::80} {
+	reverse_proxy web:3000
+}

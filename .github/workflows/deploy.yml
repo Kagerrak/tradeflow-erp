@@ -1,0 +1,96 @@
+name: Deploy demo
+
+# CD pipeline: build images -> push to ECR -> pull and run on the demo EC2.
+# AWS auth uses OIDC (no long-lived keys); the EC2 pulls with its instance role.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/**"
+      - "infra/compose*.yaml"
+      - "infra/Caddyfile"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-southeast-2
+  CUSTOMER: demo
+
+jobs:
+  build:
+    name: Build & push images
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [api, worker, web]
+    outputs:
+      registry: ${{ steps.login-ecr.outputs.registry }}
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::527673188999:role/tradeflow-demo-github-actions
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Compute image tag
+        id: meta
+        run: echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/${{ matrix.image }}/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/tradeflow-demo-${{ matrix.image }}:${{ steps.meta.outputs.tag }}
+            ${{ steps.login-ecr.outputs.registry }}/tradeflow-demo-${{ matrix.image }}:latest
+          cache-from: type=gha,scope=demo-${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=demo-${{ matrix.image }}
+
+  deploy:
+    name: Deploy to demo EC2
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEMO_SSH_KEY }}" > ~/.ssh/demo_deploy
+          chmod 600 ~/.ssh/demo_deploy
+          ssh-keyscan -H "${{ secrets.DEMO_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Ship deploy files to the instance
+        run: |
+          scp -i ~/.ssh/demo_deploy \
+            infra/compose.demo.yaml \
+            infra/compose.deploy.yaml \
+            infra/Caddyfile \
+            infra/scripts/deploy-on-box.sh \
+            ubuntu@${{ secrets.DEMO_HOST }}:/tmp/
+          ssh -i ~/.ssh/demo_deploy ubuntu@${{ secrets.DEMO_HOST }} '
+            sudo mkdir -p /opt/tradeflow &&
+            sudo mv /tmp/compose.demo.yaml /tmp/compose.deploy.yaml /tmp/Caddyfile /tmp/deploy-on-box.sh /opt/tradeflow/ &&
+            sudo chmod +x /opt/tradeflow/deploy-on-box.sh'
+
+      - name: Pull and restart
+        run: |
+          ssh -i ~/.ssh/demo_deploy ubuntu@${{ secrets.DEMO_HOST }} \
+            "cd /opt/tradeflow && ECR_REGISTRY=${{ needs.build.outputs.registry }} IMAGE_TAG=${{ needs.build.outputs.tag }} CUSTOMER=${{ env.CUSTOMER }} bash deploy-on-box.sh"

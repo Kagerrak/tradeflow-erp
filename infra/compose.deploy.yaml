@@ -1,0 +1,44 @@
+# Deploy override: replaces local `build:` with published ECR images and puts
+# Caddy (automatic HTTPS) in front of the web app. Use together with:
+#   docker compose -f compose.demo.yaml -f compose.deploy.yaml up -d
+# Env comes from /opt/tradeflow/.env (written by deploy-on-box.sh from SSM).
+name: tradeflow-demo
+
+services:
+  api:
+    build: !reset null
+    image: ${ECR_REGISTRY}/tradeflow-demo-api:${IMAGE_TAG}
+    restart: unless-stopped
+
+  worker:
+    build: !reset null
+    image: ${ECR_REGISTRY}/tradeflow-demo-worker:${IMAGE_TAG}
+    restart: unless-stopped
+
+  reset:
+    build: !reset null
+    image: ${ECR_REGISTRY}/tradeflow-demo-api:${IMAGE_TAG}
+    restart: unless-stopped
+
+  web:
+    build: !reset null
+    image: ${ECR_REGISTRY}/tradeflow-demo-web:${IMAGE_TAG}
+    ports: !reset [] # only Caddy faces the internet
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  caddy-data:
+  caddy-config:
