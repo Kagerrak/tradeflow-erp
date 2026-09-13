@@ -204,9 +204,9 @@ if docker image inspect "$REGISTRY/$PROJECT_NAME-web:$IMAGE_TAG" >/dev/null 2>&1
   docker cp "$CONTAINER:/app/apps/web/.next/static" "$STATIC_DIR/static" >/dev/null
   docker cp "$CONTAINER:/app/apps/web/public" "$STATIC_DIR/public" >/dev/null
   docker rm "$CONTAINER" >/dev/null
-  aws s3 sync "$STATIC_DIR/static" "s3://$WEB_BUCKET/_next/static" --delete \
+  aws s3 sync "$STATIC_DIR/static" "s3://$WEB_BUCKET/_next/static" \
     --cache-control "public, max-age=31536000, immutable" >/dev/null
-  aws s3 sync "$STATIC_DIR/public" "s3://$WEB_BUCKET" --delete \
+  aws s3 sync "$STATIC_DIR/public" "s3://$WEB_BUCKET" \
     --cache-control "public, max-age=3600" >/dev/null
   rm -rf "$STATIC_DIR"
   echo "  static assets uploaded"

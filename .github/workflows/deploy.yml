@@ -60,6 +60,7 @@ jobs:
           context: .
           file: apps/${{ matrix.image }}/Dockerfile.lambda
           push: true
+          platforms: linux/amd64
           tags: |
             ${{ steps.login-ecr.outputs.registry }}/${{ env.PROJECT_NAME }}-${{ matrix.image }}:${{ github.sha }}
             ${{ steps.login-ecr.outputs.registry }}/${{ env.PROJECT_NAME }}-${{ matrix.image }}:latest
@@ -79,9 +80,9 @@ jobs:
           docker cp "$CONTAINER:/app/apps/web/public" .static-dist/public
           docker rm "$CONTAINER" >/dev/null
           aws s3 sync .static-dist/static "s3://$BUCKET/_next/static" \
-            --delete --cache-control "public, max-age=31536000, immutable"
+            --cache-control "public, max-age=31536000, immutable"
           aws s3 sync .static-dist/public "s3://$BUCKET" \
-            --delete --cache-control "public, max-age=3600"
+            --cache-control "public, max-age=3600"
           rm -rf .static-dist
 
   deploy:
