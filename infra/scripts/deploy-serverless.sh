@@ -206,8 +206,8 @@ apply_environment() { # function-name, extra json object
     --function-name "$function_name" --query 'Environment.Variables' --output json)"
   merged="$(mktemp)"
   chmod 600 "$merged"
-  jq -n --argjson current "${current:-{\}}" --argjson extra "$extra" \
-    '$current + $extra' >"$merged"
+  jq -n --argjson current "${current:-{}}" --argjson extra "$extra" \
+    '{Variables: ($current + $extra)}' >"$merged"
   aws lambda update-function-configuration --region "$REGION" \
     --function-name "$function_name" \
     --environment "file://$merged" >/dev/null
