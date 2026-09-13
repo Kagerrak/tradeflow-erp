@@ -17,6 +17,13 @@ Parameters:
       ARN of the existing token.actions.githubusercontent.com OIDC provider.
       Created once per account, so this stack references it instead of creating
       a second one.
+  DeploySubjects:
+    Type: CommaDelimitedList
+    Default: repo:Kagerrak/tradeflow-erp:ref:refs/heads/main
+    Description: >
+      GitHub OIDC subject claims allowed to assume this role. Narrow this to the
+      default main-branch claim after cutover; during preparation it also lists
+      the migration branch so the pipeline can be exercised before main moves.
 
 Resources:
   DeployRole:
@@ -36,7 +43,7 @@ Resources:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
               StringLike:
-                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubRepository}:ref:refs/heads/main"
+                token.actions.githubusercontent.com:sub: !Ref DeploySubjects
       Policies:
         - PolicyName: cloudformation
           PolicyDocument:

@@ -89,7 +89,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build]
     if: always() && (needs.build.result == 'success' || inputs.image_tag != '')
-    environment: demo
     env:
       IMAGE_TAG: ${{ inputs.image_tag || github.sha }}
     steps:
