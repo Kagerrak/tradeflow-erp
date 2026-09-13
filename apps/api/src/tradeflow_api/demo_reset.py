@@ -55,6 +55,9 @@ DEMO_SEED_REQUIREMENTS = (
     "statement_history",
 )
 GATED_PREFIX = "/v1/"
+# Readable even while the demo is being rebuilt or has failed, so the console can
+# tell "preparing" apart from a genuine failure instead of seeing a blank error.
+UNGATED_PATHS = ("/v1/demo/state",)
 RESET_LOCK_TTL_SECONDS = 15 * 60
 
 
@@ -142,7 +145,11 @@ class DemoMaintenanceMiddleware(BaseHTTPMiddleware):
         trusted_reset = bool(supplied_token) and secrets.compare_digest(
             supplied_token, self.reset_token
         )
-        if request.url.path.startswith(self.gated_prefix) and not trusted_reset:
+        if (
+            request.url.path.startswith(self.gated_prefix)
+            and request.url.path not in UNGATED_PATHS
+            and not trusted_reset
+        ):
             await self.state.record_activity()
             snapshot = await self.state.read()
             if snapshot.status == FAILED:
