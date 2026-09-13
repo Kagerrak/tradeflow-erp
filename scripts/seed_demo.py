@@ -660,7 +660,9 @@ class Seeder:
 
         posted_order = orders["posted_invoice"]
         draft_invoice: dict[str, Any] | None = None
-        for _attempt in range(30):
+        # The draft invoice is produced asynchronously by the outbox worker, so
+        # this waits generously rather than assuming a fixed dispatch latency.
+        for _attempt in range(180):
             invoices = self.request(
                 "GET", f"/v1/finance/invoices?customer_id={customers['HARBOR']}"
             )["items"]
