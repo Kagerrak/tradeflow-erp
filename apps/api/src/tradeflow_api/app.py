@@ -65,6 +65,7 @@ from tradeflow_api.operational_policies import router as operational_policies_ro
 from tradeflow_api.operations import router as operations_router
 from tradeflow_api.order_cancellation import router as order_cancellation_router
 from tradeflow_api.organization import router as organization_router
+from tradeflow_api.outbox_dispatch import OutboxDispatchMiddleware
 from tradeflow_api.payment_allocation import router as payment_allocation_router
 from tradeflow_api.payment_fulfillment import router as payment_fulfillment_router
 from tradeflow_api.picking import router as picking_router
@@ -166,11 +167,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.object_storage = S3ObjectStorage(resolved_settings)
     demo_state: CachedDemoState | None = None
     job_publisher: S3JobPublisher | None = None
+    coordinator: DemoResetCoordinator | None = None
     if resolved_settings.environment == "demo":
         store = _build_demo_state_store(resolved_settings)
         if store is not None:
             demo_state = CachedDemoState(store)
-            coordinator = None
             if resolved_settings.demo_jobs_bucket:
                 job_publisher = S3JobPublisher(
                     resolved_settings.demo_jobs_bucket,
@@ -181,14 +182,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     job_publisher,
                     seed_version=resolved_settings.demo_seed_version or DEMO_SEED_VERSION,
                 )
-            app.add_middleware(
-                DemoMaintenanceMiddleware,
-                state=demo_state,
-                reset_token=resolved_settings.demo_reset_token or "",
-                coordinator=coordinator,
-            )
     app.state.demo_state = demo_state
     app.state.job_publisher = job_publisher
+    # Middleware is applied in reverse registration order, so this inner-most
+    # dispatcher runs after the route handler and sees the real status code.
+    if job_publisher is not None:
+        app.add_middleware(
+            OutboxDispatchMiddleware,
+            publisher=job_publisher,
+            session_factory=app.state.session_factory,
+            batch_size=resolved_settings.demo_dispatch_batch_size,
+            recovery_seconds=resolved_settings.demo_dispatch_recovery_seconds,
+        )
+    if coordinator is not None or demo_state is not None:
+        app.add_middleware(
+            DemoMaintenanceMiddleware,
+            state=demo_state,
+            reset_token=resolved_settings.demo_reset_token or "",
+            coordinator=coordinator,
+        )
     app.add_middleware(RateLimitMiddleware, settings=resolved_settings)
     app.add_middleware(CorrelationMiddleware)
     app.include_router(catalog_inventory_router)
