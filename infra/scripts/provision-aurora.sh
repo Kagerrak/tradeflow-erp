@@ -64,6 +64,15 @@ fi
 aws rds modify-db-cluster --region "$REGION" --db-cluster-identifier "$CLUSTER_ID" \
   --deletion-protection --apply-immediately >/dev/null
 
+# Wait for the cluster to settle: a modify issued while a previous modification
+# or an automatic backup is in flight is rejected with InvalidDBClusterStateFault.
+for attempt in $(seq 1 60); do
+  CURRENT="$(cluster_status)"
+  [[ "$CURRENT" == "available" ]] && break
+  echo "  waiting for cluster state (currently $CURRENT)"
+  sleep 20
+done
+
 read -r DB_ENDPOINT DB_PORT DB_RESOURCE_ID DB_MIN DB_PAUSE <<<"$(aws rds describe-db-clusters \
   --region "$REGION" --db-cluster-identifier "$CLUSTER_ID" \
   --query 'DBClusters[0].[Endpoint,Port,DbClusterResourceId,ServerlessV2ScalingConfiguration.MinCapacity,ServerlessV2ScalingConfiguration.SecondsUntilAutoPause]' \
