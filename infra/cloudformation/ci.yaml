@@ -19,9 +19,11 @@ Parameters:
       a second one.
   DeploySubjects:
     Type: CommaDelimitedList
-    Default: repo:Kagerrak/tradeflow-erp:ref:refs/heads/main
+    Default: repo:Kagerrak@*/tradeflow-erp@*:ref:refs/heads/main
     Description: >
-      GitHub OIDC subject claims allowed to assume this role. Narrow this to the
+      GitHub OIDC subject claims allowed to assume this role. GitHub emits the
+      subject with immutable owner and repository ids (repo:owner@id/repo@id),
+      which is why the pattern carries @ wildcards. Narrow this list to the
       default main-branch claim after cutover; during preparation it also lists
       the migration branch so the pipeline can be exercised before main moves.
 
