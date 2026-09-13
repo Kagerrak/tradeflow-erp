@@ -39,6 +39,15 @@ cluster_status() {
     --query 'DBClusters[0].Status' --output text 2>/dev/null || echo "missing"
 }
 
+# Wait for the cluster to settle: a modify issued while a previous modification
+# or an automatic backup is in flight is rejected with InvalidDBClusterStateFault.
+for attempt in $(seq 1 60); do
+  CURRENT="$(cluster_status)"
+  [[ "$CURRENT" == "available" ]] && break
+  echo "  waiting for cluster state (currently $CURRENT)"
+  sleep 20
+done
+
 say "Aurora express-configuration cluster: $CLUSTER_ID"
 if [[ "$(cluster_status)" == "missing" ]]; then
   aws rds create-db-cluster --region "$REGION" \
@@ -63,15 +72,6 @@ fi
 # Idempotent: enabling deletion protection twice is a no-op.
 aws rds modify-db-cluster --region "$REGION" --db-cluster-identifier "$CLUSTER_ID" \
   --deletion-protection --apply-immediately >/dev/null
-
-# Wait for the cluster to settle: a modify issued while a previous modification
-# or an automatic backup is in flight is rejected with InvalidDBClusterStateFault.
-for attempt in $(seq 1 60); do
-  CURRENT="$(cluster_status)"
-  [[ "$CURRENT" == "available" ]] && break
-  echo "  waiting for cluster state (currently $CURRENT)"
-  sleep 20
-done
 
 read -r DB_ENDPOINT DB_PORT DB_RESOURCE_ID DB_MIN DB_PAUSE <<<"$(aws rds describe-db-clusters \
   --region "$REGION" --db-cluster-identifier "$CLUSTER_ID" \
