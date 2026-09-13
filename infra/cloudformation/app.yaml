@@ -218,6 +218,11 @@ Resources:
                 Action: [logs:CreateLogStream, logs:PutLogEvents]
                 Resource: !GetAtt WebLogGroup.Arn
 
+  # Concurrency: this account's Lambda quota is 10 concurrent executions with a
+  # minimum of 10 unreserved, so no function can reserve capacity. The bound on
+  # database pressure is therefore the account quota itself, plus API Gateway
+  # throttling on the HTTP API and MaximumConcurrency on the SQS event source.
+
   # ------------------------------------------------------------ API + migration
   ApiFunction:
     Type: AWS::Lambda::Function
@@ -230,8 +235,6 @@ Resources:
       Architectures: [x86_64]
       MemorySize: 1024
       Timeout: 60
-      # Caps how many concurrent Lambda environments can open Aurora sessions.
-      ReservedConcurrentExecutions: 10
       LoggingConfig:
         LogFormat: JSON
       Environment:
@@ -358,7 +361,6 @@ Resources:
       Architectures: [x86_64]
       MemorySize: 1024
       Timeout: 30
-      ReservedConcurrentExecutions: 10
       LoggingConfig:
         LogFormat: JSON
       Environment:
