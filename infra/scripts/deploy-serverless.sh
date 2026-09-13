@@ -59,6 +59,12 @@ reset_failed_stack() { # stack
   status="$(aws cloudformation describe-stacks --region "$REGION" --stack-name "$1" \
     --query 'Stacks[0].StackStatus' --output text 2>/dev/null || true)"
   case "$status" in
+    UPDATE_ROLLBACK_FAILED)
+      echo "  $1 is UPDATE_ROLLBACK_FAILED; continuing the rollback"
+      aws cloudformation continue-update-rollback --region "$REGION" --stack-name "$1"
+      aws cloudformation wait stack-rollback-complete --region "$REGION" --stack-name "$1"
+      reset_failed_stack "$1"
+      ;;
     ROLLBACK_COMPLETE|REVIEW_IN_PROGRESS)
       echo "  $1 is $status; deleting the empty stack before retrying"
       aws cloudformation delete-stack --region "$REGION" --stack-name "$1"
