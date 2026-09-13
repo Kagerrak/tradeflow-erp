@@ -13,7 +13,7 @@ from uuid import NAMESPACE_URL, uuid5
 import httpx
 import jwt
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
+from tradeflow_api.database import create_database_engine
 from tradeflow_api.demo_reset import DEMO_SEED_VERSION
 
 ALL_CAPABILITIES = [
@@ -117,7 +117,14 @@ def token(subject: str, name: str, capabilities: list[str] | None = None) -> str
 
 async def seed_delivery_receipt_series(branch_id: str) -> None:
     """Install metadata that does not yet have a public configuration command."""
-    engine = create_async_engine(os.environ["TRADEFLOW_DATABASE_URL"])
+    # Uses the application engine factory so the seed authenticates the same way
+    # the API does. On an Aurora express cluster there is no password: the
+    # connection needs a short-lived IAM token over TLS.
+    engine = create_database_engine(
+        os.environ["TRADEFLOW_DATABASE_URL"],
+        iam_auth=os.environ.get("TRADEFLOW_DB_IAM_AUTH", "").lower() in {"1", "true", "yes"},
+        region=os.environ.get("TRADEFLOW_AWS_REGION") or os.environ.get("AWS_REGION"),
+    )
     try:
         async with engine.begin() as connection:
             await connection.execute(
