@@ -323,6 +323,9 @@ Resources:
           TRADEFLOW_ENVIRONMENT: demo
           TRADEFLOW_DEMO_MODE: "true"
           TRADEFLOW_LAMBDA_RUNTIME: "true"
+          # The worker also serves the API in-process while seeding the demo,
+          # so it needs the API-side IAM auth switch as well as its own.
+          TRADEFLOW_DB_IAM_AUTH: "true"
           TRADEFLOW_TELEMETRY_ENABLED: "false"
           TRADEFLOW_AWS_REGION: !Ref AWS::Region
           TRADEFLOW_DEMO_STATE_BACKEND: dynamodb
