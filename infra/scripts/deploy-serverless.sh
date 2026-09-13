@@ -91,6 +91,7 @@ say "Network stack: $NETWORK_STACK"
 aws cloudformation deploy --region "$REGION" --stack-name "$NETWORK_STACK" \
   --template-file infra/cloudformation/network.yaml \
   --parameter-overrides "ProjectName=$PROJECT_NAME" \
+  --tags "Project=$PROJECT_NAME" "Environment=demo" \
   --no-fail-on-empty-changeset
 
 VPC_ID="$(stack_output "$NETWORK_STACK" VpcId)"
@@ -109,6 +110,7 @@ aws cloudformation deploy --region "$REGION" --stack-name "$DATA_STACK" \
     "PrivateSubnetIds=$SUBNET_IDS" \
     "DatabaseSecurityGroupId=$DATABASE_SG" \
     "DatabasePasswordParameter=$SECRET_PREFIX/aurora-master-password" \
+  --tags "Project=$PROJECT_NAME" "Environment=demo" \
   --no-fail-on-empty-changeset
 
 DB_ENDPOINT="$(stack_output "$DATA_STACK" DbClusterEndpoint)"
@@ -142,6 +144,7 @@ aws cloudformation deploy --region "$REGION" --stack-name "$APP_STACK" \
     "ApiImageUri=$REGISTRY/$PROJECT_NAME-api:$IMAGE_TAG" \
     "WorkerImageUri=$REGISTRY/$PROJECT_NAME-worker:$IMAGE_TAG" \
     "WebImageUri=$REGISTRY/$PROJECT_NAME-web:$IMAGE_TAG" \
+  --tags "Project=$PROJECT_NAME" "Environment=demo" \
   --no-fail-on-empty-changeset
 
 API_FUNCTION="$(stack_output "$APP_STACK" ApiFunctionName)"

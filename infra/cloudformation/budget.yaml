@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Billing alert for the serverless demo. The budget is filtered by the Project
+  tag that CloudFormation propagates from the stack tags, so it tracks TradeFlow
+  demo spend rather than the whole account.
+
+  A budget is a notification, not a hard spending cap: it does not stop or
+  throttle anything. Use it as an early warning, and treat a non-zero average
+  AWS/RDS ServerlessDatabaseCapacity during an idle period as the real signal
+  that Aurora is no longer scaling to zero.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: tradeflow-demo
+  MonthlyLimitUsd:
+    Type: Number
+    Default: 10
+    Description: >
+      Expected steady-state ceiling. Idle is about $0.11/month and a month of
+      daily 30-minute sessions is about $3.31/month, so $10 gives generous
+      headroom while still catching a cluster that never pauses.
+  AlertEmail:
+    Type: String
+    Description: Address that receives the budget notifications.
+    AllowedPattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+  WarningThresholdPercent:
+    Type: Number
+    Default: 80
+  CriticalThresholdPercent:
+    Type: Number
+    Default: 100
+
+Resources:
+  DemoBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: !Sub "${ProjectName}-monthly"
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit:
+          Amount: !Ref MonthlyLimitUsd
+          Unit: USD
+        CostFilters:
+          TagKeyValue:
+            - !Sub "user:Project$${ProjectName}"
+      NotificationsWithSubscribers:
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: ACTUAL
+            Threshold: !Ref WarningThresholdPercent
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref AlertEmail
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: FORECASTED
+            Threshold: !Ref CriticalThresholdPercent
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref AlertEmail
+
+Outputs:
+  BudgetName:
+    Value: !Ref DemoBudget
