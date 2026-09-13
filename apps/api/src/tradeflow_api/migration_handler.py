@@ -82,12 +82,14 @@ async def _ensure_database(url: str, name: str) -> None:
     )
     try:
         async with engine.connect() as connection:
-            exists = await connection.scalar(
+            # Isolation level must be set before the first statement, because
+            # CREATE DATABASE cannot run inside a transaction block.
+            autocommit = await connection.execution_options(isolation_level="AUTOCOMMIT")
+            exists = await autocommit.scalar(
                 text("SELECT 1 FROM pg_database WHERE datname = :name"), {"name": name}
             )
             if exists:
                 return
-            autocommit = await connection.execution_options(isolation_level="AUTOCOMMIT")
             await autocommit.execute(text(f'CREATE DATABASE "{name}"'))
     finally:
         await engine.dispose()

@@ -28,15 +28,22 @@ RUN uv sync --frozen --package tradeflow-api --no-dev
 
 FROM public.ecr.aws/lambda/python:3.13
 
-ENV PYTHONPATH="${PYTHONPATH}:/opt/venv/lib/python3.13/site-packages:/var/task" \
-    PYTHONDONTWRITEBYTECODE=1 \
+# Packages are installed directly into the runtime's own site-packages rather
+# than referenced through PYTHONPATH: the Lambda runtime owns PYTHONPATH and a
+# module that is only reachable through a custom value fails to import.
+# /var/task is added with a .pth file for the same reason.
+ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     TRADEFLOW_ALEMBIC_INI=/var/task/apps/api/alembic.ini
 
 WORKDIR /var/task
 
-COPY --from=build /opt/venv /opt/venv
+COPY --from=build /opt/venv/lib/python3.13/site-packages/ /var/lang/lib/python3.13/site-packages/
+RUN printf '/var/task\n' > /var/lang/lib/python3.13/site-packages/tradeflow-workspace.pth
 COPY --from=build /var/task /var/task
+# The Lambda runtime runs as a non-root user, so every source file must be
+# world-readable regardless of the umask it was authored with.
+RUN chmod -R a+rX /var/task
 
 # Default entry point is the API. The migration job overrides the command with
 # tradeflow_api.migration_handler.handler so both share one immutable image.
