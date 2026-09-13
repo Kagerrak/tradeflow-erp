@@ -195,6 +195,25 @@ aws cloudformation deploy --region "$REGION" --stack-name "$APP_STACK" \
   --no-fail-on-empty-changeset
 rm -f "$APP_PARAMS"
 
+# The Next.js static assets are content-hashed build output; publish them to the
+# private S3 origin that CloudFront serves /_next/static/* and /public from.
+if docker image inspect "$REGISTRY/$PROJECT_NAME-web:$IMAGE_TAG" >/dev/null 2>&1; then
+  say "Publishing static assets to s3://$WEB_BUCKET"
+  STATIC_DIR="$(mktemp -d)"
+  CONTAINER="$(docker create "$REGISTRY/$PROJECT_NAME-web:$IMAGE_TAG")"
+  docker cp "$CONTAINER:/app/apps/web/.next/static" "$STATIC_DIR/static" >/dev/null
+  docker cp "$CONTAINER:/app/apps/web/public" "$STATIC_DIR/public" >/dev/null
+  docker rm "$CONTAINER" >/dev/null
+  aws s3 sync "$STATIC_DIR/static" "s3://$WEB_BUCKET/_next/static" --delete \
+    --cache-control "public, max-age=31536000, immutable" >/dev/null
+  aws s3 sync "$STATIC_DIR/public" "s3://$WEB_BUCKET" --delete \
+    --cache-control "public, max-age=3600" >/dev/null
+  rm -rf "$STATIC_DIR"
+  echo "  static assets uploaded"
+else
+  echo "  web image not present locally; skipping static asset upload" >&2
+fi
+
 API_FUNCTION="$(stack_output "$APP_STACK" ApiFunctionName)"
 WORKER_FUNCTION="$(stack_output "$APP_STACK" WorkerFunctionName)"
 WEB_FUNCTION="$(stack_output "$APP_STACK" WebFunctionName)"
