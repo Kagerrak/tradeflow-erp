@@ -1,10 +1,14 @@
 # Lambda container image for the TradeFlow business API and the migration job.
 #
-# The repository layout is preserved inside the image (/var/task/apps/api/...)
-# so `alembic.ini`, `migrations/` and `scripts/` resolve exactly as they do in
-# development. Packaging is done with uv, which keeps the image reproducible
-# from uv.lock.
-FROM ghcr.io/astral-sh/uv:0.8.13-python3.13-bookworm-slim AS build
+# Built on the AWS Lambda Python base image so the Runtime Interface Client is
+# present; a plain Python base image has no entrypoint that can talk to the
+# Lambda runtime API (Runtime.InvalidEntrypoint / ProcessExecutableNotFound).
+# The package is resolved with uv from uv.lock for reproducibility, and the
+# repository layout is preserved under /var/task so alembic.ini, migrations/
+# and scripts/ resolve exactly as they do in development.
+FROM public.ecr.aws/lambda/python:3.13 AS build
+
+COPY --from=ghcr.io/astral-sh/uv:0.8.13 /uv /usr/local/bin/uv
 
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
     UV_LINK_MODE=copy \
@@ -22,10 +26,9 @@ COPY scripts scripts
 RUN uv sync --frozen --package tradeflow-api --no-dev
 
 
-FROM ghcr.io/astral-sh/uv:0.8.13-python3.13-bookworm-slim
+FROM public.ecr.aws/lambda/python:3.13
 
-ENV PATH="/opt/venv/bin:$PATH" \
-    PYTHONPATH=/var/task \
+ENV PYTHONPATH="${PYTHONPATH}:/opt/venv/lib/python3.13/site-packages:/var/task" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     TRADEFLOW_ALEMBIC_INI=/var/task/apps/api/alembic.ini
@@ -35,6 +38,6 @@ WORKDIR /var/task
 COPY --from=build /opt/venv /opt/venv
 COPY --from=build /var/task /var/task
 
-# Default entry point is the API. The migration job overrides the handler with
+# Default entry point is the API. The migration job overrides the command with
 # tradeflow_api.migration_handler.handler so both share one immutable image.
 CMD ["tradeflow_api.lambda_handler.handler"]
