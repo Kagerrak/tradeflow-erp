@@ -50,6 +50,22 @@ params_file() { # json
   printf '%s' "$file"
 } 
 
+# A stack whose very first create failed is stuck in ROLLBACK_COMPLETE and
+# cannot be updated. It holds no deployed state, so it is safe to remove before
+# retrying; retained resources (S3, DynamoDB, Aurora) survive and are reported.
+reset_failed_stack() { # stack
+  local status
+  status="$(aws cloudformation describe-stacks --region "$REGION" --stack-name "$1" \
+    --query 'Stacks[0].StackStatus' --output text 2>/dev/null || true)"
+  case "$status" in
+    ROLLBACK_COMPLETE|REVIEW_IN_PROGRESS)
+      echo "  $1 is $status; deleting the empty stack before retrying"
+      aws cloudformation delete-stack --region "$REGION" --stack-name "$1"
+      aws cloudformation wait stack-delete-complete --region "$REGION" --stack-name "$1"
+      ;;
+  esac
+}
+
 stack_output() { # stack, output-key
   aws cloudformation describe-stacks --region "$REGION" --stack-name "$1" \
     --query "Stacks[0].Outputs[?OutputKey=='$2'].OutputValue" --output text
@@ -112,6 +128,7 @@ echo "  vpc: $VPC_ID  subnets: $SUBNET_IDS"
 
 # --------------------------------------------------------------------- 3. data
 say "Data stack: $DATA_STACK (Aurora Serverless v2, min 0 ACU)"
+reset_failed_stack "$DATA_STACK"
 DATA_PARAMS="$(params_file "$(jq -n \
   --arg project "$PROJECT_NAME" \
   --arg vpc "$VPC_ID" \
@@ -146,6 +163,7 @@ DATABASE_URL="postgresql+asyncpg://tradeflow:${DATABASE_PASSWORD}@${DB_ENDPOINT}
 
 # ---------------------------------------------------------------- 4. application
 say "Application stack: $APP_STACK"
+reset_failed_stack "$APP_STACK"
 APP_PARAMS="$(params_file "$(jq -n \
   --arg project "$PROJECT_NAME" \
   --arg subnets "$SUBNET_IDS" \
