@@ -349,6 +349,12 @@ Resources:
           TRADEFLOW_AUTH_AUDIENCE: tradeflow-api
           TRADEFLOW_AUTH_ISSUER: https://identity.tradeflow.invalid
           TRADEFLOW_OBJECT_STORAGE_BUCKET: !Ref DocumentsBucketName
+          # The in-process API the seeder drives reads the API-side settings, so
+          # the local MinIO defaults must be cleared here as well.
+          TRADEFLOW_OBJECT_STORAGE_ENDPOINT_URL: ""
+          TRADEFLOW_OBJECT_STORAGE_PUBLIC_ENDPOINT_URL: ""
+          TRADEFLOW_OBJECT_STORAGE_ACCESS_KEY: ""
+          TRADEFLOW_OBJECT_STORAGE_SECRET_KEY: ""
           TRADEFLOW_DATABASE_URL: !Sub "postgresql+asyncpg://${DatabaseUser}@${DbClusterEndpoint}:${DbClusterPort}/${DatabaseName}"
 
   WorkerEventSourceMapping:
