@@ -1,8 +1,10 @@
 import createClient from "openapi-fetch";
 
+import { createRetryingFetch } from "./retry";
 import type { paths } from "./schema";
 
 export type { components, operations, paths } from "./schema";
+export { createRetryingFetch, retryingFetch } from "./retry";
 
 export type TradeFlowClientOptions = {
   accessToken: string;
@@ -16,6 +18,8 @@ export function createTraceparent(correlationId: string): string {
   return `00-${traceId}-${traceId.slice(0, 16)}-01`;
 }
 
+const defaultFetch = createRetryingFetch();
+
 export function createTradeFlowClient({
   accessToken,
   baseUrl,
@@ -24,7 +28,7 @@ export function createTradeFlowClient({
 }: TradeFlowClientOptions) {
   return createClient<paths>({
     baseUrl,
-    ...(fetch === undefined ? {} : { fetch }),
+    fetch: fetch ?? defaultFetch,
     headers: {
       Authorization: `Bearer ${accessToken}`,
       traceparent: createTraceparent(correlationId),

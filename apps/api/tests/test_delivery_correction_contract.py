@@ -42,7 +42,7 @@ from tradeflow_api.delivery_confirmation_outbox import (
     create_corrected_draft_invoices_for_event,
     render_corrected_delivery_receipt_for_event,
 )
-from tradeflow_worker.worker import poll_delivery_confirmation_outbox
+from tradeflow_api.outbox_jobs import drain_pending_outbox
 
 
 async def _confirm_fully_accepted_delivery(
@@ -431,9 +431,7 @@ async def test_distinct_approver_posts_complete_correction_without_editing_issue
 
     engine = create_async_engine(postgres_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    processed = await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    )
+    processed = await drain_pending_outbox(factory, fake_storage)
     assert processed == {"completed": 1, "failed": 0}
 
     original_response = await confirmation_client.get(
@@ -681,7 +679,9 @@ async def test_correction_command_and_worker_replays_preserve_one_reconciled_aud
     engine = create_async_engine(postgres_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     context = {"database_session_factory": factory, "object_storage": fake_storage}
-    original_processed = await poll_delivery_confirmation_outbox(context)
+    original_processed = await drain_pending_outbox(
+        context["database_session_factory"], context["object_storage"]
+    )
     assert original_processed == {"completed": 1, "failed": 0}
 
     async with engine.connect() as connection:
@@ -780,7 +780,9 @@ async def test_correction_command_and_worker_replays_preserve_one_reconciled_aud
 
     correction_event_id = posted["outbox_event_id"]
     fake_storage.fail_puts = 1
-    failed_processing = await poll_delivery_confirmation_outbox(context)
+    failed_processing = await drain_pending_outbox(
+        context["database_session_factory"], context["object_storage"]
+    )
     assert failed_processing == {"completed": 0, "failed": 1}
     async with engine.begin() as connection:
         failed_effects = (
@@ -810,7 +812,9 @@ async def test_correction_command_and_worker_replays_preserve_one_reconciled_aud
         )
     assert dict(failed_effects) == {"correction_invoices": 0, "handler_receipts": 0}
 
-    retried_processing = await poll_delivery_confirmation_outbox(context)
+    retried_processing = await drain_pending_outbox(
+        context["database_session_factory"], context["object_storage"]
+    )
     async with engine.connect() as connection:
         retry_state = (
             (
@@ -829,7 +833,9 @@ async def test_correction_command_and_worker_replays_preserve_one_reconciled_aud
     rendered_replacement = fake_storage.put_body
     assert rendered_replacement is not None
     rendered_text = rendered_replacement.decode("latin-1")
-    repeated_processing = await poll_delivery_confirmation_outbox(context)
+    repeated_processing = await drain_pending_outbox(
+        context["database_session_factory"], context["object_storage"]
+    )
     assert repeated_processing == {"completed": 0, "failed": 0}
     assert fake_storage.put_attempts == 3
     assert fake_storage.put_body == rendered_replacement
@@ -1014,9 +1020,7 @@ async def test_serial_correction_preserves_exact_identity_custody_through_rebuil
     original_receipt_id = confirmation["delivery_receipt"]["delivery_receipt_id"]
     engine = create_async_engine(postgres_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    processed = await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    )
+    processed = await drain_pending_outbox(factory, fake_storage)
     assert processed == {"completed": 1, "failed": 0}
 
     receipt = await confirmation_client.get(
@@ -1409,9 +1413,7 @@ async def test_authorization_controls_and_late_failure_leave_correction_pending_
     original_receipt_id = confirmation["delivery_receipt"]["delivery_receipt_id"]
     engine = create_async_engine(postgres_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    processed = await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    )
+    processed = await drain_pending_outbox(factory, fake_storage)
     assert processed == {"completed": 1, "failed": 0}
     correction_id = str(uuid4())
     requested = await confirmation_client.post(
@@ -1981,9 +1983,7 @@ async def test_authorization_rejects_draft_invoice_posted_since_request(
     original_receipt_id = confirmation["delivery_receipt"]["delivery_receipt_id"]
     engine = create_async_engine(postgres_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    assert await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    ) == {"completed": 1, "failed": 0}
+    assert await drain_pending_outbox(factory, fake_storage) == {"completed": 1, "failed": 0}
     correction_id = str(uuid4())
     requested = await confirmation_client.post(
         f"/v1/delivery-receipts/{original_receipt_id}/corrections",
@@ -2106,9 +2106,7 @@ async def test_authorization_rejects_exception_custody_changed_since_request(
     original_receipt_id = confirmation["delivery_receipt"]["delivery_receipt_id"]
     engine = create_async_engine(postgres_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    assert await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    ) == {"completed": 1, "failed": 0}
+    assert await drain_pending_outbox(factory, fake_storage) == {"completed": 1, "failed": 0}
     correction_id = str(uuid4())
     requested = await confirmation_client.post(
         f"/v1/delivery-receipts/{original_receipt_id}/corrections",
@@ -2218,7 +2216,9 @@ async def test_zero_accepted_correction_preserves_series_and_posts_reversal_only
     engine = create_async_engine(postgres_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     context = {"database_session_factory": factory, "object_storage": fake_storage}
-    assert await poll_delivery_confirmation_outbox(context) == {"completed": 1, "failed": 0}
+    assert await drain_pending_outbox(
+        context["database_session_factory"], context["object_storage"]
+    ) == {"completed": 1, "failed": 0}
     async with engine.connect() as connection:
         original_invoice = dict(
             (
@@ -2330,8 +2330,12 @@ async def test_zero_accepted_correction_preserves_series_and_posts_reversal_only
     assert corrected_receipt.json()["correction_id"] == correction_id
     assert corrected_receipt.json()["replacement_delivery_receipt_id"] is None
 
-    assert await poll_delivery_confirmation_outbox(context) == {"completed": 1, "failed": 0}
-    assert await poll_delivery_confirmation_outbox(context) == {"completed": 0, "failed": 0}
+    assert await drain_pending_outbox(
+        context["database_session_factory"], context["object_storage"]
+    ) == {"completed": 1, "failed": 0}
+    assert await drain_pending_outbox(
+        context["database_session_factory"], context["object_storage"]
+    ) == {"completed": 0, "failed": 0}
     current = await confirmation_client.get(
         f"/v1/delivery-corrections/{correction_id}",
         headers=auth(confirmation_settings, "warehouse-supervisor-mnl"),
@@ -2512,9 +2516,7 @@ async def test_chain_scope_replay_and_database_guards_reject_invalid_correction_
     original_receipt_id = confirmation["delivery_receipt"]["delivery_receipt_id"]
     engine = create_async_engine(postgres_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    assert await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    ) == {"completed": 1, "failed": 0}
+    assert await drain_pending_outbox(factory, fake_storage) == {"completed": 1, "failed": 0}
     correction_id = str(uuid4())
     command = {
         "correction_id": correction_id,
@@ -2557,9 +2559,7 @@ async def test_chain_scope_replay_and_database_guards_reject_invalid_correction_
     posted = authorized.json()
     replacement_receipt_id = posted["receipt_effect"]["replacement_delivery_receipt_id"]
     assert replacement_receipt_id is not None
-    assert await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    ) == {"completed": 1, "failed": 0}
+    assert await drain_pending_outbox(factory, fake_storage) == {"completed": 1, "failed": 0}
 
     async with engine.connect() as connection:
         counts_before_chain_attempts = dict(
@@ -3013,7 +3013,9 @@ async def test_sequential_correction_uses_immediate_prior_receipt_invoice_stock_
     engine = create_async_engine(postgres_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     context = {"database_session_factory": factory, "object_storage": fake_storage}
-    assert await poll_delivery_confirmation_outbox(context) == {"completed": 1, "failed": 0}
+    assert await drain_pending_outbox(
+        context["database_session_factory"], context["object_storage"]
+    ) == {"completed": 1, "failed": 0}
     source_line_id = confirmation["lines"][0]["delivery_line_id"]
     first_shape = {
         "delivery_line_id": source_line_id,
@@ -3111,7 +3113,9 @@ async def test_sequential_correction_uses_immediate_prior_receipt_invoice_stock_
     assert first_replacement_receipt_id is not None
     assert first_replacement_invoice_id is not None
     assert len(first_posted["stock_effect"]["replacement_movement_ids"]) == 3
-    assert await poll_delivery_confirmation_outbox(context) == {"completed": 1, "failed": 0}
+    assert await drain_pending_outbox(
+        context["database_session_factory"], context["object_storage"]
+    ) == {"completed": 1, "failed": 0}
 
     first_replacement_detail = await confirmation_client.get(
         f"/v1/delivery-receipts/{first_replacement_receipt_id}",
@@ -3198,8 +3202,12 @@ async def test_sequential_correction_uses_immediate_prior_receipt_invoice_stock_
         first_replacement_receipt_id
     )
     assert second_replacement_receipt_id is not None
-    assert await poll_delivery_confirmation_outbox(context) == {"completed": 1, "failed": 0}
-    assert await poll_delivery_confirmation_outbox(context) == {"completed": 0, "failed": 0}
+    assert await drain_pending_outbox(
+        context["database_session_factory"], context["object_storage"]
+    ) == {"completed": 1, "failed": 0}
+    assert await drain_pending_outbox(
+        context["database_session_factory"], context["object_storage"]
+    ) == {"completed": 0, "failed": 0}
 
     prior_after = await confirmation_client.get(
         f"/v1/delivery-receipts/{first_replacement_receipt_id}",
@@ -3459,9 +3467,7 @@ async def test_multi_physical_lot_correction_aggregates_case_economics_and_rebui
     )
     assert confirmed.status_code == 201, confirmed.text
     original_receipt_id = confirmed.json()["delivery_receipt"]["delivery_receipt_id"]
-    assert await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    ) == {"completed": 1, "failed": 0}
+    assert await drain_pending_outbox(factory, fake_storage) == {"completed": 1, "failed": 0}
 
     original_receipt = await confirmation_client.get(
         f"/v1/delivery-receipts/{original_receipt_id}",
@@ -3625,13 +3631,9 @@ async def test_multi_physical_lot_correction_aggregates_case_economics_and_rebui
     )
     assert authorization_replay.status_code == 200, authorization_replay.text
     assert authorization_replay.json() == posted
-    correction_processed = await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    )
+    correction_processed = await drain_pending_outbox(factory, fake_storage)
     assert correction_processed == {"completed": 1, "failed": 0}
-    assert await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    ) == {"completed": 0, "failed": 0}
+    assert await drain_pending_outbox(factory, fake_storage) == {"completed": 0, "failed": 0}
 
     replacement_invoice_id = posted["draft_invoice_effect"]["replacement_draft_invoice_id"]
     replacement_receipt_id = posted["receipt_effect"]["replacement_delivery_receipt_id"]
@@ -3845,8 +3847,12 @@ async def test_sequential_correction_reconstructs_invoice_line_zeroed_then_reacc
     engine = create_async_engine(postgres_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     context = {"database_session_factory": factory, "object_storage": fake_storage}
-    assert await poll_delivery_confirmation_outbox(context) == {"completed": 1, "failed": 0}
-    assert await poll_delivery_confirmation_outbox(context) == {"completed": 0, "failed": 0}
+    assert await drain_pending_outbox(
+        context["database_session_factory"], context["object_storage"]
+    ) == {"completed": 1, "failed": 0}
+    assert await drain_pending_outbox(
+        context["database_session_factory"], context["object_storage"]
+    ) == {"completed": 0, "failed": 0}
 
     async with engine.connect() as connection:
         original_invoice = dict(
@@ -3949,8 +3955,12 @@ async def test_sequential_correction_reconstructs_invoice_line_zeroed_then_reacc
     ]
     assert first_replacement_receipt_id is not None
     assert first_replacement_invoice_id is not None
-    assert await poll_delivery_confirmation_outbox(context) == {"completed": 1, "failed": 0}
-    assert await poll_delivery_confirmation_outbox(context) == {"completed": 0, "failed": 0}
+    assert await drain_pending_outbox(
+        context["database_session_factory"], context["object_storage"]
+    ) == {"completed": 1, "failed": 0}
+    assert await drain_pending_outbox(
+        context["database_session_factory"], context["object_storage"]
+    ) == {"completed": 0, "failed": 0}
 
     async with engine.connect() as connection:
         first_invoice_chain = [
@@ -4040,7 +4050,9 @@ async def test_sequential_correction_reconstructs_invoice_line_zeroed_then_reacc
     ]
     assert second_replacement_receipt_id is not None
     assert second_replacement_invoice_id is not None
-    result = await poll_delivery_confirmation_outbox(context)
+    result = await drain_pending_outbox(
+        context["database_session_factory"], context["object_storage"]
+    )
     if result != {"completed": 1, "failed": 0}:
         async with engine.connect() as connection:
             state = dict(
@@ -4061,7 +4073,9 @@ async def test_sequential_correction_reconstructs_invoice_line_zeroed_then_reacc
             )
             print("OUTBOX FAIL", state)
     assert result == {"completed": 1, "failed": 0}
-    assert await poll_delivery_confirmation_outbox(context) == {"completed": 0, "failed": 0}
+    assert await drain_pending_outbox(
+        context["database_session_factory"], context["object_storage"]
+    ) == {"completed": 0, "failed": 0}
 
     async with engine.connect() as connection:
         second_invoice_chain = [
@@ -4252,9 +4266,7 @@ async def test_receipt_access_scopes_allow_correction_operators_by_branch_and_wa
     original_receipt_id = confirmation["delivery_receipt"]["delivery_receipt_id"]
     engine = create_async_engine(postgres_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    processed = await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    )
+    processed = await drain_pending_outbox(factory, fake_storage)
     assert processed == {"completed": 1, "failed": 0}
 
     requester_response = await confirmation_client.get(
@@ -4354,9 +4366,7 @@ async def test_delivery_correction_authorization_matrix(
     receipt_id = confirmation["delivery_receipt"]["delivery_receipt_id"]
     engine = create_async_engine(postgres_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    assert await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    ) == {"completed": 1, "failed": 0}
+    assert await drain_pending_outbox(factory, fake_storage) == {"completed": 1, "failed": 0}
 
     correction_id = str(uuid4())
     requested = await confirmation_client.post(
@@ -4480,9 +4490,7 @@ async def test_correction_outbox_handlers_are_idempotent_and_recover_from_transi
     receipt_id = confirmation["delivery_receipt"]["delivery_receipt_id"]
     engine = create_async_engine(postgres_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    assert await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    ) == {"completed": 1, "failed": 0}
+    assert await drain_pending_outbox(factory, fake_storage) == {"completed": 1, "failed": 0}
 
     correction_id = str(uuid4())
     requested = await confirmation_client.post(
@@ -4525,9 +4533,7 @@ async def test_correction_outbox_handlers_are_idempotent_and_recover_from_transi
 
     # Simulate a transient storage failure on the first poll attempt.
     fake_storage.fail_puts = 1
-    first_poll = await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    )
+    first_poll = await drain_pending_outbox(factory, fake_storage)
     assert first_poll == {"completed": 0, "failed": 1}
 
     async with engine.connect() as connection:
@@ -4574,9 +4580,7 @@ async def test_correction_outbox_handlers_are_idempotent_and_recover_from_transi
         await connection.execute(
             text("UPDATE outbox_processing_state SET available_at = now() WHERE status = 'failed'")
         )
-    second_poll = await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    )
+    second_poll = await drain_pending_outbox(factory, fake_storage)
     assert second_poll == {"completed": 1, "failed": 0}
 
     async with engine.connect() as connection:
@@ -4613,9 +4617,7 @@ async def test_correction_outbox_handlers_are_idempotent_and_recover_from_transi
         assert replayed_receipt_id == first_receipt_id
 
     # A final poll finds no remaining work.
-    final_poll = await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    )
+    final_poll = await drain_pending_outbox(factory, fake_storage)
     assert final_poll == {"completed": 0, "failed": 0}
 
     await engine.dispose()
@@ -4639,9 +4641,7 @@ async def test_correction_projections_reconcile_after_rebuild(
     receipt_id = confirmation["delivery_receipt"]["delivery_receipt_id"]
     engine = create_async_engine(postgres_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    assert await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    ) == {"completed": 1, "failed": 0}
+    assert await drain_pending_outbox(factory, fake_storage) == {"completed": 1, "failed": 0}
 
     correction_id = str(uuid4())
     requested = await confirmation_client.post(

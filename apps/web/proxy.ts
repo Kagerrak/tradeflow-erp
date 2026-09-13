@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { demoIsBlocked, readDemoState } from "@/lib/demo-state";
 
 type RateWindow = { count: number; startedAt: number };
 
@@ -52,20 +51,7 @@ function exceedsRateLimit(request: NextRequest): {
   };
 }
 
-function demoIsRefreshing(): boolean {
-  const stateDirectory = process.env.TRADEFLOW_DEMO_STATE_DIR;
-  if (!stateDirectory) return process.env.TRADEFLOW_DEMO_REFRESHING === "true";
-  try {
-    const state = JSON.parse(
-      readFileSync(join(stateDirectory, "status.json"), "utf-8"),
-    ) as { status?: string };
-    return state.status !== "ready";
-  } catch {
-    return true;
-  }
-}
-
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (
@@ -82,19 +68,22 @@ export function proxy(request: NextRequest) {
     );
   }
 
-  if (
-    demoIsRefreshing() &&
-    pathname.startsWith("/api/") &&
-    pathname !== "/api/demo/status"
-  ) {
-    return NextResponse.json(
-      {
-        code: "evaluation_refreshing",
-        message:
-          "The evaluation environment is refreshing and will be ready shortly.",
-      },
-      { headers: { "Retry-After": "30" }, status: 503 },
-    );
+  if (pathname.startsWith("/api/") && pathname !== "/api/demo/status") {
+    // Reads coordination state only, so the check cannot wake the database.
+    const state = await readDemoState();
+    if (demoIsBlocked(state)) {
+      const failed = state.status === "failed";
+      return NextResponse.json(
+        {
+          code: failed ? "evaluation_unavailable" : "evaluation_refreshing",
+          message: failed
+            ? "The evaluation environment could not be prepared. Please try again later."
+            : "The evaluation environment is refreshing and will be ready shortly.",
+          status: state.status,
+        },
+        { headers: { "Retry-After": failed ? "120" : "30" }, status: 503 },
+      );
+    }
   }
 
   if (pathname.startsWith("/api/") && pathname !== "/api/demo/status") {

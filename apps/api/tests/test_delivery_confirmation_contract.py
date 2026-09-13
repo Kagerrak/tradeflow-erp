@@ -39,7 +39,7 @@ from tradeflow_api.delivery_confirmation_outbox import (
     render_delivery_receipt_for_event,
 )
 from tradeflow_api.object_storage import StoredObjectMetadata, UploadedPart
-from tradeflow_worker.worker import poll_delivery_confirmation_outbox
+from tradeflow_api.outbox_jobs import drain_pending_outbox
 
 
 class FakeObjectStorage:
@@ -1288,12 +1288,7 @@ async def test_assigned_staff_confirms_accepted_quantity_atomically_and_idempote
         )
     factory = async_sessionmaker(engine, expire_on_commit=False)
     fake_storage.fail_puts = 1
-    first_poll = await poll_delivery_confirmation_outbox(
-        {
-            "database_session_factory": factory,
-            "object_storage": fake_storage,
-        }
-    )
+    first_poll = await drain_pending_outbox(factory, fake_storage)
     assert first_poll == {"completed": 0, "failed": 2}
     async with engine.begin() as connection:
         unavailable = await connection.scalar(
@@ -1313,12 +1308,7 @@ async def test_assigned_staff_confirms_accepted_quantity_atomically_and_idempote
     assert unavailable == "unavailable"
     assert handler_count == 0
     assert invoice_count == 0
-    second_poll = await poll_delivery_confirmation_outbox(
-        {
-            "database_session_factory": factory,
-            "object_storage": fake_storage,
-        }
-    )
+    second_poll = await drain_pending_outbox(factory, fake_storage)
     assert second_poll == {"completed": 1, "failed": 1}
     assert fake_storage.put_attempts == 2
     async with engine.connect() as connection:

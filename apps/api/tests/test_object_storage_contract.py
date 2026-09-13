@@ -18,6 +18,7 @@ class StorageSettings:
     object_storage_public_endpoint_url: str = "http://127.0.0.1:9000"
     object_storage_secret_key: str = "tradeflow-local-only"  # noqa: S105
     object_storage_url_expiry_seconds: int = 1
+    aws_region: str | None = None
 
 
 @pytest.mark.asyncio

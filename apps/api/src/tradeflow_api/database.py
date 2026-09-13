@@ -14,9 +14,25 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.pool import NullPool
 
 
-def create_database_engine(database_url: str) -> AsyncEngine:
+def create_database_engine(database_url: str, *, lambda_runtime: bool = False) -> AsyncEngine:
+    """Build the async engine for this process.
+
+    In Lambda the engine must not hold idle connections between invocations:
+    Aurora Serverless v2 can only scale to zero when nothing is connected, and a
+    cached execution environment would otherwise keep a session open for
+    minutes after the last request.  ``NullPool`` gives every checkout a fresh
+    connection and closes it on release, so a Lambda that is no longer serving
+    traffic leaves nothing behind.
+    """
+    if lambda_runtime:
+        return create_async_engine(
+            database_url,
+            poolclass=NullPool,
+            connect_args={"timeout": 30, "command_timeout": 60},
+        )
     return create_async_engine(database_url, pool_pre_ping=True)
 
 

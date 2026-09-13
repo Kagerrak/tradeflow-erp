@@ -1,17 +1,25 @@
 name: Deploy demo
 
-# CD pipeline: build images -> push to ECR -> pull and run on the demo EC2.
-# AWS auth uses OIDC (no long-lived keys); the EC2 pulls with its instance role.
+# Serverless demo pipeline: build the three Lambda images, publish the Next.js
+# static assets to the private S3 origin, then apply the CloudFormation stacks
+# and run migrations, demo rebuild and endpoint verification as separate steps.
+#
+# AWS access uses GitHub OIDC only — there are no long-lived AWS keys in GitHub.
 
 on:
   push:
     branches: [main]
     paths:
       - "apps/**"
-      - "infra/compose*.yaml"
-      - "infra/Caddyfile"
+      - "packages/**"
+      - "infra/**"
       - ".github/workflows/deploy.yml"
   workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Existing image tag to redeploy (leave empty to build this commit)
+        required: false
+        type: string
 
 permissions:
   id-token: write
@@ -19,35 +27,30 @@ permissions:
 
 env:
   AWS_REGION: ap-southeast-2
-  CUSTOMER: demo
+  PROJECT_NAME: tradeflow-demo
+  DEPLOY_ROLE: arn:aws:iam::527673188999:role/tradeflow-demo-deploy
 
 jobs:
   build:
-    name: Build & push images
+    name: Build & push ${{ matrix.image }} image
     runs-on: ubuntu-latest
+    if: inputs.image_tag == ''
     strategy:
       fail-fast: false
       matrix:
         image: [api, worker, web]
-    outputs:
-      registry: ${{ steps.login-ecr.outputs.registry }}
-      tag: ${{ steps.meta.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Authenticate to AWS via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::527673188999:role/tradeflow-demo-github-actions
+          role-to-assume: ${{ env.DEPLOY_ROLE }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Log in to ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Compute image tag
-        id: meta
-        run: echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -55,70 +58,85 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: apps/${{ matrix.image }}/Dockerfile
+          file: apps/${{ matrix.image }}/Dockerfile.lambda
           push: true
           tags: |
-            ${{ steps.login-ecr.outputs.registry }}/tradeflow-demo-${{ matrix.image }}:${{ steps.meta.outputs.tag }}
-            ${{ steps.login-ecr.outputs.registry }}/tradeflow-demo-${{ matrix.image }}:latest
-          cache-from: type=gha,scope=demo-${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=demo-${{ matrix.image }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.PROJECT_NAME }}-${{ matrix.image }}:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.PROJECT_NAME }}-${{ matrix.image }}:latest
+          cache-from: type=gha,scope=lambda-${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=lambda-${{ matrix.image }}
+
+      - name: Publish Next.js static assets to the private S3 origin
+        if: matrix.image == 'web'
+        env:
+          IMAGE: ${{ steps.login-ecr.outputs.registry }}/${{ env.PROJECT_NAME }}-web:${{ github.sha }}
+        run: |
+          set -euo pipefail
+          BUCKET="${PROJECT_NAME}-web-$(aws sts get-caller-identity --query Account --output text)-${AWS_REGION}"
+          CONTAINER="$(docker create "$IMAGE")"
+          mkdir -p .static-dist
+          docker cp "$CONTAINER:/app/apps/web/.next/static" .static-dist/static
+          docker cp "$CONTAINER:/app/apps/web/public" .static-dist/public
+          docker rm "$CONTAINER" >/dev/null
+          aws s3 sync .static-dist/static "s3://$BUCKET/_next/static" \
+            --delete --cache-control "public, max-age=31536000, immutable"
+          aws s3 sync .static-dist/public "s3://$BUCKET" \
+            --delete --cache-control "public, max-age=3600"
+          rm -rf .static-dist
 
   deploy:
-    name: Deploy to demo EC2
-    needs: build
+    name: Deploy infrastructure and application
     runs-on: ubuntu-latest
+    needs: [build]
+    if: always() && (needs.build.result == 'success' || inputs.image_tag != '')
+    environment: demo
     env:
-      ECR_REGISTRY: ${{ needs.build.outputs.registry }}
-      IMAGE_TAG: ${{ needs.build.outputs.tag }}
-      INSTANCE_NAME: tradeflow-demo
+      IMAGE_TAG: ${{ inputs.image_tag || github.sha }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Authenticate to AWS via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::527673188999:role/tradeflow-demo-github-actions
+          role-to-assume: ${{ env.DEPLOY_ROLE }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Send deploy command via SSM
+      - name: Deploy serverless demo
+        run: ./infra/scripts/deploy-serverless.sh
+
+  verify:
+    name: Verify public endpoints
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Smoke test the deployed demo
         run: |
-          INSTANCE_ID=$(aws ec2 describe-instances \
-            --filters "Name=tag:Name,Values=$INSTANCE_NAME" "Name=instance-state-name,Values=running" \
-            --query 'Reservations[0].Instances[0].InstanceId' --output text)
-          [ -n "$INSTANCE_ID" ] && [ "$INSTANCE_ID" != "None" ] || { echo "instance $INSTANCE_NAME not found"; exit 1; }
+          set -euo pipefail
+          DOMAIN="$(aws cloudformation describe-stacks --region "$AWS_REGION" \
+            --stack-name "${PROJECT_NAME}-app" \
+            --query "Stacks[0].Outputs[?OutputKey=='DistributionDomainName'].OutputValue" \
+            --output text)"
+          echo "public url: https://$DOMAIN"
+          curl -fsS --max-time 30 "https://$DOMAIN/api/health" >/dev/null
+          curl -fsS --max-time 30 "https://$DOMAIN/api/demo/status" | head -c 400
+          echo
+          curl -fsS --max-time 30 "https://$DOMAIN/" >/dev/null
+          echo "smoke test passed"
 
-          # One self-contained shell script: decode the compose files and the
-          # deploy script into /opt/tradeflow, then run the deploy.
-          PAYLOAD=$(mktemp)
-          {
-            echo "set -e"
-            echo "sudo mkdir -p /opt/tradeflow && cd /opt/tradeflow"
-            for f in infra/compose.demo.yaml infra/compose.deploy.yaml infra/Caddyfile infra/scripts/deploy-on-box.sh; do
-              echo "echo '$(base64 -w0 "$f")' | base64 -d | sudo tee $(basename "$f") >/dev/null"
-            done
-            echo "sudo chmod +x deploy-on-box.sh"
-            echo "sudo ECR_REGISTRY=$ECR_REGISTRY IMAGE_TAG=$IMAGE_TAG CUSTOMER=$CUSTOMER bash deploy-on-box.sh"
-          } >"$PAYLOAD"
-
-          COMMAND_ID=$(aws ssm send-command \
-            --instance-ids "$INSTANCE_ID" \
-            --document-name AWS-RunShellScript \
-            --comment "tradeflow demo deploy $IMAGE_TAG" \
-            --parameters "{\"commands\": [$(jq -Rs . <"$PAYLOAD")]}" \
-            --query Command.CommandId --output text)
-          echo "SSM command: $COMMAND_ID on $INSTANCE_ID"
-
-          for attempt in $(seq 1 90); do
-            STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" \
-              --query Status --output text 2>/dev/null || echo Pending)
-            case "$STATUS" in Success|Failed|Cancelled|TimedOut) break ;; esac
-            sleep 10
-          done
-          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" \
-            --query StandardOutputContent --output text
-          [ "$STATUS" = Success ] || {
-            echo "deploy failed with status $STATUS — stderr:"
-            aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" \
-              --query StandardErrorContent --output text
-            exit 1
-          }
+      - name: Report Aurora capacity
+        if: always()
+        run: |
+          aws cloudwatch get-metric-statistics --region "$AWS_REGION" \
+            --namespace AWS/RDS --metric-name ServerlessDatabaseCapacity \
+            --dimensions Name=DBClusterIdentifier,Value="${PROJECT_NAME}-aurora" \
+            --start-time "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)" \
+            --end-time "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --period 300 --statistics Average --query 'Datapoints[].Average' || true

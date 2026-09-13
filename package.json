@@ -21,7 +21,7 @@
     "openapi:generate": "pnpm openapi:export && pnpm --filter @tradeflow/api-client generate",
     "test": "pnpm -r --if-present test && uv run pytest",
     "typecheck": "pnpm -r --if-present typecheck && uv run mypy apps/api/src apps/worker/src",
-    "worker:dev": "uv run arq tradeflow_worker.worker.Worker"
+    "worker:dev": "uv run python -m tradeflow_worker.local_worker"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

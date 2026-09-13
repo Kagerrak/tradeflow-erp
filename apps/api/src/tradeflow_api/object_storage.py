@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from hashlib import sha256
-from typing import Protocol, cast
+from typing import Any, Protocol, cast
 
 import boto3  # type: ignore[import-untyped]
 from botocore.client import BaseClient  # type: ignore[import-untyped]
@@ -62,32 +62,54 @@ class ObjectStorage(Protocol):
 
 
 class ObjectStorageConfiguration(Protocol):
-    object_storage_access_key: str
+    """Storage configuration.
+
+    ``endpoint_url`` and the static keys are only set for the local MinIO stack.
+    In AWS the client is built from the Lambda execution role and the regional
+    S3 endpoint, so no long-lived credential is ever embedded in configuration
+    or code.
+    """
+
+    object_storage_access_key: str | None
     object_storage_bucket: str
-    object_storage_endpoint_url: str
-    object_storage_public_endpoint_url: str
-    object_storage_secret_key: str
+    object_storage_endpoint_url: str | None
+    object_storage_public_endpoint_url: str | None
+    object_storage_secret_key: str | None
     object_storage_url_expiry_seconds: int
+    aws_region: str | None
 
 
 class S3ObjectStorage:
     def __init__(self, settings: ObjectStorageConfiguration) -> None:
         self._bucket = settings.object_storage_bucket
         self._expiry = settings.object_storage_url_expiry_seconds
-        self._client: BaseClient = boto3.client(
-            "s3",
-            endpoint_url=settings.object_storage_endpoint_url,
-            aws_access_key_id=settings.object_storage_access_key,
-            aws_secret_access_key=settings.object_storage_secret_key,
-            region_name="us-east-1",
+        self._client: BaseClient = self._build_client(
+            settings.object_storage_endpoint_url,
+            settings.object_storage_access_key,
+            settings.object_storage_secret_key,
+            settings.aws_region,
         )
-        self._public_client: BaseClient = boto3.client(
-            "s3",
-            endpoint_url=settings.object_storage_public_endpoint_url,
-            aws_access_key_id=settings.object_storage_access_key,
-            aws_secret_access_key=settings.object_storage_secret_key,
-            region_name="us-east-1",
+        self._public_client: BaseClient = self._build_client(
+            settings.object_storage_public_endpoint_url,
+            settings.object_storage_access_key,
+            settings.object_storage_secret_key,
+            settings.aws_region,
         )
+
+    @staticmethod
+    def _build_client(
+        endpoint_url: str | None,
+        access_key: str | None,
+        secret_key: str | None,
+        region: str | None,
+    ) -> BaseClient:
+        options: dict[str, Any] = {"region_name": region or "us-east-1"}
+        if endpoint_url:
+            options["endpoint_url"] = endpoint_url
+        if access_key and secret_key:
+            options["aws_access_key_id"] = access_key
+            options["aws_secret_access_key"] = secret_key
+        return boto3.client("s3", **options)
 
     @property
     def url_expiry_seconds(self) -> int:

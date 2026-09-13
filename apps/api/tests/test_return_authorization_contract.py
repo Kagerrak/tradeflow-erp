@@ -22,7 +22,7 @@ from test_delivery_confirmation_contract import fake_storage as fake_storage
 from test_delivery_correction_contract import _confirm_fully_accepted_delivery
 from test_payment_clearance_contract import auth
 from tradeflow_api.config import Settings
-from tradeflow_worker.worker import poll_delivery_confirmation_outbox
+from tradeflow_api.outbox_jobs import drain_pending_outbox
 
 
 async def _grant_return_capabilities(postgres_url: str) -> None:
@@ -782,9 +782,7 @@ async def test_return_request_uses_current_corrected_receipt_quantity(
     receipt_id = confirmation["delivery_receipt"]["delivery_receipt_id"]
     engine = create_async_engine(postgres_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    assert await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    ) == {"completed": 1, "failed": 0}
+    assert await drain_pending_outbox(factory, fake_storage) == {"completed": 1, "failed": 0}
     correction_id = str(uuid4())
     correction = await confirmation_client.post(
         f"/v1/delivery-receipts/{receipt_id}/corrections",

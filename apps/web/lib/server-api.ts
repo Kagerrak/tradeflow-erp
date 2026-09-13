@@ -1,4 +1,7 @@
+import "server-only";
 import { readFileSync } from "node:fs";
+
+import { demoCredential } from "./demo-credential";
 
 export type ServerApiConfig = Readonly<{
   accessToken: string | undefined;
@@ -6,45 +9,28 @@ export type ServerApiConfig = Readonly<{
   environment: string;
 }>;
 
-function requireDemoBoundary(environment: string): void {
-  if (environment !== "demo" || process.env.TRADEFLOW_DEMO_MODE !== "enabled") {
-    throw new Error(
-      "Evaluation credentials require TRADEFLOW_ENVIRONMENT=demo and TRADEFLOW_DEMO_MODE=enabled.",
-    );
-  }
-
-  const databaseName = process.env.TRADEFLOW_DATABASE_NAME ?? "";
-  if (!/^(tradeflow[-_])?demo(?:[-_][a-z0-9]+)?$/i.test(databaseName)) {
-    throw new Error(
-      "Evaluation credentials require an explicitly demo-named database.",
-    );
-  }
-
-  if (process.env.TRADEFLOW_PRODUCTION_CONFIGURATION === "true") {
-    throw new Error(
-      "Evaluation credentials are forbidden with production configuration.",
-    );
+function credentialFromFile(): string | undefined {
+  const credentialFile = process.env.TRADEFLOW_DEMO_CREDENTIAL_FILE;
+  if (!credentialFile) return undefined;
+  try {
+    return readFileSync(credentialFile, "utf-8").trim();
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    return undefined;
   }
 }
 
 export function getServerApiConfig(): ServerApiConfig {
   const environment = process.env.TRADEFLOW_ENVIRONMENT ?? "development";
-  const credentialFile = process.env.TRADEFLOW_DEMO_CREDENTIAL_FILE;
-  let fileAccessToken: string | undefined;
-  if (credentialFile) {
-    try {
-      fileAccessToken = readFileSync(credentialFile, "utf-8").trim();
-    } catch (error: unknown) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    }
-  }
-  const demoAccessToken =
-    process.env.TRADEFLOW_DEMO_ACCESS_TOKEN ?? fileAccessToken;
-
-  if (demoAccessToken) requireDemoBoundary(environment);
+  const configured =
+    process.env.TRADEFLOW_DEMO_ACCESS_TOKEN ?? credentialFromFile();
+  const accessToken =
+    configured ??
+    demoCredential(environment) ??
+    process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN;
 
   return {
-    accessToken: demoAccessToken ?? process.env.TRADEFLOW_WEB_TEST_ACCESS_TOKEN,
+    accessToken,
     baseUrl: process.env.TRADEFLOW_API_URL ?? "http://127.0.0.1:8000",
     environment,
   };

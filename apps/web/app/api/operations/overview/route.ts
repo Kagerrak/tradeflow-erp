@@ -1,4 +1,5 @@
 import { authorizationHeaders, getServerApiConfig } from "@/lib/server-api";
+import { retryingFetch } from "@tradeflow/api-client";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ export async function GET(request: Request): Promise<Response> {
     if (value) target.searchParams.set(key, value);
   }
   try {
-    const response = await fetch(target, {
+    const response = await retryingFetch(target, {
       cache: "no-store",
       headers: {
         Accept: "application/json",

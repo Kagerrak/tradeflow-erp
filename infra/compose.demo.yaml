@@ -17,22 +17,6 @@ services:
       resources:
         limits: { cpus: "1", memory: 1G }
 
-  redis:
-    image: redis@sha256:8096655e437712b07503796fb64d81359256cfcff0ab29d95a7da72863786efb
-    command:
-      [
-        "redis-server",
-        "--maxmemory",
-        "128mb",
-        "--maxmemory-policy",
-        "allkeys-lru",
-      ]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
   object-storage:
     image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     command: server /data
@@ -84,10 +68,10 @@ services:
 
   worker:
     build: { context: .., dockerfile: apps/worker/Dockerfile }
+    command: ["python", "-m", "tradeflow_worker.local_worker"]
     environment:
       TRADEFLOW_WORKER_ENVIRONMENT: demo
       TRADEFLOW_WORKER_DATABASE_URL: postgresql+asyncpg://tradeflow:${TRADEFLOW_DEMO_DATABASE_PASSWORD}@postgres:5432/tradeflow_demo
-      TRADEFLOW_WORKER_REDIS_URL: redis://redis:6379/0
       TRADEFLOW_WORKER_OBJECT_STORAGE_ENDPOINT_URL: http://object-storage:9000
       TRADEFLOW_WORKER_OBJECT_STORAGE_PUBLIC_ENDPOINT_URL: http://object-storage:9000
       TRADEFLOW_WORKER_OBJECT_STORAGE_ACCESS_KEY: tradeflow
@@ -95,11 +79,7 @@ services:
       TRADEFLOW_WORKER_OBJECT_STORAGE_BUCKET: tradeflow-demo-evidence
       TRADEFLOW_WORKER_TELEMETRY_ENABLED: "true"
       TRADEFLOW_WORKER_OTLP_ENDPOINT: ${TRADEFLOW_OTLP_ENDPOINT:-}
-    depends_on:
-      {
-        postgres: { condition: service_healthy },
-        redis: { condition: service_healthy },
-      }
+    depends_on: { postgres: { condition: service_healthy } }
 
   reset:
     build: { context: .., dockerfile: apps/api/Dockerfile }

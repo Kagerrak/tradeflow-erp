@@ -19,7 +19,7 @@ from test_payment_clearance_contract import (
 from tradeflow_api.app import create_app
 from tradeflow_api.config import Settings
 from tradeflow_api.delivery_confirmation_outbox import create_draft_invoice_for_event
-from tradeflow_worker.worker import poll_delivery_confirmation_outbox
+from tradeflow_api.outbox_jobs import drain_pending_outbox
 
 FINANCE_CAPABILITIES = [
     "finance:payment-read",
@@ -172,9 +172,7 @@ async def confirmed_delivery_and_invoice(
 
     engine = create_async_engine(postgres_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    )
+    await drain_pending_outbox(factory, fake_storage)
     async with engine.begin() as connection:
         session = AsyncSession(bind=connection, expire_on_commit=False)
         draft_invoice_id = await create_draft_invoice_for_event(session, outbox_event_id)

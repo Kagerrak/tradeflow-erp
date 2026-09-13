@@ -1,4 +1,5 @@
 import { getServerApiConfig } from "@/lib/server-api";
+import { retryingFetch } from "@tradeflow/api-client";
 export async function POST(
   request: Request,
   context: { params: Promise<{ deliveryId: string }> },
@@ -13,7 +14,7 @@ export async function POST(
     idempotencyKey: string;
   };
   try {
-    const response = await fetch(
+    const response = await retryingFetch(
       `${getServerApiConfig().baseUrl}/v1/deliveries/${deliveryId}/retries`,
       {
         body: JSON.stringify(input.command),

@@ -15,7 +15,7 @@ from test_delivery_confirmation_contract import fake_storage as fake_storage
 from test_delivery_correction_contract import _confirm_fully_accepted_delivery
 from test_payment_clearance_contract import auth
 from tradeflow_api.config import Settings
-from tradeflow_worker.worker import poll_delivery_confirmation_outbox
+from tradeflow_api.outbox_jobs import drain_pending_outbox
 
 
 @pytest.mark.asyncio
@@ -33,9 +33,7 @@ async def test_database_rejects_correction_movement_and_invoice_economic_corrupt
     receipt_id = confirmation["delivery_receipt"]["delivery_receipt_id"]
     engine = create_async_engine(postgres_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    assert await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    ) == {"completed": 1, "failed": 0}
+    assert await drain_pending_outbox(factory, fake_storage) == {"completed": 1, "failed": 0}
 
     correction_id = uuid4()
     requested = await confirmation_client.post(
@@ -263,9 +261,7 @@ async def test_database_rejects_correction_movement_and_invoice_economic_corrupt
                 },
             )
 
-    assert await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    ) == {"completed": 1, "failed": 0}
+    assert await drain_pending_outbox(factory, fake_storage) == {"completed": 1, "failed": 0}
 
     replacement_receipt_id = posted["receipt_effect"]["replacement_delivery_receipt_id"]
     replacement_receipt = await confirmation_client.get(
@@ -365,9 +361,7 @@ async def test_database_rejects_out_of_warehouse_correction_authorization(
     receipt_id = confirmation["delivery_receipt"]["delivery_receipt_id"]
     engine = create_async_engine(postgres_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    assert await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    ) == {"completed": 1, "failed": 0}
+    assert await drain_pending_outbox(factory, fake_storage) == {"completed": 1, "failed": 0}
 
     correction_id = uuid4()
     requested = await confirmation_client.post(

@@ -1,4 +1,5 @@
 import { getServerApiConfig } from "@/lib/server-api";
+import { retryingFetch } from "@tradeflow/api-client";
 function failureKind(status: number) {
   if (status === 401) return "unauthenticated";
   if (status === 403) return "forbidden";
@@ -15,7 +16,7 @@ export async function GET(request: Request): Promise<Response> {
   const queue =
     new URL(request.url).searchParams.get("queue") ?? "return_pending";
   try {
-    const response = await fetch(
+    const response = await retryingFetch(
       `${getServerApiConfig().baseUrl}/v1/delivery-exceptions?queue=${encodeURIComponent(queue)}`,
       {
         cache: "no-store",

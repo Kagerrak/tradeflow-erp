@@ -18,7 +18,7 @@ from test_delivery_confirmation_contract import fake_storage as fake_storage
 from test_delivery_correction_contract import _confirm_fully_accepted_delivery
 from test_payment_clearance_contract import auth
 from tradeflow_api.config import Settings
-from tradeflow_worker.worker import poll_delivery_confirmation_outbox
+from tradeflow_api.outbox_jobs import drain_pending_outbox
 
 
 @pytest.mark.asyncio
@@ -121,9 +121,7 @@ async def test_populated_delivery_correction_history_refuses_downgrade_without_d
     receipt_id = confirmation["delivery_receipt"]["delivery_receipt_id"]
     engine = create_async_engine(postgres_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    assert await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    ) == {"completed": 1, "failed": 0}
+    assert await drain_pending_outbox(factory, fake_storage) == {"completed": 1, "failed": 0}
 
     correction_id = str(uuid4())
     requested = await confirmation_client.post(
@@ -225,9 +223,7 @@ async def test_upgrade_preserves_legacy_invoice_rounding_and_correction_reverses
     receipt_id = confirmation["delivery_receipt"]["delivery_receipt_id"]
     engine = create_async_engine(postgres_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    assert await poll_delivery_confirmation_outbox(
-        {"database_session_factory": factory, "object_storage": fake_storage}
-    ) == {"completed": 1, "failed": 0}
+    assert await drain_pending_outbox(factory, fake_storage) == {"completed": 1, "failed": 0}
 
     async with engine.connect() as connection:
         source_invoice_id = await connection.scalar(
@@ -365,9 +361,7 @@ async def test_upgrade_preserves_legacy_invoice_rounding_and_correction_reverses
             json={"expected_correction_version": 1},
         )
         assert authorized.status_code == 200, authorized.text
-        assert await poll_delivery_confirmation_outbox(
-            {"database_session_factory": factory, "object_storage": fake_storage}
-        ) == {"completed": 1, "failed": 0}
+        assert await drain_pending_outbox(factory, fake_storage) == {"completed": 1, "failed": 0}
 
         async with engine.connect() as connection:
             invoices = [

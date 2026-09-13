@@ -1,0 +1,537 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  TradeFlow demo application tier: the Next.js server Lambda behind CloudFront,
+  the FastAPI Lambda behind an HTTP API, the SQS-triggered job Lambda, the
+  migration Lambda, least-privilege runtime roles and bounded log retention.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: tradeflow-demo
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+  LambdaSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+  DbClusterEndpoint:
+    Type: String
+  DbClusterPort:
+    Type: String
+    Default: "5432"
+  DatabaseName:
+    Type: String
+    Default: tradeflow_demo
+  DatabaseUser:
+    Type: String
+    Default: tradeflow
+  DocumentsBucketName:
+    Type: String
+  ArtifactsBucketName:
+    Type: String
+  WebAssetsBucketName:
+    Type: String
+  CoordinationTableName:
+    Type: String
+  JobsQueueArn:
+    Type: String
+  ApiImageUri:
+    Type: String
+    Description: Full ECR image URI including tag for the API/migration image.
+  WorkerImageUri:
+    Type: String
+  WebImageUri:
+    Type: String
+  DemoSeedVersion:
+    Type: String
+    Default: "2026.08.24.2"
+  LogRetentionDays:
+    Type: Number
+    Default: 7
+    MinValue: 1
+    MaxValue: 3653
+
+Resources:
+  # ---------------------------------------------------------------- log groups
+  ApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProjectName}-api"
+      RetentionInDays: !Ref LogRetentionDays
+  WorkerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProjectName}-worker"
+      RetentionInDays: !Ref LogRetentionDays
+  WebLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProjectName}-web"
+      RetentionInDays: !Ref LogRetentionDays
+  MigrationLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProjectName}-migration"
+      RetentionInDays: !Ref LogRetentionDays
+
+  # -------------------------------------------------------------------- roles
+  ApiRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-api"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: runtime
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !GetAtt ApiLogGroup.Arn
+              - Effect: Allow
+                Action:
+                  [
+                    dynamodb:GetItem,
+                    dynamodb:PutItem,
+                    dynamodb:UpdateItem,
+                    dynamodb:DeleteItem,
+                  ]
+                Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${CoordinationTableName}"
+              - Effect: Allow
+                Action: [s3:PutObject, s3:GetObject, s3:DeleteObject]
+                Resource:
+                  - !Sub "arn:aws:s3:::${ArtifactsBucketName}/jobs/*"
+                  - !Sub "arn:aws:s3:::${DocumentsBucketName}/*"
+              - Effect: Allow
+                Action:
+                  [
+                    s3:ListBucketMultipartUploads,
+                    s3:ListMultipartUploadParts,
+                    s3:AbortMultipartUpload,
+                  ]
+                Resource:
+                  - !Sub "arn:aws:s3:::${DocumentsBucketName}"
+                  - !Sub "arn:aws:s3:::${DocumentsBucketName}/*"
+
+  WorkerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-worker"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: runtime
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !GetAtt WorkerLogGroup.Arn
+              - Effect: Allow
+                Action:
+                  [
+                    dynamodb:GetItem,
+                    dynamodb:PutItem,
+                    dynamodb:UpdateItem,
+                    dynamodb:DeleteItem,
+                  ]
+                Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${CoordinationTableName}"
+              - Effect: Allow
+                Action: [s3:PutObject, s3:GetObject, s3:DeleteObject]
+                Resource:
+                  - !Sub "arn:aws:s3:::${ArtifactsBucketName}/jobs/*"
+                  - !Sub "arn:aws:s3:::${DocumentsBucketName}/*"
+              - Effect: Allow
+                Action:
+                  [
+                    s3:ListBucketMultipartUploads,
+                    s3:ListMultipartUploadParts,
+                    s3:AbortMultipartUpload,
+                  ]
+                Resource:
+                  - !Sub "arn:aws:s3:::${DocumentsBucketName}"
+                  - !Sub "arn:aws:s3:::${DocumentsBucketName}/*"
+              - Effect: Allow
+                Action:
+                  [
+                    sqs:ReceiveMessage,
+                    sqs:DeleteMessage,
+                    sqs:GetQueueAttributes,
+                    sqs:ChangeMessageVisibility,
+                  ]
+                Resource: !Ref JobsQueueArn
+
+  MigrationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-migration"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: runtime
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !GetAtt MigrationLogGroup.Arn
+
+  WebRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-web"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        # The page tier holds no AWS API permissions at all: it reaches the
+        # business API over HTTPS and never touches S3, DynamoDB or a secret.
+        - PolicyName: runtime
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !GetAtt WebLogGroup.Arn
+
+  # ------------------------------------------------------------ API + migration
+  ApiFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-api"
+      PackageType: Image
+      Code:
+        ImageUri: !Ref ApiImageUri
+      Role: !GetAtt ApiRole.Arn
+      Architectures: [x86_64]
+      MemorySize: 1024
+      Timeout: 60
+      # Caps how many concurrent Lambda environments can open Aurora sessions.
+      ReservedConcurrentExecutions: 10
+      VpcConfig:
+        SubnetIds: !Ref PrivateSubnetIds
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupId
+      LoggingConfig:
+        LogFormat: JSON
+      Environment:
+        Variables:
+          TRADEFLOW_ENVIRONMENT: demo
+          TRADEFLOW_DEMO_MODE: "true"
+          TRADEFLOW_LAMBDA_RUNTIME: "true"
+          TRADEFLOW_TELEMETRY_ENABLED: "false"
+          TRADEFLOW_PICKING_ENABLED: "true"
+          TRADEFLOW_RATE_LIMIT_REQUESTS_PER_MINUTE: "600"
+          TRADEFLOW_AWS_REGION: !Ref AWS::Region
+          TRADEFLOW_DEMO_STATE_BACKEND: dynamodb
+          TRADEFLOW_DEMO_STATE_TABLE: !Ref CoordinationTableName
+          TRADEFLOW_DEMO_JOBS_BUCKET: !Ref ArtifactsBucketName
+          TRADEFLOW_DEMO_SEED_VERSION: !Ref DemoSeedVersion
+          TRADEFLOW_DEMO_DATABASE_NAME: !Ref DatabaseName
+          TRADEFLOW_DEMO_RESET_INTERVAL_MINUTES: "45"
+          TRADEFLOW_DEMO_DISPATCH_RECOVERY_SECONDS: "300"
+          TRADEFLOW_AUTH_AUDIENCE: tradeflow-api
+          TRADEFLOW_AUTH_ISSUER: https://identity.tradeflow.invalid
+          TRADEFLOW_OBJECT_STORAGE_BUCKET: !Ref DocumentsBucketName
+          # Password-free placeholder. The deployment workflow applies the real
+          # DATABASE_URL and the shared secrets from Parameter Store after the
+          # stack update, so no secret is ever stored in CloudFormation.
+          TRADEFLOW_DATABASE_URL: !Sub "postgresql+asyncpg://${DatabaseUser}@${DbClusterEndpoint}:${DbClusterPort}/${DatabaseName}"
+
+  MigrationFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-migration"
+      PackageType: Image
+      Code:
+        ImageUri: !Ref ApiImageUri
+      ImageConfig:
+        Command: ["tradeflow_api.migration_handler.handler"]
+      Role: !GetAtt MigrationRole.Arn
+      Architectures: [x86_64]
+      MemorySize: 1024
+      Timeout: 900
+      VpcConfig:
+        SubnetIds: !Ref PrivateSubnetIds
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupId
+      LoggingConfig:
+        LogFormat: JSON
+      Environment:
+        Variables:
+          TRADEFLOW_ENVIRONMENT: demo
+          TRADEFLOW_LAMBDA_RUNTIME: "true"
+          TRADEFLOW_TELEMETRY_ENABLED: "false"
+          TRADEFLOW_AWS_REGION: !Ref AWS::Region
+          TRADEFLOW_DATABASE_URL: !Sub "postgresql+asyncpg://${DatabaseUser}@${DbClusterEndpoint}:${DbClusterPort}/${DatabaseName}"
+
+  # ------------------------------------------------------------------- worker
+  WorkerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-worker"
+      PackageType: Image
+      Code:
+        ImageUri: !Ref WorkerImageUri
+      ImageConfig:
+        Command: ["tradeflow_worker.lambda_handler.handler"]
+      Role: !GetAtt WorkerRole.Arn
+      Architectures: [x86_64]
+      MemorySize: 1024
+      Timeout: 900
+      VpcConfig:
+        SubnetIds: !Ref PrivateSubnetIds
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupId
+      LoggingConfig:
+        LogFormat: JSON
+      Environment:
+        Variables:
+          TRADEFLOW_WORKER_ENVIRONMENT: demo
+          TRADEFLOW_WORKER_LAMBDA_RUNTIME: "true"
+          TRADEFLOW_WORKER_TELEMETRY_ENABLED: "false"
+          TRADEFLOW_WORKER_AWS_REGION: !Ref AWS::Region
+          TRADEFLOW_WORKER_DEMO_MODE: "true"
+          TRADEFLOW_WORKER_DEMO_STATE_BACKEND: dynamodb
+          TRADEFLOW_WORKER_DEMO_STATE_TABLE: !Ref CoordinationTableName
+          TRADEFLOW_WORKER_DEMO_STATE_DIR: /tmp/demo-state
+          TRADEFLOW_WORKER_DEMO_DATABASE_NAME: !Ref DatabaseName
+          TRADEFLOW_WORKER_DEMO_SEED_VERSION: !Ref DemoSeedVersion
+          TRADEFLOW_WORKER_DEMO_RESET_INTERVAL_MINUTES: "45"
+          TRADEFLOW_WORKER_OBJECT_STORAGE_BUCKET: !Ref DocumentsBucketName
+          # The demo seeder runs in-process against the API image and needs the
+          # API-side settings too, because it drives the real HTTP surface.
+          TRADEFLOW_ENVIRONMENT: demo
+          TRADEFLOW_DEMO_MODE: "true"
+          TRADEFLOW_LAMBDA_RUNTIME: "true"
+          TRADEFLOW_TELEMETRY_ENABLED: "false"
+          TRADEFLOW_AWS_REGION: !Ref AWS::Region
+          TRADEFLOW_DEMO_STATE_BACKEND: dynamodb
+          TRADEFLOW_DEMO_STATE_TABLE: !Ref CoordinationTableName
+          TRADEFLOW_DEMO_JOBS_BUCKET: !Ref ArtifactsBucketName
+          TRADEFLOW_DEMO_STATE_DIR: /tmp/demo-state
+          TRADEFLOW_DEMO_STATE_PATH: /tmp/demo-state/status.json
+          TRADEFLOW_DEMO_SEED_VERSION: !Ref DemoSeedVersion
+          TRADEFLOW_DEMO_DATABASE_NAME: !Ref DatabaseName
+          TRADEFLOW_AUTH_AUDIENCE: tradeflow-api
+          TRADEFLOW_AUTH_ISSUER: https://identity.tradeflow.invalid
+          TRADEFLOW_OBJECT_STORAGE_BUCKET: !Ref DocumentsBucketName
+          TRADEFLOW_DATABASE_URL: !Sub "postgresql+asyncpg://${DatabaseUser}@${DbClusterEndpoint}:${DbClusterPort}/${DatabaseName}"
+
+  WorkerEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !Ref JobsQueueArn
+      FunctionName: !Ref WorkerFunction
+      BatchSize: 1
+      MaximumBatchingWindowInSeconds: 0
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
+      ScalingConfig:
+        MaximumConcurrency: 2
+
+  # ---------------------------------------------------------------------- web
+  WebFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-web"
+      PackageType: Image
+      Code:
+        ImageUri: !Ref WebImageUri
+      Role: !GetAtt WebRole.Arn
+      Architectures: [x86_64]
+      MemorySize: 1024
+      Timeout: 30
+      ReservedConcurrentExecutions: 10
+      LoggingConfig:
+        LogFormat: JSON
+      Environment:
+        Variables:
+          TRADEFLOW_ENVIRONMENT: demo
+          TRADEFLOW_DEMO_MODE: enabled
+          TRADEFLOW_DATABASE_NAME: !Ref DatabaseName
+          TRADEFLOW_AUTH_AUDIENCE: tradeflow-api
+          TRADEFLOW_AUTH_ISSUER: https://identity.tradeflow.invalid
+          TRADEFLOW_API_URL: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+
+  WebFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !Ref WebFunction
+      AuthType: AWS_IAM
+      InvokeMode: BUFFERED
+
+  # -------------------------------------------------------------- HTTP API
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub "${ProjectName}-api"
+      ProtocolType: HTTP
+      Description: TradeFlow demo business API (Lambda proxy, payload v2).
+
+  HttpApiIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt ApiFunction.Arn
+      IntegrationMethod: POST
+      PayloadFormatVersion: "2.0"
+      # HTTP APIs cap the integration timeout at 30 seconds. A first request
+      # against a paused Aurora cluster can exceed that, which is why the web
+      # tier retries a bounded number of times rather than surfacing an error.
+      TimeoutInMillis: 30000
+
+  HttpApiDefaultRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: $default
+      Target: !Sub "integrations/${HttpApiIntegration}"
+
+  HttpApiStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: $default
+      AutoDeploy: true
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 50
+        ThrottlingRateLimit: 25
+
+  ApiGatewayInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ApiFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*"
+
+  # -------------------------------------------------------------- CloudFront
+  WebAssetsOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${ProjectName}-web-assets"
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  LambdaOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${ProjectName}-lambda"
+        OriginAccessControlOriginType: lambda
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: !Sub "${ProjectName} demo"
+        Enabled: true
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: PriceClass_All
+        Origins:
+          - Id: web-assets
+            DomainName: !Sub "${WebAssetsBucketName}.s3.${AWS::Region}.amazonaws.com"
+            OriginAccessControlId: !GetAtt WebAssetsOriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+          - Id: next-server
+            DomainName:
+              !Select [2, !Split ["/", !GetAtt WebFunctionUrl.FunctionUrl]]
+            OriginAccessControlId: !GetAtt LambdaOriginAccessControl.Id
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols: [TLSv1.2]
+        DefaultCacheBehavior:
+          TargetOriginId: next-server
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
+          CachedMethods: [GET, HEAD, OPTIONS]
+          Compress: true
+          # Never cache a dynamic response: campaign and console responses are
+          # user-scoped and must not be served to another visitor.
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+        CacheBehaviors:
+          - PathPattern: "/_next/static/*"
+            TargetOriginId: web-assets
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD]
+            CachedMethods: [GET, HEAD]
+            Compress: true
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          - PathPattern: "/product/*"
+            TargetOriginId: web-assets
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD]
+            CachedMethods: [GET, HEAD]
+            Compress: true
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+
+  WebAssetsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebAssetsBucketName
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudFrontReadOnly
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "arn:aws:s3:::${WebAssetsBucketName}/*"
+            Condition:
+              StringEquals:
+                aws:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution}"
+
+  CloudFrontInvokeFunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunctionUrl
+      FunctionName: !Ref WebFunction
+      Principal: cloudfront.amazonaws.com
+      FunctionUrlAuthType: AWS_IAM
+      SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution}"
+
+Outputs:
+  ApiUrl:
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiUrl"
+  DistributionDomainName:
+    Value: !GetAtt Distribution.DomainName
+    Export:
+      Name: !Sub "${AWS::StackName}-DistributionDomainName"
+  DistributionId:
+    Value: !Ref Distribution
+    Export:
+      Name: !Sub "${AWS::StackName}-DistributionId"
+  ApiFunctionName:
+    Value: !Ref ApiFunction
+  WorkerFunctionName:
+    Value: !Ref WorkerFunction
+  WebFunctionName:
+    Value: !Ref WebFunction
+  MigrationFunctionName:
+    Value: !Ref MigrationFunction

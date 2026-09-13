@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 from functools import lru_cache
 from typing import Literal
@@ -22,10 +23,10 @@ class Settings(BaseSettings):
     auth_jwks_url: str | None = None
     auth_test_secret: str | None = Field(default=None, min_length=32, repr=False)
     picking_enabled: bool = True
-    object_storage_endpoint_url: str = "http://localhost:9000"
-    object_storage_public_endpoint_url: str = "http://localhost:9000"
-    object_storage_access_key: str = "tradeflow"
-    object_storage_secret_key: str = Field(default="tradeflow-local-only", repr=False)
+    object_storage_endpoint_url: str | None = "http://localhost:9000"
+    object_storage_public_endpoint_url: str | None = "http://localhost:9000"
+    object_storage_access_key: str | None = "tradeflow"
+    object_storage_secret_key: str | None = Field(default="tradeflow-local-only", repr=False)
     object_storage_bucket: str = "tradeflow-evidence"
     object_storage_url_expiry_seconds: int = Field(default=900, ge=60, le=3600)
     telemetry_enabled: bool = True
@@ -37,6 +38,19 @@ class Settings(BaseSettings):
     demo_seed_version: str | None = None
     demo_state_path: str | None = None
     demo_reset_token: str | None = Field(default=None, min_length=32, repr=False)
+    demo_state_backend: Literal["file", "dynamodb"] = "file"
+    demo_state_table: str | None = None
+    demo_jobs_bucket: str | None = None
+    demo_reset_interval_minutes: int = Field(default=45, ge=1)
+    demo_dispatch_recovery_seconds: int = Field(default=300, ge=0)
+    demo_dispatch_batch_size: int = Field(default=25, ge=1, le=200)
+    aws_region: str | None = None
+    lambda_runtime: bool = False
+    alembic_ini: str | None = None
+
+    @property
+    def resolves_aws_region(self) -> str | None:
+        return self.aws_region or os.environ.get("AWS_REGION")
 
     @model_validator(mode="after")
     def validate_rate_limit(self) -> Settings:
@@ -83,8 +97,10 @@ class Settings(BaseSettings):
             raise ValueError("The configured database must match TRADEFLOW_DEMO_DATABASE_NAME.")
         if self.demo_seed_version is None:
             raise ValueError("TRADEFLOW_DEMO_SEED_VERSION is required in the demo environment.")
-        if self.demo_state_path is None:
-            raise ValueError("TRADEFLOW_DEMO_STATE_PATH is required in the demo environment.")
+        if self.demo_state_backend == "file" and self.demo_state_path is None:
+            raise ValueError("TRADEFLOW_DEMO_STATE_PATH is required for the file state backend.")
+        if self.demo_state_backend == "dynamodb" and self.demo_state_table is None:
+            raise ValueError("TRADEFLOW_DEMO_STATE_TABLE is required for the DynamoDB backend.")
         if self.demo_reset_token is None:
             raise ValueError("TRADEFLOW_DEMO_RESET_TOKEN is required in the demo environment.")
         return self

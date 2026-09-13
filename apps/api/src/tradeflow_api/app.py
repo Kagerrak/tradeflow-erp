@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import asyncio
-import json
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -34,7 +33,18 @@ from tradeflow_api.database import (
 from tradeflow_api.delivery_confirmation import router as delivery_confirmation_router
 from tradeflow_api.delivery_corrections import router as delivery_corrections_router
 from tradeflow_api.delivery_exceptions import router as delivery_exceptions_router
-from tradeflow_api.demo_reset import DemoMaintenanceMiddleware, missing_demo_seed_requirements
+from tradeflow_api.demo_reset import (
+    DEMO_SEED_VERSION,
+    DemoMaintenanceMiddleware,
+    DemoResetCoordinator,
+    missing_demo_seed_requirements,
+)
+from tradeflow_api.demo_state import (
+    CachedDemoState,
+    DemoStateStore,
+    DynamoDemoStateStore,
+    FileDemoStateStore,
+)
 from tradeflow_api.dispatch import router as dispatch_router
 from tradeflow_api.errors import AppError, error_response, error_responses
 from tradeflow_api.expenses import router as expenses_router
@@ -42,6 +52,7 @@ from tradeflow_api.goods_receipts import router as goods_receipts_router
 from tradeflow_api.inventory_adjustments import router as inventory_adjustments_router
 from tradeflow_api.inventory_movements import router as inventory_movements_router
 from tradeflow_api.invoice_posting import router as invoice_posting_router
+from tradeflow_api.job_queue import S3JobPublisher
 from tradeflow_api.landed_costs import router as landed_costs_router
 from tradeflow_api.notifications import router as notifications_router
 from tradeflow_api.object_storage import S3ObjectStorage
@@ -66,6 +77,22 @@ from tradeflow_api.return_receipts import router as return_receipts_router
 from tradeflow_api.returns import router as returns_router
 from tradeflow_api.sales import router as sales_router
 from tradeflow_api.suppliers import router as suppliers_router
+
+logger = logging.getLogger(__name__)
+
+
+def _build_demo_state_store(settings: Settings) -> DemoStateStore | None:
+    """Build the demo coordination store selected by configuration."""
+    if settings.demo_state_backend == "dynamodb":
+        if settings.demo_state_table is None:
+            return None
+        return DynamoDemoStateStore(settings.demo_state_table, region=settings.resolves_aws_region)
+    if settings.demo_state_path is None:
+        return None
+    return FileDemoStateStore(
+        Path(settings.demo_state_path),
+        reset_interval_minutes=settings.demo_reset_interval_minutes,
+    )
 
 
 class LiveResponse(BaseModel):
@@ -96,15 +123,32 @@ class SessionResponse(BaseModel):
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved_settings = settings or get_settings()
     configure_observability(resolved_settings)
-    engine = create_database_engine(resolved_settings.database_url)
-    expected_database_heads = migration_heads(Path(__file__).resolve().parents[2] / "alembic.ini")
+    engine = create_database_engine(
+        resolved_settings.database_url,
+        lambda_runtime=resolved_settings.lambda_runtime,
+    )
+    try:
+        expected_database_heads = migration_heads(
+            Path(resolved_settings.alembic_ini)
+            if resolved_settings.alembic_ini
+            else Path(__file__).resolve().parents[2] / "alembic.ini"
+        )
+    except Exception:
+        logger.warning("migration_metadata_unavailable", exc_info=True)
+        expected_database_heads = set()
     verifier = TokenVerifier(resolved_settings)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-        try:
+        # In Lambda the pre-flight is skipped: it would open a second
+        # connection per request purely to repeat what /health/ready verifies,
+        # and a paused Aurora cluster takes seconds to resume, so failing a
+        # cold start on it would be worse than reporting readiness explicitly.
+        # The deployment workflow migrates the schema before traffic moves.
+        if not resolved_settings.lambda_runtime:
             await check_database(engine)
             await check_database_migrations(engine, expected_database_heads)
+        try:
             yield
         finally:
             await engine.dispose()
@@ -118,12 +162,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.token_verifier = verifier
     app.state.session_factory = create_session_factory(engine)
     app.state.object_storage = S3ObjectStorage(resolved_settings)
-    if resolved_settings.environment == "demo" and resolved_settings.demo_state_path:
-        app.add_middleware(
-            DemoMaintenanceMiddleware,
-            state_path=Path(resolved_settings.demo_state_path),
-            reset_token=resolved_settings.demo_reset_token or "",
-        )
+    demo_state: CachedDemoState | None = None
+    job_publisher: S3JobPublisher | None = None
+    if resolved_settings.environment == "demo":
+        store = _build_demo_state_store(resolved_settings)
+        if store is not None:
+            demo_state = CachedDemoState(store)
+            coordinator = None
+            if resolved_settings.demo_jobs_bucket:
+                job_publisher = S3JobPublisher(
+                    resolved_settings.demo_jobs_bucket,
+                    region=resolved_settings.resolves_aws_region,
+                )
+                coordinator = DemoResetCoordinator(
+                    store,
+                    job_publisher,
+                    seed_version=resolved_settings.demo_seed_version or DEMO_SEED_VERSION,
+                )
+            app.add_middleware(
+                DemoMaintenanceMiddleware,
+                state=demo_state,
+                reset_token=resolved_settings.demo_reset_token or "",
+                coordinator=coordinator,
+            )
+    app.state.demo_state = demo_state
+    app.state.job_publisher = job_publisher
     app.add_middleware(RateLimitMiddleware, settings=resolved_settings)
     app.add_middleware(CorrelationMiddleware)
     app.include_router(catalog_inventory_router)
@@ -227,20 +290,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         await check_database(engine, request.state.correlation_id)
         seed_version = None
         if resolved_settings.environment == "demo":
-            if resolved_settings.demo_state_path is None:
+            if demo_state is None:
                 raise AppError(503, "demo_seed_unavailable", "Demo seed state is unavailable.")
-            try:
-                state_text = await asyncio.to_thread(
-                    Path(resolved_settings.demo_state_path).read_text
-                )
-                demo_state = json.loads(state_text)
-            except (OSError, ValueError) as error:
-                raise AppError(
-                    503, "demo_seed_unavailable", "Demo seed state is unavailable."
-                ) from error
+            snapshot = await demo_state.read(fresh=True)
             if (
-                demo_state.get("status") != "ready"
-                or demo_state.get("seed_version") != resolved_settings.demo_seed_version
+                not snapshot.is_ready
+                or snapshot.seed_version != resolved_settings.demo_seed_version
             ):
                 raise AppError(503, "demo_seed_unhealthy", "Demo seed state is not ready.")
             async with engine.connect() as connection:
@@ -255,6 +310,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             demo_seed_version=seed_version,
             migration_revision=sorted(expected_database_heads),
         )
+
+    @app.get(
+        "/v1/demo/state",
+        tags=["platform"],
+    )
+    async def demo_state_endpoint() -> dict[str, object]:
+        """Coordination state only: never opens a database connection."""
+        if demo_state is None:
+            return {"status": "unavailable", "backend": resolved_settings.demo_state_backend}
+        snapshot = await demo_state.read(fresh=True)
+        return {
+            "backend": resolved_settings.demo_state_backend,
+            "resetIntervalMinutes": resolved_settings.demo_reset_interval_minutes,
+            **snapshot.as_payload(),
+        }
 
     @app.get(
         "/v1/session",

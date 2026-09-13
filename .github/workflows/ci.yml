@@ -27,15 +27,6 @@ jobs:
           --health-interval 2s
           --health-timeout 3s
           --health-retries 20
-      redis:
-        image: redis@sha256:8096655e437712b07503796fb64d81359256cfcff0ab29d95a7da72863786efb
-        ports:
-          - 6380:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 2s
-          --health-timeout 3s
-          --health-retries 20
     env:
       TRADEFLOW_ENVIRONMENT: testing
       TRADEFLOW_TEST_DATABASE_URL: postgresql+asyncpg://tradeflow:tradeflow@localhost:5433/tradeflow_test
@@ -45,7 +36,6 @@ jobs:
       TRADEFLOW_AUTH_TEST_SECRET: ci-test-secret-with-at-least-32-characters
       TRADEFLOW_TELEMETRY_ENABLED: "false"
       TRADEFLOW_WORKER_ENVIRONMENT: testing
-      TRADEFLOW_WORKER_REDIS_URL: redis://localhost:6380/0
       TRADEFLOW_WORKER_TELEMETRY_ENABLED: "false"
 
     steps:
