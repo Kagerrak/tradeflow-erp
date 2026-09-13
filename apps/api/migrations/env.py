@@ -5,8 +5,8 @@ import os
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import Connection, pool
-from sqlalchemy.ext.asyncio import async_engine_from_config
+from sqlalchemy import Connection
+from tradeflow_api.database import create_database_engine
 from tradeflow_api.models import metadata
 
 config = context.config
@@ -43,11 +43,18 @@ def do_run_migrations(connection: Connection) -> None:
         context.run_migrations()
 
 
+def _iam_auth_enabled() -> bool:
+    return os.environ.get("TRADEFLOW_DB_IAM_AUTH", "").lower() in {"1", "true", "yes"}
+
+
 async def run_async_migrations() -> None:
-    connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
+    # Uses the application's engine factory so migrations authenticate the same
+    # way the API does. Aurora express clusters have no password: they take a
+    # short-lived IAM token over TLS.
+    connectable = create_database_engine(
+        config.get_main_option("sqlalchemy.url"),
+        iam_auth=_iam_auth_enabled(),
+        region=os.environ.get("TRADEFLOW_AWS_REGION") or os.environ.get("AWS_REGION"),
     )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
