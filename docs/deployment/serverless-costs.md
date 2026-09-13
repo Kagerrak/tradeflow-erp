@@ -244,3 +244,61 @@ function), and the worker's `MaximumConcurrency: 2`; these bound request rate
 and concurrent compute, not monthly spend. Any cost alert should be answered by
 checking `ServerlessDatabaseCapacity` and the worker log volume first, because a
 cluster that fails to pause dominates every other line item.
+
+## Measured correction (2026-09-13)
+
+The scenarios above assumed 0.5 ACU while the cluster is awake. CloudWatch
+`AWS/RDS ServerlessDatabaseCapacity` for `tradeflow-demo-aurora` shows the real
+figure is higher, so the scenario totals are optimistic.
+
+Observed over a 20-minute window spanning an idle period, a demo rebuild and a
+handful of requests (one-minute averages):
+
+| Phase | Capacity |
+| --- | --- |
+| Idle, paused | `0.0` ACU for six consecutive minutes |
+| Resume ramp | `0.083`, `1.0` |
+| Active (rebuild plus requests) | `1.32` to `1.55` ACU, settling at `1.50` |
+| After activity stopped | back to `0.0` within ~2 minutes |
+
+Two conclusions:
+
+1. **Scale-to-zero is confirmed.** The cluster genuinely reaches 0 ACU when nothing
+   is using it, which is what makes the idle cases nearly free.
+2. **Awake capacity is about 1.5 ACU, not 0.5.** Recomputing the per-session
+   figure with the observed value:
+
+```
+35 min awake at 1.5 ACU (30 min session + 5 min pause delay) = 0.5833 h x 1.5 ACU = 0.875 ACU-h
+ 2 min reseed at 2.0 ACU                                      = 0.0333 h x 2.0 ACU = 0.0667 ACU-h
+                                                                          per session = 0.9417 ACU-h
+                                                                     at $0.20/ACU-h = $0.1883
+```
+
+Corrected scenario totals, holding every other line item as published above:
+
+| Scenario | Published | Corrected for 1.5 ACU awake |
+| --- | --- | --- |
+| A: fully idle month | $0.11 | $0.11 (unchanged; no awake time) |
+| B: ~10 sessions/month | $1.17 | about $1.99 (Aurora compute $1.88 instead of $0.72) |
+| C: one 30-minute session daily | $3.20 | about $5.87 (Aurora compute $5.65 instead of $2.15) |
+
+The corrected figures are still far below the ~$24/month the EC2 demo ran at, and
+still below $12/month, but the earlier numbers understated Aurora compute by
+roughly 6x on the daily-use scenario. Treat the corrected column as the working
+estimate and re-measure after a full month of real traffic.
+
+### Cold start observed
+
+The first request after a pause took **31.7 seconds** and still returned 200,
+because the web tier retries a bounded number of times and the resume exceeded the
+API Gateway 30-second integration timeout on the first attempt. The next two
+requests took 0.72 s and 0.36 s. Mitigations already in place: bounded retry with
+backoff, a 5-minute auto-pause delay so brief gaps do not force two resumes, and a
+"Preparing the demo" overlay in the console.
+
+Known gap: while the cluster is paused but the coordination record still says
+`ready`, the console shows a loading or error state for those ~30 seconds rather
+than the preparation overlay, because readiness is answered from DynamoDB and does
+not know that the database is paused. A client-side timeout that switches to the
+preparing state would close this.
