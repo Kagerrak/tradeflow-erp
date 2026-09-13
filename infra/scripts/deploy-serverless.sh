@@ -202,8 +202,12 @@ PUBLIC_URL="https://$DISTRIBUTION_DOMAIN"
 apply_environment() { # function-name, extra json object
   local function_name="$1" extra="$2"
   local current merged
+  echo "  $function_name"
   current="$(aws lambda get-function-configuration --region "$REGION" \
-    --function-name "$function_name" --query 'Environment.Variables' --output json)"
+    --function-name "$function_name" --query 'Environment.Variables' --output json 2>/dev/null || echo '{}')"
+  if [[ -z "$current" || "$current" == "null" ]]; then
+    current='{}'
+  fi
   merged="$(mktemp)"
   chmod 600 "$merged"
   jq -n --argjson current "${current:-{}}" --argjson extra "$extra" \
