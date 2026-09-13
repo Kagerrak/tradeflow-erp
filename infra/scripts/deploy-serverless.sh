@@ -40,6 +40,16 @@ SECRET_PREFIX="/tradeflow/demo"
 
 say() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 
+# AWS CLI shorthand splits unescaped commas, so list-valued parameters are
+# always passed through a JSON file rather than Key=Value overrides.
+params_file() { # json
+  local file
+  file="$(mktemp)"
+  chmod 600 "$file"
+  printf '%s' "$1" >"$file"
+  printf '%s' "$file"
+} 
+
 stack_output() { # stack, output-key
   aws cloudformation describe-stacks --region "$REGION" --stack-name "$1" \
     --query "Stacks[0].Outputs[?OutputKey=='$2'].OutputValue" --output text
@@ -96,25 +106,31 @@ aws cloudformation deploy --region "$REGION" --stack-name "$NETWORK_STACK" \
 
 VPC_ID="$(stack_output "$NETWORK_STACK" VpcId)"
 SUBNET_IDS="$(stack_output "$NETWORK_STACK" PrivateSubnetIds)"
-# The AWS CLI shorthand parser splits unescaped commas, which would turn this
-# List<Subnet> parameter into a malformed value. Escape them.
-SUBNET_IDS_PARAM="${SUBNET_IDS//,/\\,}"
 LAMBDA_SG="$(stack_output "$NETWORK_STACK" LambdaSecurityGroupId)"
 DATABASE_SG="$(stack_output "$NETWORK_STACK" DatabaseSecurityGroupId)"
 echo "  vpc: $VPC_ID  subnets: $SUBNET_IDS"
 
 # --------------------------------------------------------------------- 3. data
 say "Data stack: $DATA_STACK (Aurora Serverless v2, min 0 ACU)"
+DATA_PARAMS="$(params_file "$(jq -n \
+  --arg project "$PROJECT_NAME" \
+  --arg vpc "$VPC_ID" \
+  --arg subnets "$SUBNET_IDS" \
+  --arg sg "$DATABASE_SG" \
+  --arg secret "$SECRET_PREFIX/aurora-master-password" \
+  '[
+    {ParameterKey:"ProjectName",ParameterValue:$project},
+    {ParameterKey:"VpcId",ParameterValue:$vpc},
+    {ParameterKey:"PrivateSubnetIds",ParameterValue:$subnets},
+    {ParameterKey:"DatabaseSecurityGroupId",ParameterValue:$sg},
+    {ParameterKey:"DatabasePasswordParameter",ParameterValue:$secret}
+  ]')")"
 aws cloudformation deploy --region "$REGION" --stack-name "$DATA_STACK" \
   --template-file infra/cloudformation/data.yaml \
-  --parameter-overrides \
-    "ProjectName=$PROJECT_NAME" \
-    "VpcId=$VPC_ID" \
-    "PrivateSubnetIds=$SUBNET_IDS_PARAM" \
-    "DatabaseSecurityGroupId=$DATABASE_SG" \
-    "DatabasePasswordParameter=$SECRET_PREFIX/aurora-master-password" \
+  --parameter-overrides "file://$DATA_PARAMS" \
   --tags "Project=$PROJECT_NAME" "Environment=demo" \
   --no-fail-on-empty-changeset
+rm -f "$DATA_PARAMS"
 
 DB_ENDPOINT="$(stack_output "$DATA_STACK" DbClusterEndpoint)"
 DB_PORT="$(stack_output "$DATA_STACK" DbClusterPort)"
@@ -130,25 +146,42 @@ DATABASE_URL="postgresql+asyncpg://tradeflow:${DATABASE_PASSWORD}@${DB_ENDPOINT}
 
 # ---------------------------------------------------------------- 4. application
 say "Application stack: $APP_STACK"
+APP_PARAMS="$(params_file "$(jq -n \
+  --arg project "$PROJECT_NAME" \
+  --arg subnets "$SUBNET_IDS" \
+  --arg sg "$LAMBDA_SG" \
+  --arg endpoint "$DB_ENDPOINT" \
+  --arg port "$DB_PORT" \
+  --arg documents "$DOCUMENTS_BUCKET" \
+  --arg artifacts "$ARTIFACTS_BUCKET" \
+  --arg web "$WEB_BUCKET" \
+  --arg coordination "$COORDINATION_TABLE" \
+  --arg queue "$JOBS_QUEUE_ARN" \
+  --arg api "$REGISTRY/$PROJECT_NAME-api:$IMAGE_TAG" \
+  --arg worker "$REGISTRY/$PROJECT_NAME-worker:$IMAGE_TAG" \
+  --arg webimage "$REGISTRY/$PROJECT_NAME-web:$IMAGE_TAG" \
+  '[
+    {ParameterKey:"ProjectName",ParameterValue:$project},
+    {ParameterKey:"PrivateSubnetIds",ParameterValue:$subnets},
+    {ParameterKey:"LambdaSecurityGroupId",ParameterValue:$sg},
+    {ParameterKey:"DbClusterEndpoint",ParameterValue:$endpoint},
+    {ParameterKey:"DbClusterPort",ParameterValue:$port},
+    {ParameterKey:"DocumentsBucketName",ParameterValue:$documents},
+    {ParameterKey:"ArtifactsBucketName",ParameterValue:$artifacts},
+    {ParameterKey:"WebAssetsBucketName",ParameterValue:$web},
+    {ParameterKey:"CoordinationTableName",ParameterValue:$coordination},
+    {ParameterKey:"JobsQueueArn",ParameterValue:$queue},
+    {ParameterKey:"ApiImageUri",ParameterValue:$api},
+    {ParameterKey:"WorkerImageUri",ParameterValue:$worker},
+    {ParameterKey:"WebImageUri",ParameterValue:$webimage}
+  ]')")"
 aws cloudformation deploy --region "$REGION" --stack-name "$APP_STACK" \
   --template-file infra/cloudformation/app.yaml \
   --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides \
-    "ProjectName=$PROJECT_NAME" \
-    "PrivateSubnetIds=$SUBNET_IDS_PARAM" \
-    "LambdaSecurityGroupId=$LAMBDA_SG" \
-    "DbClusterEndpoint=$DB_ENDPOINT" \
-    "DbClusterPort=$DB_PORT" \
-    "DocumentsBucketName=$DOCUMENTS_BUCKET" \
-    "ArtifactsBucketName=$ARTIFACTS_BUCKET" \
-    "WebAssetsBucketName=$WEB_BUCKET" \
-    "CoordinationTableName=$COORDINATION_TABLE" \
-    "JobsQueueArn=$JOBS_QUEUE_ARN" \
-    "ApiImageUri=$REGISTRY/$PROJECT_NAME-api:$IMAGE_TAG" \
-    "WorkerImageUri=$REGISTRY/$PROJECT_NAME-worker:$IMAGE_TAG" \
-    "WebImageUri=$REGISTRY/$PROJECT_NAME-web:$IMAGE_TAG" \
+  --parameter-overrides "file://$APP_PARAMS" \
   --tags "Project=$PROJECT_NAME" "Environment=demo" \
   --no-fail-on-empty-changeset
+rm -f "$APP_PARAMS"
 
 API_FUNCTION="$(stack_output "$APP_STACK" ApiFunctionName)"
 WORKER_FUNCTION="$(stack_output "$APP_STACK" WorkerFunctionName)"
