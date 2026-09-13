@@ -73,12 +73,15 @@ get_secret() {
 
 # ---------------------------------------------------------------- 1. secrets
 say "Secrets in SSM Parameter Store ($SECRET_PREFIX/*)"
-ensure_secret database-password "openssl rand -hex 24"
+# Aurora master passwords are limited to 41 characters and must avoid a few
+# symbols, so this is a separate parameter from the compose-era database
+# password and is generated to fit.
+ensure_secret aurora-master-password "openssl rand -hex 20"
 ensure_secret reset-token "openssl rand -hex 32"
 ensure_secret auth-test-secret "openssl rand -hex 32"
 ensure_string auth-issuer "https://identity.tradeflow.invalid"
 
-DATABASE_PASSWORD="$(get_secret database-password)"
+DATABASE_PASSWORD="$(get_secret aurora-master-password)"
 RESET_TOKEN="$(get_secret reset-token)"
 AUTH_TEST_SECRET="$(get_secret auth-test-secret)"
 AUTH_ISSUER="$(get_secret auth-issuer)"
@@ -105,7 +108,7 @@ aws cloudformation deploy --region "$REGION" --stack-name "$DATA_STACK" \
     "VpcId=$VPC_ID" \
     "PrivateSubnetIds=$SUBNET_IDS" \
     "DatabaseSecurityGroupId=$DATABASE_SG" \
-    "DatabasePasswordParameter=$SECRET_PREFIX/database-password" \
+    "DatabasePasswordParameter=$SECRET_PREFIX/aurora-master-password" \
   --no-fail-on-empty-changeset
 
 DB_ENDPOINT="$(stack_output "$DATA_STACK" DbClusterEndpoint)"

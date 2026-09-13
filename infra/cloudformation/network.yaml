@@ -110,15 +110,15 @@ Resources:
       GroupDescription: Demo Lambda functions (API, worker, migration).
       VpcId: !Ref Vpc
       SecurityGroupIngress: []
+      # Outbound is intentionally unrestricted at the security-group layer.
+      # The subnets have no internet gateway/nat gateway route, so the only
+      # reachable destinations are the VPC itself and the S3/DynamoDB gateway
+      # endpoints, whose traffic targets public service addresses and would be
+      # blocked by a VPC-CIDR-only rule.
       SecurityGroupEgress:
-        - IpProtocol: tcp
-          FromPort: 5432
-          ToPort: 5432
-          DestinationSecurityGroupId: !Ref DatabaseSecurityGroup
-          Description: Aurora PostgreSQL
         - IpProtocol: "-1"
-          CidrIp: !Ref VpcCidr
-          Description: VPC-internal traffic and gateway endpoints
+          CidrIp: 0.0.0.0/0
+          Description: VPC-internal traffic and the free S3/DynamoDB gateway endpoints
       Tags:
         - Key: Name
           Value: !Sub "${ProjectName}-lambda"
