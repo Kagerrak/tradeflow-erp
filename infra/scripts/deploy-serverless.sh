@@ -96,6 +96,9 @@ aws cloudformation deploy --region "$REGION" --stack-name "$NETWORK_STACK" \
 
 VPC_ID="$(stack_output "$NETWORK_STACK" VpcId)"
 SUBNET_IDS="$(stack_output "$NETWORK_STACK" PrivateSubnetIds)"
+# The AWS CLI shorthand parser splits unescaped commas, which would turn this
+# List<Subnet> parameter into a malformed value. Escape them.
+SUBNET_IDS_PARAM="${SUBNET_IDS//,/\\,}"
 LAMBDA_SG="$(stack_output "$NETWORK_STACK" LambdaSecurityGroupId)"
 DATABASE_SG="$(stack_output "$NETWORK_STACK" DatabaseSecurityGroupId)"
 echo "  vpc: $VPC_ID  subnets: $SUBNET_IDS"
@@ -107,7 +110,7 @@ aws cloudformation deploy --region "$REGION" --stack-name "$DATA_STACK" \
   --parameter-overrides \
     "ProjectName=$PROJECT_NAME" \
     "VpcId=$VPC_ID" \
-    "PrivateSubnetIds=$SUBNET_IDS" \
+    "PrivateSubnetIds=$SUBNET_IDS_PARAM" \
     "DatabaseSecurityGroupId=$DATABASE_SG" \
     "DatabasePasswordParameter=$SECRET_PREFIX/aurora-master-password" \
   --tags "Project=$PROJECT_NAME" "Environment=demo" \
@@ -132,7 +135,7 @@ aws cloudformation deploy --region "$REGION" --stack-name "$APP_STACK" \
   --capabilities CAPABILITY_NAMED_IAM \
   --parameter-overrides \
     "ProjectName=$PROJECT_NAME" \
-    "PrivateSubnetIds=$SUBNET_IDS" \
+    "PrivateSubnetIds=$SUBNET_IDS_PARAM" \
     "LambdaSecurityGroupId=$LAMBDA_SG" \
     "DbClusterEndpoint=$DB_ENDPOINT" \
     "DbClusterPort=$DB_PORT" \
