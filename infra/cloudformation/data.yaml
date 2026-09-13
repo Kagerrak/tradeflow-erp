@@ -44,9 +44,14 @@ Parameters:
     MaxValue: 86400
   BackupRetentionDays:
     Type: Number
-    Default: 7
-    MinValue: 1
+    Default: 1
+    MinValue: 0
     MaxValue: 35
+    Description: >
+      Free-tier/limited-plan accounts cap automated backup retention at 1 day;
+      a larger value is rejected. The demo dataset is disposable and is rebuilt
+      by the seeder, so backup retention is a convenience rather than the
+      recovery mechanism.
 
 Resources:
   DbSubnetGroup:
