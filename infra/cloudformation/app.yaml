@@ -257,6 +257,13 @@ Resources:
           TRADEFLOW_AUTH_AUDIENCE: tradeflow-api
           TRADEFLOW_AUTH_ISSUER: https://identity.tradeflow.invalid
           TRADEFLOW_OBJECT_STORAGE_BUCKET: !Ref DocumentsBucketName
+          # Empty values clear the local MinIO defaults from the application
+          # settings, so boto3 signs with the Lambda execution role and uses the
+          # regional S3 endpoint instead of trying an endpoint on localhost.
+          TRADEFLOW_OBJECT_STORAGE_ENDPOINT_URL: ""
+          TRADEFLOW_OBJECT_STORAGE_PUBLIC_ENDPOINT_URL: ""
+          TRADEFLOW_OBJECT_STORAGE_ACCESS_KEY: ""
+          TRADEFLOW_OBJECT_STORAGE_SECRET_KEY: ""
           # Password-free: this deployment authenticates to Aurora with a
           # short-lived IAM token, so there is no database password to store.
           # The deployment workflow fills in the endpoint and the demo secrets
@@ -318,6 +325,10 @@ Resources:
           TRADEFLOW_WORKER_DEMO_SEED_VERSION: !Ref DemoSeedVersion
           TRADEFLOW_WORKER_DEMO_RESET_INTERVAL_MINUTES: "45"
           TRADEFLOW_WORKER_OBJECT_STORAGE_BUCKET: !Ref DocumentsBucketName
+          TRADEFLOW_WORKER_OBJECT_STORAGE_ENDPOINT_URL: ""
+          TRADEFLOW_WORKER_OBJECT_STORAGE_PUBLIC_ENDPOINT_URL: ""
+          TRADEFLOW_WORKER_OBJECT_STORAGE_ACCESS_KEY: ""
+          TRADEFLOW_WORKER_OBJECT_STORAGE_SECRET_KEY: ""
           # The demo seeder runs in-process against the API image and needs the
           # API-side settings too, because it drives the real HTTP surface.
           TRADEFLOW_ENVIRONMENT: demo
