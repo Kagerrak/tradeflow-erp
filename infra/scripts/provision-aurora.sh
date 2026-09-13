@@ -43,7 +43,7 @@ cluster_status() {
 # or an automatic backup is in flight is rejected with InvalidDBClusterStateFault.
 for attempt in $(seq 1 60); do
   CURRENT="$(cluster_status)"
-  [[ "$CURRENT" == "available" ]] && break
+  [[ "$CURRENT" == "available" || "$CURRENT" == "missing" ]] && break
   echo "  waiting for cluster state (currently $CURRENT)"
   sleep 20
 done
@@ -60,18 +60,26 @@ if [[ "$(cluster_status)" == "missing" ]]; then
     --tags "Key=Project,Value=$PROJECT_NAME" "Key=Environment,Value=demo" >/dev/null
   echo "  creating (express configuration provisions the writer instance)"
   aws rds wait db-cluster-available --region "$REGION" --db-cluster-identifier "$CLUSTER_ID"
+fi
+
+# Avoid a needless cluster modification on every deploy: it can interrupt an
+# idle measurement and makes code-only rollback depend on a database change.
+CLUSTER_CONFIG="$(aws rds describe-db-clusters --region "$REGION" \
+  --db-cluster-identifier "$CLUSTER_ID" --query 'DBClusters[0]' --output json)"
+if jq -e --argjson max "$MAX_ACU" --argjson pause "$AUTO_PAUSE_SECONDS" '
+  .DeletionProtection == true and
+  .ServerlessV2ScalingConfiguration.MinCapacity == 0 and
+  .ServerlessV2ScalingConfiguration.MaxCapacity == $max and
+  .ServerlessV2ScalingConfiguration.SecondsUntilAutoPause == $pause
+' <<<"$CLUSTER_CONFIG" >/dev/null; then
+  echo "  scaling and deletion protection already match"
 else
-  echo "  exists: status $(cluster_status)"
   aws rds modify-db-cluster --region "$REGION" --db-cluster-identifier "$CLUSTER_ID" \
     --serverless-v2-scaling-configuration \
       "MinCapacity=0,MaxCapacity=$MAX_ACU,SecondsUntilAutoPause=$AUTO_PAUSE_SECONDS" \
-    --apply-immediately >/dev/null
-  echo "  scale-to-zero settings re-applied"
+    --deletion-protection --apply-immediately >/dev/null
+  echo "  scaling and deletion protection applied"
 fi
-
-# Idempotent: enabling deletion protection twice is a no-op.
-aws rds modify-db-cluster --region "$REGION" --db-cluster-identifier "$CLUSTER_ID" \
-  --deletion-protection --apply-immediately >/dev/null
 
 read -r DB_ENDPOINT DB_PORT DB_RESOURCE_ID DB_MIN DB_PAUSE <<<"$(aws rds describe-db-clusters \
   --region "$REGION" --db-cluster-identifier "$CLUSTER_ID" \

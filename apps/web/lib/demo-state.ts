@@ -7,9 +7,9 @@ import "server-only";
  * wake a paused Aurora cluster. The page tier keeps no AWS credentials and no
  * AWS API permissions; it asks the API, exactly like every other read.
  *
- * Reads are served from a short-lived cache and refreshed in the background, so
- * a cold API never adds latency to a console request: the worst case is a
- * slightly stale lifecycle that the next request corrects.
+ * Reads use a short-lived cache. Expired reads await their refresh because
+ * Lambda freezes background work after returning a response. A cold API can
+ * take several seconds to initialize, even though this endpoint uses no SQL.
  */
 
 export type DemoLifecycle = "ready" | "refreshing" | "failed" | "unknown";
@@ -24,7 +24,7 @@ export type DemoState = Readonly<{
 }>;
 
 const CACHE_MS = 5_000;
-const PROBE_TIMEOUT_MS = 2_500;
+const PROBE_TIMEOUT_MS = 12_000;
 
 let cached: { at: number; value: DemoState } | undefined;
 let inFlight: Promise<DemoState> | undefined;
@@ -103,9 +103,9 @@ export async function readDemoState(): Promise<DemoState> {
   const now = Date.now();
   if (cached) {
     if (now - cached.at < CACHE_MS) return cached.value;
-    // Serve stale immediately and refresh behind the request.
-    void refresh();
-    return cached.value;
+    // Lambda can freeze timers and I/O after the response. Complete the probe
+    // during this invocation so a cold-start "unknown" cannot stay cached.
+    return refresh();
   }
   return refresh();
 }

@@ -105,10 +105,15 @@ get_secret() {
 }
 
 invoke_function() { # function-name, payload
-  local result
+  local result metadata
   result="$(mktemp)"
-  aws lambda invoke --region "$REGION" --function-name "$1" \
-    --payload "$2" --cli-binary-format raw-in-base64-out "$result" >/dev/null
+  metadata="$(aws lambda invoke --region "$REGION" --function-name "$1" \
+    --payload "$2" --cli-binary-format raw-in-base64-out "$result")"
+  if jq -e '.FunctionError != null' <<<"$metadata" >/dev/null; then
+    echo "  $1 failed; inspect its CloudWatch logs before continuing." >&2
+    rm -f "$result"
+    return 1
+  fi
   cat "$result"
   rm -f "$result"
 }
