@@ -1,117 +1,22 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  TradeFlow demo data tier: Aurora PostgreSQL Serverless v2 that scales to zero,
-  private S3 buckets for static assets, evidence and job markers, an on-demand
-  DynamoDB table for demo coordination, and the SQS work queue with its
-  dead-letter queue.
+  TradeFlow demo data tier for an Aurora express-configuration account: private
+  S3 buckets for static assets, evidence and job markers, an on-demand DynamoDB
+  table for demo coordination, and the SQS work queue with its dead-letter
+  queue.
+
+  The Aurora cluster is deliberately not in this template. Accounts on the AWS
+  free plan can only create Aurora clusters with express configuration, and
+  CloudFormation does not expose the WithExpressConfiguration parameter.
+  infra/scripts/provision-aurora.sh creates and owns the cluster instead; see
+  docs/adr/0020-serverless-demo-hosting.md.
 
 Parameters:
   ProjectName:
     Type: String
     Default: tradeflow-demo
-  VpcId:
-    Type: AWS::EC2::VPC::Id
-  PrivateSubnetIds:
-    Type: List<AWS::EC2::Subnet::Id>
-  DatabaseSecurityGroupId:
-    Type: AWS::EC2::SecurityGroup::Id
-  DatabaseName:
-    Type: String
-    Default: tradeflow_demo
-  DatabaseUser:
-    Type: String
-    Default: tradeflow
-  DatabasePasswordParameter:
-    Type: String
-    Default: /tradeflow/demo/database-password
-    Description: >
-      SSM SecureString holding the Aurora master password. It is read through a
-      CloudFormation dynamic reference, so the value is never stored in this
-      template, in stack metadata or in any API response.
-  AuroraEngineVersion:
-    Type: String
-    Default: "17.9"
-    Description: Must be an aurora-postgresql version that supports 0 ACU.
-  AuroraMaxAcu:
-    Type: Number
-    Default: 2
-    MinValue: 0.5
-    MaxValue: 16
-  AutoPauseSeconds:
-    Type: Number
-    Default: 300
-    MinValue: 300
-    MaxValue: 86400
-  BackupRetentionDays:
-    Type: Number
-    Default: 1
-    MinValue: 0
-    MaxValue: 35
-    Description: >
-      Free-tier/limited-plan accounts cap automated backup retention at 1 day;
-      a larger value is rejected. The demo dataset is disposable and is rebuilt
-      by the seeder, so backup retention is a convenience rather than the
-      recovery mechanism.
 
 Resources:
-  DbSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
-    Properties:
-      DBSubnetGroupDescription: Private subnets for the TradeFlow demo cluster.
-      SubnetIds: !Ref PrivateSubnetIds
-      Tags:
-        - Key: Name
-          Value: !Sub "${ProjectName}-db"
-
-  DbCluster:
-    Type: AWS::RDS::DBCluster
-    # Persistent data: never replaced or deleted by a stack update.
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      DBClusterIdentifier: !Sub "${ProjectName}-aurora"
-      Engine: aurora-postgresql
-      EngineVersion: !Ref AuroraEngineVersion
-      DatabaseName: !Ref DatabaseName
-      MasterUsername: !Ref DatabaseUser
-      MasterUserPassword: !Sub "{{resolve:ssm-secure:${DatabasePasswordParameter}}}"
-      DBSubnetGroupName: !Ref DbSubnetGroup
-      VpcSecurityGroupIds:
-        - !Ref DatabaseSecurityGroupId
-      # 0 ACU plus a 300 second auto-pause is what makes an idle demo free of
-      # database compute charges. RDS Proxy is deliberately not used: it holds a
-      # connection open and would prevent the cluster from ever pausing.
-      ServerlessV2ScalingConfiguration:
-        MinCapacity: 0
-        MaxCapacity: !Ref AuroraMaxAcu
-        SecondsUntilAutoPause: !Ref AutoPauseSeconds
-      # The application speaks the PostgreSQL wire protocol through SQLAlchemy
-      # and asyncpg. The RDS Data API is an HTTP API and is not a drop-in
-      # replacement for that driver, so it stays disabled.
-      EnableHttpEndpoint: false
-      StorageEncrypted: true
-      BackupRetentionPeriod: !Ref BackupRetentionDays
-      DeletionProtection: true
-      CopyTagsToSnapshot: false
-      Tags:
-        - Key: Name
-          Value: !Sub "${ProjectName}-aurora"
-
-  DbInstance:
-    Type: AWS::RDS::DBInstance
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      DBInstanceIdentifier: !Sub "${ProjectName}-aurora-1"
-      DBClusterIdentifier: !Ref DbCluster
-      Engine: aurora-postgresql
-      DBInstanceClass: db.serverless
-      PubliclyAccessible: false
-      AutoMinorVersionUpgrade: true
-      Tags:
-        - Key: Name
-          Value: !Sub "${ProjectName}-aurora-1"
-
   WebAssetsBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
@@ -260,14 +165,6 @@ Resources:
                 aws:SourceArn: !Sub "arn:aws:s3:::${ProjectName}-artifacts-${AWS::AccountId}-${AWS::Region}"
 
 Outputs:
-  DbClusterEndpoint:
-    Value: !GetAtt DbCluster.Endpoint.Address
-    Export:
-      Name: !Sub "${AWS::StackName}-DbClusterEndpoint"
-  DbClusterPort:
-    Value: !GetAtt DbCluster.Endpoint.Port
-    Export:
-      Name: !Sub "${AWS::StackName}-DbClusterPort"
   WebAssetsBucketName:
     Value: !Ref WebAssetsBucket
     Export:

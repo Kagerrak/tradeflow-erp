@@ -3,11 +3,11 @@
 #
 # Order of operations (each step is separate so a failure is unambiguous):
 #   1. ensure the demo secrets exist in SSM Parameter Store (create-only)
-#   2. deploy the network stack   (VPC, private subnets, gateway endpoints)
-#   3. deploy the data stack      (Aurora Serverless v2, S3, DynamoDB, SQS)
+#   2. provision the Aurora express-configuration cluster (outside CloudFormation)
+#   3. deploy the data stack      (S3, DynamoDB, SQS + DLQ)
 #   4. deploy the application     (Lambdas, HTTP API, CloudFront)
-#   5. apply runtime secrets to the Lambda configuration
-#   6. run schema migrations as an explicit step
+#   5. apply runtime configuration to the Lambdas
+#   6. create the application database, then run schema migrations
 #   7. optionally rebuild the demo dataset
 #   8. verify the public endpoints
 #
@@ -33,10 +33,11 @@ SKIP_MIGRATIONS="${SKIP_MIGRATIONS:-0}"
 
 ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 REGISTRY="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com"
-NETWORK_STACK="$PROJECT_NAME-network"
 DATA_STACK="$PROJECT_NAME-data"
 APP_STACK="$PROJECT_NAME-app"
 SECRET_PREFIX="/tradeflow/demo"
+DATABASE_NAME="tradeflow_demo"
+DATABASE_USER="tradeflow"
 
 say() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 
@@ -48,11 +49,11 @@ params_file() { # json
   chmod 600 "$file"
   printf '%s' "$1" >"$file"
   printf '%s' "$file"
-} 
+}
 
 # A stack whose very first create failed is stuck in ROLLBACK_COMPLETE and
 # cannot be updated. It holds no deployed state, so it is safe to remove before
-# retrying; retained resources (S3, DynamoDB, Aurora) survive and are reported.
+# retrying; retained resources (S3, DynamoDB) survive.
 reset_failed_stack() { # stack
   local status
   status="$(aws cloudformation describe-stacks --region "$REGION" --stack-name "$1" \
@@ -97,51 +98,41 @@ get_secret() {
     --with-decryption --query Parameter.Value --output text
 }
 
+invoke_function() { # function-name, payload
+  local result
+  result="$(mktemp)"
+  aws lambda invoke --region "$REGION" --function-name "$1" \
+    --payload "$2" --cli-binary-format raw-in-base64-out "$result" >/dev/null
+  cat "$result"
+  rm -f "$result"
+}
+
 # ---------------------------------------------------------------- 1. secrets
 say "Secrets in SSM Parameter Store ($SECRET_PREFIX/*)"
-# Aurora master passwords are limited to 41 characters and must avoid a few
-# symbols, so this is a separate parameter from the compose-era database
-# password and is generated to fit.
-ensure_secret aurora-master-password "openssl rand -hex 20"
 ensure_secret reset-token "openssl rand -hex 32"
 ensure_secret auth-test-secret "openssl rand -hex 32"
 ensure_string auth-issuer "https://identity.tradeflow.invalid"
 
-DATABASE_PASSWORD="$(get_secret aurora-master-password)"
 RESET_TOKEN="$(get_secret reset-token)"
 AUTH_TEST_SECRET="$(get_secret auth-test-secret)"
 AUTH_ISSUER="$(get_secret auth-issuer)"
 
-# ------------------------------------------------------------------ 2. network
-say "Network stack: $NETWORK_STACK"
-aws cloudformation deploy --region "$REGION" --stack-name "$NETWORK_STACK" \
-  --template-file infra/cloudformation/network.yaml \
-  --parameter-overrides "ProjectName=$PROJECT_NAME" \
-  --tags "Project=$PROJECT_NAME" "Environment=demo" \
-  --no-fail-on-empty-changeset
-
-VPC_ID="$(stack_output "$NETWORK_STACK" VpcId)"
-SUBNET_IDS="$(stack_output "$NETWORK_STACK" PrivateSubnetIds)"
-LAMBDA_SG="$(stack_output "$NETWORK_STACK" LambdaSecurityGroupId)"
-DATABASE_SG="$(stack_output "$NETWORK_STACK" DatabaseSecurityGroupId)"
-echo "  vpc: $VPC_ID  subnets: $SUBNET_IDS"
+# ----------------------------------------------------------------- 2. Aurora
+say "Aurora cluster (express configuration, scale-to-zero)"
+AURORA_OUTPUT="$(PROJECT_NAME="$PROJECT_NAME" AWS_REGION="$REGION" \
+  ./infra/scripts/provision-aurora.sh)"
+printf '%s\n' "$AURORA_OUTPUT" | grep -E '^  ' || true
+DB_ENDPOINT="$(printf '%s\n' "$AURORA_OUTPUT" | sed -n 's/^DB_ENDPOINT=//p')"
+DB_PORT="$(printf '%s\n' "$AURORA_OUTPUT" | sed -n 's/^DB_PORT=//p')"
+DB_RESOURCE_ID="$(printf '%s\n' "$AURORA_OUTPUT" | sed -n 's/^DB_RESOURCE_ID=//p')"
+: "${DB_ENDPOINT:?Aurora endpoint not resolved}"
+: "${DB_RESOURCE_ID:?Aurora resource id not resolved}"
 
 # --------------------------------------------------------------------- 3. data
-say "Data stack: $DATA_STACK (Aurora Serverless v2, min 0 ACU)"
+say "Data stack: $DATA_STACK (S3, DynamoDB, SQS)"
 reset_failed_stack "$DATA_STACK"
-DATA_PARAMS="$(params_file "$(jq -n \
-  --arg project "$PROJECT_NAME" \
-  --arg vpc "$VPC_ID" \
-  --arg subnets "$SUBNET_IDS" \
-  --arg sg "$DATABASE_SG" \
-  --arg secret "$SECRET_PREFIX/aurora-master-password" \
-  '[
-    {ParameterKey:"ProjectName",ParameterValue:$project},
-    {ParameterKey:"VpcId",ParameterValue:$vpc},
-    {ParameterKey:"PrivateSubnetIds",ParameterValue:$subnets},
-    {ParameterKey:"DatabaseSecurityGroupId",ParameterValue:$sg},
-    {ParameterKey:"DatabasePasswordParameter",ParameterValue:$secret}
-  ]')")"
+DATA_PARAMS="$(params_file "$(jq -n --arg project "$PROJECT_NAME" \
+  '[{ParameterKey:"ProjectName",ParameterValue:$project}]')")"
 aws cloudformation deploy --region "$REGION" --stack-name "$DATA_STACK" \
   --template-file infra/cloudformation/data.yaml \
   --parameter-overrides "file://$DATA_PARAMS" \
@@ -149,27 +140,23 @@ aws cloudformation deploy --region "$REGION" --stack-name "$DATA_STACK" \
   --no-fail-on-empty-changeset
 rm -f "$DATA_PARAMS"
 
-DB_ENDPOINT="$(stack_output "$DATA_STACK" DbClusterEndpoint)"
-DB_PORT="$(stack_output "$DATA_STACK" DbClusterPort)"
 DOCUMENTS_BUCKET="$(stack_output "$DATA_STACK" DocumentsBucketName)"
 ARTIFACTS_BUCKET="$(stack_output "$DATA_STACK" ArtifactsBucketName)"
 WEB_BUCKET="$(stack_output "$DATA_STACK" WebAssetsBucketName)"
 COORDINATION_TABLE="$(stack_output "$DATA_STACK" CoordinationTableName)"
 JOBS_QUEUE_ARN="$(stack_output "$DATA_STACK" JobsQueueArn)"
 JOBS_QUEUE_URL="$(stack_output "$DATA_STACK" JobsQueueUrl)"
-echo "  aurora: $DB_ENDPOINT:$DB_PORT"
-
-DATABASE_URL="postgresql+asyncpg://tradeflow:${DATABASE_PASSWORD}@${DB_ENDPOINT}:${DB_PORT}/tradeflow_demo"
 
 # ---------------------------------------------------------------- 4. application
 say "Application stack: $APP_STACK"
 reset_failed_stack "$APP_STACK"
 APP_PARAMS="$(params_file "$(jq -n \
   --arg project "$PROJECT_NAME" \
-  --arg subnets "$SUBNET_IDS" \
-  --arg sg "$LAMBDA_SG" \
   --arg endpoint "$DB_ENDPOINT" \
   --arg port "$DB_PORT" \
+  --arg resource "$DB_RESOURCE_ID" \
+  --arg database "$DATABASE_NAME" \
+  --arg user "$DATABASE_USER" \
   --arg documents "$DOCUMENTS_BUCKET" \
   --arg artifacts "$ARTIFACTS_BUCKET" \
   --arg web "$WEB_BUCKET" \
@@ -180,10 +167,11 @@ APP_PARAMS="$(params_file "$(jq -n \
   --arg webimage "$REGISTRY/$PROJECT_NAME-web:$IMAGE_TAG" \
   '[
     {ParameterKey:"ProjectName",ParameterValue:$project},
-    {ParameterKey:"PrivateSubnetIds",ParameterValue:$subnets},
-    {ParameterKey:"LambdaSecurityGroupId",ParameterValue:$sg},
     {ParameterKey:"DbClusterEndpoint",ParameterValue:$endpoint},
     {ParameterKey:"DbClusterPort",ParameterValue:$port},
+    {ParameterKey:"DbClusterResourceId",ParameterValue:$resource},
+    {ParameterKey:"DatabaseName",ParameterValue:$database},
+    {ParameterKey:"DatabaseUser",ParameterValue:$user},
     {ParameterKey:"DocumentsBucketName",ParameterValue:$documents},
     {ParameterKey:"ArtifactsBucketName",ParameterValue:$artifacts},
     {ParameterKey:"WebAssetsBucketName",ParameterValue:$web},
@@ -209,13 +197,13 @@ API_URL="$(stack_output "$APP_STACK" ApiUrl)"
 DISTRIBUTION_DOMAIN="$(stack_output "$APP_STACK" DistributionDomainName)"
 PUBLIC_URL="https://$DISTRIBUTION_DOMAIN"
 
-# --------------------------------------------- 5. runtime secrets (never in CFN)
+# ------------------------------------------- 5. runtime configuration (applied
+# here, never stored in CloudFormation)
 apply_environment() { # function-name, extra json object
   local function_name="$1" extra="$2"
   local current merged
   current="$(aws lambda get-function-configuration --region "$REGION" \
     --function-name "$function_name" --query 'Environment.Variables' --output json)"
-  # jq writes the merge to a file so no secret ever reaches the process list.
   merged="$(mktemp)"
   chmod 600 "$merged"
   jq -n --argjson current "${current:-{\}}" --argjson extra "$extra" \
@@ -228,14 +216,24 @@ apply_environment() { # function-name, extra json object
 }
 
 say "Applying runtime configuration (from Parameter Store)"
-API_ENV="$(jq -n \
+# No database password exists: the cluster authenticates with a short-lived IAM
+# token minted per connection by the application.
+DATABASE_URL="postgresql+asyncpg://$DATABASE_USER@$DB_ENDPOINT:$DB_PORT/$DATABASE_NAME"
+APP_ENV="$(jq -n \
   --arg url "$DATABASE_URL" \
   --arg token "$RESET_TOKEN" \
   --arg secret "$AUTH_TEST_SECRET" \
   --arg issuer "$AUTH_ISSUER" \
   '{TRADEFLOW_DATABASE_URL: $url, TRADEFLOW_DEMO_RESET_TOKEN: $token, TRADEFLOW_AUTH_TEST_SECRET: $secret, TRADEFLOW_AUTH_ISSUER: $issuer}')"
-apply_environment "$API_FUNCTION" "$API_ENV"
-apply_environment "$WORKER_FUNCTION" "$API_ENV"
+WORKER_ENV="$(jq -n \
+  --arg url "$DATABASE_URL" \
+  --arg token "$RESET_TOKEN" \
+  --arg secret "$AUTH_TEST_SECRET" \
+  --arg issuer "$AUTH_ISSUER" \
+  '{TRADEFLOW_DATABASE_URL: $url, TRADEFLOW_DEMO_RESET_TOKEN: $token, TRADEFLOW_AUTH_TEST_SECRET: $secret, TRADEFLOW_AUTH_ISSUER: $issuer,
+    TRADEFLOW_WORKER_DATABASE_URL: $url, TRADEFLOW_WORKER_DEMO_RESET_TOKEN: $token}')"
+apply_environment "$API_FUNCTION" "$APP_ENV"
+apply_environment "$WORKER_FUNCTION" "$WORKER_ENV"
 apply_environment "$MIGRATION_FUNCTION" "$(jq -n --arg url "$DATABASE_URL" '{TRADEFLOW_DATABASE_URL: $url}')"
 apply_environment "$WEB_FUNCTION" "$(jq -n \
   --arg secret "$AUTH_TEST_SECRET" \
@@ -244,17 +242,17 @@ apply_environment "$WEB_FUNCTION" "$(jq -n \
   '{TRADEFLOW_AUTH_TEST_SECRET: $secret, TRADEFLOW_AUTH_ISSUER: $issuer, TRADEFLOW_PUBLIC_URL: $url}')"
 echo "  runtime configuration applied to 4 functions"
 
-# ------------------------------------------------------------- 6. migrations
+# ------------------------------------------ 6. database and schema migrations
 if [[ "$SKIP_MIGRATIONS" == "1" ]]; then
-  say "Skipping migrations (SKIP_MIGRATIONS=1)"
+  say "Skipping database creation and migrations (SKIP_MIGRATIONS=1)"
 else
+  say "Creating the application database"
+  invoke_function "$MIGRATION_FUNCTION" \
+    "$(jq -nc --arg name "$DATABASE_NAME" '{action:"create-database", name:$name}')"
+  echo
   say "Running schema migrations as a deployment step"
-  RESULT_FILE="$(mktemp)"
-  aws lambda invoke --region "$REGION" --function-name "$MIGRATION_FUNCTION" \
-    --payload '{"action":"upgrade","revision":"head"}' \
-    --cli-binary-format raw-in-base64-out "$RESULT_FILE" >/dev/null
-  cat "$RESULT_FILE"
-  rm -f "$RESULT_FILE"
+  invoke_function "$MIGRATION_FUNCTION" '{"action":"upgrade","revision":"head"}'
+  echo
 fi
 
 # ------------------------------------------------------------- 7. demo data
@@ -300,7 +298,7 @@ Deployed.
   api url:      $API_URL
   distribution: $DISTRIBUTION_DOMAIN
   image tag:    $IMAGE_TAG
-  aurora:       $DB_ENDPOINT:$DB_PORT (0-2 ACU, auto-pause 300s)
+  aurora:       $DB_ENDPOINT:$DB_PORT (0 ACU idle, auto-pause 300s, IAM auth)
 
 Rollback: re-run with IMAGE_TAG=<previous-sha> (see docs/runbooks/serverless-demo.md).
 EOF

@@ -24,7 +24,11 @@ logger = logging.getLogger(__name__)
 
 async def run_once() -> int:
     settings = get_worker_settings()
-    engine = create_database_engine(settings.database_url)
+    engine = create_database_engine(
+        settings.database_url,
+        iam_auth=settings.db_iam_auth,
+        region=settings.resolves_aws_region,
+    )
     session_factory = create_session_factory(engine)
     object_storage = S3ObjectStorage(settings)
     processed = 0

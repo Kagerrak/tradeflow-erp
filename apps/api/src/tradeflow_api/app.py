@@ -126,6 +126,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     engine = create_database_engine(
         resolved_settings.database_url,
         lambda_runtime=resolved_settings.lambda_runtime,
+        iam_auth=resolved_settings.db_iam_auth,
+        region=resolved_settings.resolves_aws_region,
     )
     try:
         expected_database_heads = migration_heads(

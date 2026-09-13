@@ -36,7 +36,12 @@ from tradeflow_worker.demo_reset_job import run_demo_reset
 logger = logging.getLogger(__name__)
 
 _settings: WorkerSettings = get_worker_settings()
-_engine = create_database_engine(_settings.database_url, lambda_runtime=True)
+_engine = create_database_engine(
+    _settings.database_url,
+    lambda_runtime=True,
+    iam_auth=_settings.db_iam_auth,
+    region=_settings.resolves_aws_region,
+)
 _session_factory = create_session_factory(_engine)
 _object_storage = S3ObjectStorage(_settings)
 _s3 = boto3.client("s3", region_name=_settings.resolves_aws_region)

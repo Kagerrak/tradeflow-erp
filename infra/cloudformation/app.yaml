@@ -8,12 +8,13 @@ Parameters:
   ProjectName:
     Type: String
     Default: tradeflow-demo
-  PrivateSubnetIds:
-    Type: List<AWS::EC2::Subnet::Id>
-  LambdaSecurityGroupId:
-    Type: AWS::EC2::SecurityGroup::Id
   DbClusterEndpoint:
     Type: String
+  DbClusterResourceId:
+    Type: String
+    Description: >
+      Aurora cluster resource id (cluster-XXXX) used to scope the rds-db:connect
+      permission for IAM database authentication.
   DbClusterPort:
     Type: String
     Default: "5432"
@@ -92,6 +93,9 @@ Resources:
                 Action: [logs:CreateLogStream, logs:PutLogEvents]
                 Resource: !GetAtt ApiLogGroup.Arn
               - Effect: Allow
+                Action: rds-db:connect
+                Resource: !Sub "arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${DbClusterResourceId}/${DatabaseUser}"
+              - Effect: Allow
                 Action:
                   [
                     dynamodb:GetItem,
@@ -134,6 +138,9 @@ Resources:
               - Effect: Allow
                 Action: [logs:CreateLogStream, logs:PutLogEvents]
                 Resource: !GetAtt WorkerLogGroup.Arn
+              - Effect: Allow
+                Action: rds-db:connect
+                Resource: !Sub "arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${DbClusterResourceId}/${DatabaseUser}"
               - Effect: Allow
                 Action:
                   [
@@ -186,6 +193,9 @@ Resources:
               - Effect: Allow
                 Action: [logs:CreateLogStream, logs:PutLogEvents]
                 Resource: !GetAtt MigrationLogGroup.Arn
+              - Effect: Allow
+                Action: rds-db:connect
+                Resource: !Sub "arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${DbClusterResourceId}/${DatabaseUser}"
 
   WebRole:
     Type: AWS::IAM::Role
@@ -222,10 +232,6 @@ Resources:
       Timeout: 60
       # Caps how many concurrent Lambda environments can open Aurora sessions.
       ReservedConcurrentExecutions: 10
-      VpcConfig:
-        SubnetIds: !Ref PrivateSubnetIds
-        SecurityGroupIds:
-          - !Ref LambdaSecurityGroupId
       LoggingConfig:
         LogFormat: JSON
       Environment:
@@ -233,6 +239,7 @@ Resources:
           TRADEFLOW_ENVIRONMENT: demo
           TRADEFLOW_DEMO_MODE: "true"
           TRADEFLOW_LAMBDA_RUNTIME: "true"
+          TRADEFLOW_DB_IAM_AUTH: "true"
           TRADEFLOW_TELEMETRY_ENABLED: "false"
           TRADEFLOW_PICKING_ENABLED: "true"
           TRADEFLOW_RATE_LIMIT_REQUESTS_PER_MINUTE: "600"
@@ -247,9 +254,10 @@ Resources:
           TRADEFLOW_AUTH_AUDIENCE: tradeflow-api
           TRADEFLOW_AUTH_ISSUER: https://identity.tradeflow.invalid
           TRADEFLOW_OBJECT_STORAGE_BUCKET: !Ref DocumentsBucketName
-          # Password-free placeholder. The deployment workflow applies the real
-          # DATABASE_URL and the shared secrets from Parameter Store after the
-          # stack update, so no secret is ever stored in CloudFormation.
+          # Password-free: this deployment authenticates to Aurora with a
+          # short-lived IAM token, so there is no database password to store.
+          # The deployment workflow fills in the endpoint and the demo secrets
+          # from Parameter Store after the stack update.
           TRADEFLOW_DATABASE_URL: !Sub "postgresql+asyncpg://${DatabaseUser}@${DbClusterEndpoint}:${DbClusterPort}/${DatabaseName}"
 
   MigrationFunction:
@@ -265,16 +273,13 @@ Resources:
       Architectures: [x86_64]
       MemorySize: 1024
       Timeout: 900
-      VpcConfig:
-        SubnetIds: !Ref PrivateSubnetIds
-        SecurityGroupIds:
-          - !Ref LambdaSecurityGroupId
       LoggingConfig:
         LogFormat: JSON
       Environment:
         Variables:
           TRADEFLOW_ENVIRONMENT: demo
           TRADEFLOW_LAMBDA_RUNTIME: "true"
+          TRADEFLOW_DB_IAM_AUTH: "true"
           TRADEFLOW_TELEMETRY_ENABLED: "false"
           TRADEFLOW_AWS_REGION: !Ref AWS::Region
           TRADEFLOW_DATABASE_URL: !Sub "postgresql+asyncpg://${DatabaseUser}@${DbClusterEndpoint}:${DbClusterPort}/${DatabaseName}"
@@ -293,16 +298,13 @@ Resources:
       Architectures: [x86_64]
       MemorySize: 1024
       Timeout: 900
-      VpcConfig:
-        SubnetIds: !Ref PrivateSubnetIds
-        SecurityGroupIds:
-          - !Ref LambdaSecurityGroupId
       LoggingConfig:
         LogFormat: JSON
       Environment:
         Variables:
           TRADEFLOW_WORKER_ENVIRONMENT: demo
           TRADEFLOW_WORKER_LAMBDA_RUNTIME: "true"
+          TRADEFLOW_WORKER_DB_IAM_AUTH: "true"
           TRADEFLOW_WORKER_TELEMETRY_ENABLED: "false"
           TRADEFLOW_WORKER_AWS_REGION: !Ref AWS::Region
           TRADEFLOW_WORKER_DEMO_MODE: "true"

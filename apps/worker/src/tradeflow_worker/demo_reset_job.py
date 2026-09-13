@@ -17,7 +17,7 @@ from typing import Any
 from uuid import uuid4
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
+from tradeflow_api.database import create_database_engine
 from tradeflow_api.demo_reset import (
     DEMO_LOCK_ID,
     missing_demo_seed_requirements,
@@ -35,6 +35,14 @@ from tradeflow_worker.demo_seed_runner import run_seed_against_in_process_api
 logger = logging.getLogger(__name__)
 
 RESET_LOCK_TTL_SECONDS = 15 * 60
+
+
+def _engine(settings: WorkerSettings) -> Any:
+    return create_database_engine(
+        settings.database_url,
+        iam_auth=settings.db_iam_auth,
+        region=settings.resolves_aws_region,
+    )
 
 
 def build_state_store(settings: WorkerSettings) -> Any:
@@ -63,8 +71,8 @@ def _write_credential(settings: WorkerSettings, token: str) -> None:
     )
 
 
-async def _truncate(database_url: str) -> None:
-    engine = create_async_engine(database_url, poolclass=None)
+async def _truncate(settings: WorkerSettings) -> None:
+    engine = _engine(settings)
     try:
         async with engine.begin() as connection:
             table_names = ", ".join(f'"{table.name}"' for table in metadata.sorted_tables)
@@ -73,8 +81,8 @@ async def _truncate(database_url: str) -> None:
         await engine.dispose()
 
 
-async def _validate(database_url: str) -> list[str]:
-    engine = create_async_engine(database_url)
+async def _validate(settings: WorkerSettings) -> list[str]:
+    engine = _engine(settings)
     try:
         async with engine.connect() as connection:
             return await missing_demo_seed_requirements(connection)
@@ -100,7 +108,7 @@ async def run_demo_reset(settings: WorkerSettings, *, owner: str | None = None) 
     seeded = False
     try:
         await store.mark_refreshing(owner=lock_owner, seed_version=settings.demo_seed_version)
-        engine = create_async_engine(settings.database_url)
+        engine = _engine(settings)
         try:
             async with engine.connect() as lock_connection:
                 acquired = await lock_connection.scalar(
@@ -109,7 +117,7 @@ async def run_demo_reset(settings: WorkerSettings, *, owner: str | None = None) 
                 if not acquired:
                     return {"status": "skipped", "reason": "postgres advisory lock held"}
                 try:
-                    await _truncate(settings.database_url)
+                    await _truncate(settings)
                     os.environ.setdefault("TRADEFLOW_DEMO_STATE_DIR", str(state_dir))
                     os.environ.setdefault("TRADEFLOW_DEMO_WEB_UID", str(os.getuid()))
                     if not os.environ.get("TRADEFLOW_DEMO_STATE_PATH"):
@@ -120,7 +128,7 @@ async def run_demo_reset(settings: WorkerSettings, *, owner: str | None = None) 
                     )
                     await run_seed_against_in_process_api(port=settings.demo_reset_api_port)
 
-                    missing = await _validate(settings.database_url)
+                    missing = await _validate(settings)
                     if missing:
                         raise RuntimeError("Demo seed is incomplete: " + ", ".join(sorted(missing)))
 

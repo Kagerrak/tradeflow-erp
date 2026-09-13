@@ -34,6 +34,7 @@ class WorkerSettings(BaseSettings):
     otlp_endpoint: str | None = None
     aws_region: str | None = None
     lambda_runtime: bool = False
+    db_iam_auth: bool = False
     local_poll_seconds: float = Field(default=5.0, ge=0.5)
     outbox_batch_size: int = Field(default=25, ge=1, le=200)
 

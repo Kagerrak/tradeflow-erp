@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     aws_region: str | None = None
     lambda_runtime: bool = False
     alembic_ini: str | None = None
+    db_iam_auth: bool = False
 
     @property
     def resolves_aws_region(self) -> str | None:

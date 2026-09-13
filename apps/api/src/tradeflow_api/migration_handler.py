@@ -18,7 +18,10 @@ from typing import Any
 from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncEngine
+
+from tradeflow_api.database import create_database_engine
 
 
 def alembic_ini() -> Path:
@@ -35,20 +38,59 @@ def _database_url() -> str:
     return url
 
 
+def _iam_auth() -> bool:
+    return os.environ.get("TRADEFLOW_DB_IAM_AUTH", "").lower() in {"1", "true", "yes"}
+
+
+def engine_for(url: str) -> AsyncEngine:
+    return create_database_engine(
+        url,
+        iam_auth=_iam_auth(),
+        region=os.environ.get("TRADEFLOW_AWS_REGION") or os.environ.get("AWS_REGION"),
+    )
+
+
 def _current_revision(url: str) -> str | None:
     async def read() -> str | None:
-        engine = create_async_engine(url, poolclass=None)
+        engine = engine_for(url)
         try:
             async with engine.connect() as connection:
-                return await connection.run_sync(
+                revision = await connection.run_sync(
                     lambda sync_connection: MigrationContext.configure(
                         sync_connection
                     ).get_current_revision()
                 )
+                return str(revision) if revision is not None else None
         finally:
             await engine.dispose()
 
     return asyncio.run(read())
+
+
+async def _ensure_database(url: str, name: str) -> None:
+    """Create the application database if it does not exist.
+
+    Express-configuration clusters cannot be created with an initial database,
+    so this runs as an explicit deployment step. It connects to the maintenance
+    database first, and CREATE DATABASE needs autocommit.
+    """
+    admin_url = url.rsplit("/", 1)[0] + "/postgres"
+    engine = create_database_engine(
+        admin_url,
+        iam_auth=_iam_auth(),
+        region=os.environ.get("TRADEFLOW_AWS_REGION") or os.environ.get("AWS_REGION"),
+    )
+    try:
+        async with engine.connect() as connection:
+            exists = await connection.scalar(
+                text("SELECT 1 FROM pg_database WHERE datname = :name"), {"name": name}
+            )
+            if exists:
+                return
+            autocommit = await connection.execution_options(isolation_level="AUTOCOMMIT")
+            await autocommit.execute(text(f'CREATE DATABASE "{name}"'))
+    finally:
+        await engine.dispose()
 
 
 def handler(event: dict[str, Any] | None, context: Any = None) -> dict[str, Any]:
@@ -66,6 +108,12 @@ def handler(event: dict[str, Any] | None, context: Any = None) -> dict[str, Any]
     except Exception:
         before = None
 
+    if action == "create-database":
+        name = request.get("name")
+        if not isinstance(name, str) or not name:
+            raise RuntimeError("A database name is required.")
+        asyncio.run(_ensure_database(url, name))
+        return {"action": action, "database": name}
     if action == "upgrade":
         command.upgrade(config, str(request.get("revision", "head")))
     elif action == "downgrade":
