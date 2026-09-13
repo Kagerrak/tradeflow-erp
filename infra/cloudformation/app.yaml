@@ -509,6 +509,18 @@ Resources:
             Compress: true
             CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
 
+  # A function URL with AuthType NONE is still gated by the function's
+  # resource-based policy, and CloudFormation does not create that policy for
+  # you. Without this statement every request returns 403 and the function is
+  # never invoked.
+  WebFunctionUrlPublicAccess:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunctionUrl
+      FunctionName: !Ref WebFunction
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+
   WebAssetsBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
