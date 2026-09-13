@@ -112,6 +112,7 @@ Resources:
               - Effect: Allow
                 Action:
                   [
+                    s3:ListBucket,
                     s3:ListBucketMultipartUploads,
                     s3:ListMultipartUploadParts,
                     s3:AbortMultipartUpload,
@@ -158,6 +159,7 @@ Resources:
               - Effect: Allow
                 Action:
                   [
+                    s3:ListBucket,
                     s3:ListBucketMultipartUploads,
                     s3:ListMultipartUploadParts,
                     s3:AbortMultipartUpload,
