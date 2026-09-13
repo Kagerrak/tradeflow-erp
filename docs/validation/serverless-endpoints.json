@@ -1,0 +1,56 @@
+[
+  {
+    "path": "/",
+    "status": 200,
+    "seconds": 0.738,
+    "bytes": 35030,
+    "cache": "Miss from cloudfront",
+    "cache_control": "s-maxage=31536000",
+    "demo_status": null
+  },
+  {
+    "path": "/operations",
+    "status": 200,
+    "seconds": 0.763,
+    "bytes": 29644,
+    "cache": "Miss from cloudfront",
+    "cache_control": "s-maxage=31536000",
+    "demo_status": null
+  },
+  {
+    "path": "/api/health",
+    "status": 200,
+    "seconds": 0.654,
+    "bytes": 41,
+    "cache": "Miss from cloudfront",
+    "cache_control": "no-store",
+    "demo_status": null
+  },
+  {
+    "path": "/api/demo/status",
+    "status": 200,
+    "seconds": 0.328,
+    "bytes": 2946,
+    "cache": "Miss from cloudfront",
+    "cache_control": "no-store",
+    "demo_status": "ready"
+  },
+  {
+    "path": "/robots.txt",
+    "status": 200,
+    "seconds": 0.229,
+    "bytes": 121,
+    "cache": "Miss from cloudfront",
+    "cache_control": "public, max-age=0, must-revalidate",
+    "demo_status": null
+  },
+  {
+    "path": "/_next/static/_BfKK23dx2_Rk7_7k6ilw/_buildManifest.js",
+    "status": 200,
+    "seconds": 0.67,
+    "bytes": 219,
+    "cache": "Miss from cloudfront",
+    "cache_control": "public, max-age=31536000, immutable",
+    "demo_status": null
+  }
+]

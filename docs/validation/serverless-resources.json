@@ -1,0 +1,93 @@
+{
+  "captured_at": "2026-09-13T17:07:31.499069+00:00",
+  "stacks": [
+    {
+      "name": "tradeflow-demo-app",
+      "status": "UPDATE_COMPLETE"
+    },
+    {
+      "name": "tradeflow-demo-data",
+      "status": "CREATE_COMPLETE"
+    },
+    {
+      "name": "tradeflow-demo-budget",
+      "status": "CREATE_COMPLETE"
+    },
+    {
+      "name": "tradeflow-demo-network",
+      "status": "CREATE_COMPLETE"
+    },
+    {
+      "name": "tradeflow-demo-ci",
+      "status": "UPDATE_COMPLETE"
+    }
+  ],
+  "functions": {
+    "api": {
+      "state": "Active",
+      "timeout": 60,
+      "memory": 1024,
+      "image": "527673188999.dkr.ecr.ap-southeast-2.amazonaws.com/tradeflow-demo-api@sha256:baede357083e5522e6c0ae03368f5feba074c5010c3c5e5fdc0aa4aed6873dbb",
+      "vpc": "",
+      "last_modified": "2026-09-13T16:56:44.000+0000"
+    },
+    "worker": {
+      "state": "Active",
+      "timeout": 900,
+      "memory": 1024,
+      "image": "527673188999.dkr.ecr.ap-southeast-2.amazonaws.com/tradeflow-demo-worker@sha256:f05ffe486947dccfb9e3d9a4c8291e9857231333ec91b7da14b85b51c87f2589",
+      "vpc": "",
+      "last_modified": "2026-09-13T16:56:54.000+0000"
+    },
+    "web": {
+      "state": "Active",
+      "timeout": 30,
+      "memory": 1024,
+      "image": "527673188999.dkr.ecr.ap-southeast-2.amazonaws.com/tradeflow-demo-web@sha256:bc821f1ff5d26d0b39551edc01ddccb4a8b53d84c9fa8ff51f4c0198528d941f",
+      "vpc": null,
+      "last_modified": "2026-09-13T16:57:13.000+0000"
+    },
+    "migration": {
+      "state": "Active",
+      "timeout": 900,
+      "memory": 1024,
+      "image": "527673188999.dkr.ecr.ap-southeast-2.amazonaws.com/tradeflow-demo-api@sha256:baede357083e5522e6c0ae03368f5feba074c5010c3c5e5fdc0aa4aed6873dbb",
+      "vpc": null,
+      "last_modified": "2026-09-13T16:57:03.000+0000"
+    }
+  },
+  "ecr_manifest_size_upper_bound": {
+    "api": {
+      "image_count": 23,
+      "sum_bytes": 3110960538
+    },
+    "worker": {
+      "image_count": 23,
+      "sum_bytes": 3115011519
+    },
+    "web": {
+      "image_count": 17,
+      "sum_bytes": 1108970911
+    }
+  },
+  "account_limits": {
+    "TotalCodeSize": 322122547200,
+    "CodeSizeUnzipped": 262144000,
+    "CodeSizeZipped": 52428800,
+    "ConcurrentExecutions": 10,
+    "UnreservedConcurrentExecutions": 10
+  },
+  "queue_mapping": [
+    {
+      "UUID": "d024940d-06b1-471e-ad16-9c98b26f8cbe",
+      "BatchSize": 1,
+      "ScalingConfig": {
+        "MaximumConcurrency": 2
+      },
+      "State": "Enabled",
+      "FunctionResponseTypes": [
+        "ReportBatchItemFailures"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+[
+  {
+    "visitor": 0,
+    "status": 200,
+    "kind": "ready",
+    "correlation": "924296e9-990a-4d7e-a2fe-d305d74ff9d6",
+    "cache": "Miss from cloudfront",
+    "cache_control": "no-store"
+  },
+  {
+    "visitor": 1,
+    "status": 200,
+    "kind": "ready",
+    "correlation": "c7aa23d6-ff92-464b-8775-9ce61434b336",
+    "cache": "Miss from cloudfront",
+    "cache_control": "no-store"
+  },
+  {
+    "visitor": 0,
+    "status": 200,
+    "kind": "ready",
+    "correlation": "af6bcd28-f1b0-4565-9ed1-57480bffed4b",
+    "cache": "Miss from cloudfront",
+    "cache_control": "no-store"
+  },
+  {
+    "visitor": 1,
+    "status": 200,
+    "kind": "ready",
+    "correlation": "570b70aa-0110-494b-a491-c735fd4bf30e",
+    "cache": "Miss from cloudfront",
+    "cache_control": "no-store"
+  },
+  {
+    "direct_api_auth": "missing",
+    "path": "/v1/session",
+    "status": 401
+  },
+  {
+    "direct_api_auth": "invalid",
+    "path": "/v1/session",
+    "status": 401
+  }
+]

@@ -1,0 +1,40 @@
+{
+  "before": {
+    "receipts": [
+      {
+        "handler_name": "documents.delivery-receipt.v1",
+        "result_id": "fa8ac408-9561-4442-b757-5533bde0d4e4"
+      },
+      {
+        "handler_name": "finance.draft-invoice.v1",
+        "result_id": "134ef688-64dd-5242-b7f2-24c5cd543f35"
+      },
+      {
+        "handler_name": "notifications.operational.v1",
+        "result_id": "86a4380a-c43b-5ec8-b31d-cd6c4409bdbe"
+      }
+    ],
+    "invoices": 1
+  },
+  "worker_result": {
+    "batchItemFailures": []
+  },
+  "after": {
+    "receipts": [
+      {
+        "handler_name": "documents.delivery-receipt.v1",
+        "result_id": "fa8ac408-9561-4442-b757-5533bde0d4e4"
+      },
+      {
+        "handler_name": "finance.draft-invoice.v1",
+        "result_id": "134ef688-64dd-5242-b7f2-24c5cd543f35"
+      },
+      {
+        "handler_name": "notifications.operational.v1",
+        "result_id": "86a4380a-c43b-5ec8-b31d-cd6c4409bdbe"
+      }
+    ],
+    "invoices": 1
+  },
+  "unchanged": true
+}

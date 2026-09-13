@@ -1,0 +1,43 @@
+{
+  "evidence_id": "140a1b83-6660-4513-a58b-0a0b4643f021",
+  "delivery_id": "9ad56b1d-df8a-57c6-9fab-15508a938069",
+  "upload_verified": true,
+  "confirmation": {
+    "confirmation_id": "8d08722a-7419-4e25-97cc-883546d2ccde",
+    "delivery_id": "9ad56b1d-df8a-57c6-9fab-15508a938069",
+    "status": "confirmed",
+    "version": 2,
+    "lines": [
+      {
+        "delivery_line_id": "061e3dbd-c2c2-4540-8fe0-b831ff1087f3",
+        "line_id": "a67d6233-b306-58d2-a89d-f09e8b90ac47",
+        "sku_id": "32717747-e04e-4361-a4f7-d0444dc2be5d",
+        "accepted_quantity_base": "8.000000",
+        "refused_quantity_base": "0",
+        "damaged_quantity_base": "0",
+        "short_missing_quantity_base": "0",
+        "still_undelivered_quantity_base": "0",
+        "unit_cost": "145.000000",
+        "value_delta": "-1160.000000",
+        "outbound_movement_id": "68d2f86d-c738-4c2d-a25a-154d2e23994e"
+      }
+    ],
+    "delivery_receipt": {
+      "delivery_receipt_id": "fa8ac408-9561-4442-b757-5533bde0d4e4",
+      "number": "DR-MNL-00000002",
+      "status": "pending_document"
+    },
+    "outbox_event_id": "bd6166b4-bf32-43d8-a49d-0f10cf214b5a",
+    "collection": null,
+    "on_account_conversion": null
+  },
+  "document": {
+    "status": 200,
+    "bytes": 2199,
+    "pdf": true
+  },
+  "evidence_download": {
+    "status": 200,
+    "sha256_matches": true
+  }
+}

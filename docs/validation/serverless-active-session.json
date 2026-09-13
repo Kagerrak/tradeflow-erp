@@ -1,0 +1,372 @@
+{
+  "start": "2026-09-13 16:57:00+00:00",
+  "end": "2026-09-13 17:04:00+00:00",
+  "session_minutes": 7,
+  "activities": [
+    "operations overview",
+    "save Sales Order Draft",
+    "sales/inventory/delivery reads",
+    "S3 evidence upload and hash-verified download",
+    "confirm delivery",
+    "PDF download",
+    "duplicate worker replay"
+  ],
+  "capacity": [
+    {
+      "Timestamp": "2026-09-14 00:57:00+08:00",
+      "Average": 1.4923076923076923,
+      "Minimum": 1.0,
+      "Maximum": 2.0,
+      "Unit": "None"
+    },
+    {
+      "Timestamp": "2026-09-14 00:58:00+08:00",
+      "Average": 1.525,
+      "Minimum": 1.5,
+      "Maximum": 2.0,
+      "Unit": "None"
+    },
+    {
+      "Timestamp": "2026-09-14 00:59:00+08:00",
+      "Average": 1.5416666666666667,
+      "Minimum": 1.5,
+      "Maximum": 2.0,
+      "Unit": "None"
+    },
+    {
+      "Timestamp": "2026-09-14 01:00:00+08:00",
+      "Average": 1.5083333333333333,
+      "Minimum": 1.5,
+      "Maximum": 2.0,
+      "Unit": "None"
+    },
+    {
+      "Timestamp": "2026-09-14 01:01:00+08:00",
+      "Average": 1.5,
+      "Minimum": 1.5,
+      "Maximum": 1.5,
+      "Unit": "None"
+    },
+    {
+      "Timestamp": "2026-09-14 01:02:00+08:00",
+      "Average": 0.6833333333333333,
+      "Minimum": 0.5,
+      "Maximum": 1.5,
+      "Unit": "None"
+    },
+    {
+      "Timestamp": "2026-09-14 01:03:00+08:00",
+      "Average": 0.5,
+      "Minimum": 0.5,
+      "Maximum": 0.5,
+      "Unit": "None"
+    }
+  ],
+  "approx_acu_hours": 0.1458440170940171,
+  "lambda": {
+    "web": {
+      "Invocations": [
+        {
+          "Timestamp": "2026-09-14 00:57:00+08:00",
+          "Sum": 21.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 00:58:00+08:00",
+          "Sum": 89.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 00:59:00+08:00",
+          "Sum": 18.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 01:00:00+08:00",
+          "Sum": 8.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 01:01:00+08:00",
+          "Sum": 7.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 01:02:00+08:00",
+          "Sum": 26.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 01:03:00+08:00",
+          "Sum": 6.0,
+          "Unit": "Count"
+        }
+      ],
+      "Duration": [
+        {
+          "Timestamp": "2026-09-14 00:57:00+08:00",
+          "Sum": 11113.139999999998,
+          "Unit": "Milliseconds"
+        },
+        {
+          "Timestamp": "2026-09-14 00:58:00+08:00",
+          "Sum": 4410.2499999,
+          "Unit": "Milliseconds"
+        },
+        {
+          "Timestamp": "2026-09-14 00:59:00+08:00",
+          "Sum": 7539.0,
+          "Unit": "Milliseconds"
+        },
+        {
+          "Timestamp": "2026-09-14 01:00:00+08:00",
+          "Sum": 492.26000000000005,
+          "Unit": "Milliseconds"
+        },
+        {
+          "Timestamp": "2026-09-14 01:01:00+08:00",
+          "Sum": 485.90000000000003,
+          "Unit": "Milliseconds"
+        },
+        {
+          "Timestamp": "2026-09-14 01:02:00+08:00",
+          "Sum": 4113.790000000001,
+          "Unit": "Milliseconds"
+        },
+        {
+          "Timestamp": "2026-09-14 01:03:00+08:00",
+          "Sum": 67.65,
+          "Unit": "Milliseconds"
+        }
+      ],
+      "Errors": [
+        {
+          "Timestamp": "2026-09-14 00:57:00+08:00",
+          "Sum": 0.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 00:58:00+08:00",
+          "Sum": 0.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 00:59:00+08:00",
+          "Sum": 0.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 01:00:00+08:00",
+          "Sum": 0.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 01:01:00+08:00",
+          "Sum": 0.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 01:02:00+08:00",
+          "Sum": 0.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 01:03:00+08:00",
+          "Sum": 0.0,
+          "Unit": "Count"
+        }
+      ]
+    },
+    "api": {
+      "Invocations": [
+        {
+          "Timestamp": "2026-09-14 00:57:00+08:00",
+          "Sum": 9.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 00:58:00+08:00",
+          "Sum": 4.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 00:59:00+08:00",
+          "Sum": 17.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 01:00:00+08:00",
+          "Sum": 4.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 01:01:00+08:00",
+          "Sum": 3.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 01:02:00+08:00",
+          "Sum": 16.0,
+          "Unit": "Count"
+        }
+      ],
+      "Duration": [
+        {
+          "Timestamp": "2026-09-14 00:57:00+08:00",
+          "Sum": 85.60000000000001,
+          "Unit": "Milliseconds"
+        },
+        {
+          "Timestamp": "2026-09-14 00:58:00+08:00",
+          "Sum": 8123.59,
+          "Unit": "Milliseconds"
+        },
+        {
+          "Timestamp": "2026-09-14 00:59:00+08:00",
+          "Sum": 7041.989999999999,
+          "Unit": "Milliseconds"
+        },
+        {
+          "Timestamp": "2026-09-14 01:00:00+08:00",
+          "Sum": 379.26,
+          "Unit": "Milliseconds"
+        },
+        {
+          "Timestamp": "2026-09-14 01:01:00+08:00",
+          "Sum": 388.42,
+          "Unit": "Milliseconds"
+        },
+        {
+          "Timestamp": "2026-09-14 01:02:00+08:00",
+          "Sum": 3829.7500000000005,
+          "Unit": "Milliseconds"
+        }
+      ],
+      "Errors": [
+        {
+          "Timestamp": "2026-09-14 00:57:00+08:00",
+          "Sum": 0.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 00:58:00+08:00",
+          "Sum": 0.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 00:59:00+08:00",
+          "Sum": 0.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 01:00:00+08:00",
+          "Sum": 0.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 01:01:00+08:00",
+          "Sum": 0.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 01:02:00+08:00",
+          "Sum": 0.0,
+          "Unit": "Count"
+        }
+      ]
+    },
+    "worker": {
+      "Invocations": [
+        {
+          "Timestamp": "2026-09-14 00:59:00+08:00",
+          "Sum": 1.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 01:02:00+08:00",
+          "Sum": 2.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 01:03:00+08:00",
+          "Sum": 1.0,
+          "Unit": "Count"
+        }
+      ],
+      "Duration": [
+        {
+          "Timestamp": "2026-09-14 00:59:00+08:00",
+          "Sum": 3698.24,
+          "Unit": "Milliseconds"
+        },
+        {
+          "Timestamp": "2026-09-14 01:02:00+08:00",
+          "Sum": 5662.16,
+          "Unit": "Milliseconds"
+        },
+        {
+          "Timestamp": "2026-09-14 01:03:00+08:00",
+          "Sum": 484.48,
+          "Unit": "Milliseconds"
+        }
+      ],
+      "Errors": [
+        {
+          "Timestamp": "2026-09-14 00:59:00+08:00",
+          "Sum": 0.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 01:02:00+08:00",
+          "Sum": 0.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 01:03:00+08:00",
+          "Sum": 0.0,
+          "Unit": "Count"
+        }
+      ]
+    },
+    "migration": {
+      "Invocations": [
+        {
+          "Timestamp": "2026-09-14 00:57:00+08:00",
+          "Sum": 2.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 00:58:00+08:00",
+          "Sum": 1.0,
+          "Unit": "Count"
+        }
+      ],
+      "Duration": [
+        {
+          "Timestamp": "2026-09-14 00:57:00+08:00",
+          "Sum": 8206.380000000001,
+          "Unit": "Milliseconds"
+        },
+        {
+          "Timestamp": "2026-09-14 00:58:00+08:00",
+          "Sum": 407.79,
+          "Unit": "Milliseconds"
+        }
+      ],
+      "Errors": [
+        {
+          "Timestamp": "2026-09-14 00:57:00+08:00",
+          "Sum": 0.0,
+          "Unit": "Count"
+        },
+        {
+          "Timestamp": "2026-09-14 00:58:00+08:00",
+          "Sum": 0.0,
+          "Unit": "Count"
+        }
+      ]
+    }
+  },
+  "estimated_aurora_compute_usd_at_020_per_acu_hour": 0.02916880341880342,
+  "limitations": "Observed CloudWatch metrics, minute-resolution integral; includes validation overhead. Dollars are a rate-based estimate, not billing. No 30-minute session extrapolation is presented as observed."
+}

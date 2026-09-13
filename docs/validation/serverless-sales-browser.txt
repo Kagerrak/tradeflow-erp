@@ -1,0 +1,205 @@
+[p1 "TradeFlow ERP | Accountable distribution operations" | space "TradeFlow serverless validation"(4): 1 managed, 0 untracked — p1* "TradeFlow ERP | Accountable distribution operations"]
+root
+  container
+    container "Primary navigation"
+      anchor [ref=10, url=https://dt7yjmo5ppcxs.cloudfront.net/operations]
+        text "TF"
+        text "TradeFlow"
+      container
+        container
+          heading
+            text "OPERATIONS"
+          unordered_list
+            list_item
+              anchor [ref=11, url=https://dt7yjmo5ppcxs.cloudfront.net/operations]
+                svg_root
+                text "Operations overview"
+            list_item
+              anchor [ref=12, loc=href:/sales-orders/new, url=https://dt7yjmo5ppcxs.cloudfront.net/sales-orders/new]
+                svg_root
+                text "Sales orders"
+            list_item
+              anchor [ref=13, loc=href:/sales-orders/approvals, url=https://dt7yjmo5ppcxs.cloudfront.net/sales-orders/approvals]
+                svg_root
+                text "Approvals"
+            list_item
+              anchor [ref=14, loc=href:/picking, url=https://dt7yjmo5ppcxs.cloudfront.net/picking]
+                svg_root
+                text "Picking"
+            list_item
+              anchor [ref=15, loc=href:/dispatch, url=https://dt7yjmo5ppcxs.cloudfront.net/dispatch]
+                svg_root
+                text "Dispatch"
+            list_item
+              anchor [ref=16, loc=href:/deliveries, url=https://dt7yjmo5ppcxs.cloudfront.net/deliveries]
+                svg_root
+                text "Deliveries"
+        container
+          heading
+            text "INVENTORY"
+          unordered_list
+            list_item
+              anchor [ref=17, loc=href:/inventory, url=https://dt7yjmo5ppcxs.cloudfront.net/inventory]
+                svg_root
+                text "Stock ledger"
+            list_item
+              anchor [ref=18, loc=href:/inventory/transfers, url=https://dt7yjmo5ppcxs.cloudfront.net/inventory/transfers]
+                svg_root
+                text "Transfers"
+            list_item
+              anchor [ref=19, loc=href:/inventory/adjustments, url=https://dt7yjmo5ppcxs.cloudfront.net/inventory/adjustments]
+                svg_root
+                text "Adjustments"
+        container
+          heading
+            text "COMMERCIAL"
+          unordered_list
+            list_item
+              anchor [ref=20, loc=href:/customers, url=https://dt7yjmo5ppcxs.cloudfront.net/customers]
+                svg_root
+                text "Customers"
+            list_item
+              anchor [ref=21, loc=href:/finance, url=https://dt7yjmo5ppcxs.cloudfront.net/finance]
+                svg_root
+                text "Finance"
+            list_item
+              anchor [ref=22, loc=href:/finance/credit-notes, url=https://dt7yjmo5ppcxs.cloudfront.net/finance/credit-notes]
+                svg_root
+                text "Credit notes"
+            list_item
+              anchor [ref=23, loc=href:/finance/allocations, url=https://dt7yjmo5ppcxs.cloudfront.net/finance/allocations]
+                svg_root
+                text "Allocations"
+            list_item
+              anchor [ref=24, loc=href:/finance/statement, url=https://dt7yjmo5ppcxs.cloudfront.net/finance/statement]
+                svg_root
+                text "Statement"
+            list_item
+              anchor [ref=25, loc=href:/finance/timeline, url=https://dt7yjmo5ppcxs.cloudfront.net/finance/timeline]
+                svg_root
+                text "Timeline"
+            list_item
+              anchor [ref=26, loc=href:/payments, url=https://dt7yjmo5ppcxs.cloudfront.net/payments]
+                svg_root
+                text "Payments"
+        container
+          heading
+            text "PROCUREMENT"
+          unordered_list
+            list_item
+              anchor [ref=27, loc=href:/procurement, url=https://dt7yjmo5ppcxs.cloudfront.net/procurement]
+                svg_root
+                text "Procurement"
+            list_item
+              anchor [ref=28, loc=href:/procurement/suppliers, url=https://dt7yjmo5ppcxs.cloudfront.net/procurement/suppliers]
+                svg_root
+                text "Suppliers"
+            list_item
+              anchor [ref=29, loc=href:/procurement/purchase-requests, url=https://dt7yjmo5ppcxs.cloudfront.net/procurement/purchase-requests]
+                svg_root
+                text "Requests"
+            list_item
+              anchor [ref=30, loc=href:/procurement/purchase-orders, url=https://dt7yjmo5ppcxs.cloudfront.net/procurement/purchase-orders]
+                svg_root
+                text "Purchase orders"
+      container
+        svg_root
+        text "Server-authoritative"
+    container
+      container
+        text "SALES"
+        heading
+          text "New sales order"
+        paragraph
+          text "Draft a priced order, then submit it for commercial approval."
+      container "Order details"
+        container
+          heading
+            text "Order details"
+          text "SERVER-AUTHORITATIVE PRICING"
+        form
+          container
+            container
+              text "Customer Account"
+              combobox "Customer Account" [ref=44, loc=css:select[aria-label="Customer Account"]]
+                text "MNL-HARBOR-001 / Harbor & Pine Retail"
+            container
+              text "Payment Timing Policy"
+              combobox "Payment Timing Policy" [ref=45, loc=css:select[aria-label="Payment Timing Policy"]]
+                text "On account"
+            container
+              text "Order discount ("
+              text "PHP"
+              text ")"
+              textbox "Order discount" [ref=46, loc=css:input[aria-label="Order discount"]]
+                text "0.00"
+          container
+            paragraph
+              text "PRICE LIST"
+              text "MNL-DEMO"
+              text "/ VERSION"
+              text "1"
+              text "/"
+              text "EXCLUSIVE"
+            container
+              container
+                text "COFFEE-500"
+                container
+                  text "Highland Coffee 500 g"
+                  text "·"
+                  text "VAT12"
+                  text "· list"
+                  text "PHP"
+                  text "220.000000"
+              container
+                text "Quantity"
+                textbox "COFFEE-500 quantity" [ref=48, loc=css:input[aria-label="COFFEE-500 quantity"]]
+                  text "1"
+              container
+                text "Entered unit"
+                text "EA"
+              container
+                text "Base conversion"
+                container
+                  text "1"
+                  text "EA"
+          status
+            heading
+              text "Draft acknowledged by TradeFlow"
+            paragraph
+              text "MNL-DEMO"
+              text "·"
+              text "exclusive"
+              text "·"
+              text "on account"
+          container
+            container
+              text "SUBTOTAL"
+              container
+                text "PHP"
+                text "220.00"
+            container
+              text "ALLOCATED DISCOUNT"
+              text "0.00"
+            container
+              text "TAX"
+              text "26.40"
+            container
+              text "ORDER TOTAL"
+              container
+                text "PHP"
+                text "246.40"
+          container "Submit this revision for approval"
+            container
+              paragraph
+                text "COMMERCIAL REVIEW"
+              heading
+                text "Submit this revision for approval"
+              paragraph
+                text "Submission freezes this priced revision for the approval queue. Inventory and credit remain uncommitted until an eligible checker approves it."
+            button [ref=49]
+              text "Submit for approval"
+          container
+            text "Draft version 1"
+            button [ref=47]
+              text "Save new draft revision"
