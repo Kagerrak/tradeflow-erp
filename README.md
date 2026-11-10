@@ -56,6 +56,8 @@ The product has three delivery surfaces:
 
 ## Live product demo
 
+[Open the live demo](https://handed-gnu-part-louisiana.trycloudflare.com) — temporary preview URL; demo data resets every 45 minutes.
+
 The operations overview demonstrates a truthful, server-authoritative wholesale
 distribution lifecycle. An operator can:
 
